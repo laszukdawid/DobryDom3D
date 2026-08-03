@@ -18,6 +18,7 @@
 /install/SweetHome3D-*.exe
 
 # Test and local application output
+/.task/
 /test.sh3d
 /*.sweethome3d
 

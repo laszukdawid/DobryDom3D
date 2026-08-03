@@ -2,6 +2,7 @@ version: "3"
 
 vars:
   JAVA_VERSION: temurin-25.0.4+7.0.LTS
+  APP_JAR: install/SweetHome3D-7.5.jar
   JAVA_HOME:
     sh: asdf where java "{{.JAVA_VERSION}}"
 
@@ -19,12 +20,29 @@ tasks:
       - sh: 'test -x "$(asdf where java "{{.JAVA_VERSION}}" 2>/dev/null)/bin/java"'
         msg: Install Java {{.JAVA_VERSION}} with asdf install java {{.JAVA_VERSION}}
 
-  run:
-    desc: Build and run Sweet Home 3D
+  build:executable:
+    internal: true
     deps: [check-java]
+    sources:
+      - Taskfile.yml
+      - build.xml
+      - src/**/*
+      - lib/**/*
+      - libtest/AppleJavaExtensions.jar
+      - libtest/jnlp.jar
+      - ./*.TXT
+      - ./*.HTML
+    generates:
+      - "{{.APP_JAR}}"
+    method: timestamp
     cmds:
       - ant clean jarExecutable
-      - java -jar install/SweetHome3D-7.5.jar
+
+  run:
+    desc: Build and run Sweet Home 3D
+    deps: [build:executable]
+    cmds:
+      - '"{{.JAVA_HOME}}/bin/java" -jar "{{.APP_JAR}}"'
 
   test:
     desc: Run all tests in a virtual X server
