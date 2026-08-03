@@ -56,12 +56,14 @@ With [Task](https://taskfile.dev/) installed, the common local commands are:
 ```sh
 task run
 task test
+task test:headless
+task test:virtual-x-server
 ```
 
-`task test` runs the complete suite, including tests that require a desktop
-session and the bundled Java 3D native libraries. Set `JUNIT_JAR` if JUnit 4 is
-not installed at `/usr/share/java/junit4.jar`. The legacy GUI tests open and
-control application windows automatically; don't interact with those windows.
+`task test` delegates to `task test:virtual-x-server`, which runs the complete
+suite in Xvfb without opening windows on the desktop. `task test:headless` runs
+the stable non-GUI suite used by CI. Set `JUNIT_JAR` if JUnit 4 is not installed
+at `/usr/share/java/junit4.jar`.
 
 ## Fork Status
 

@@ -39,6 +39,10 @@
   <!-- Current version of Sweet Home 3D -->
   <property name="version" value="7.5"/>
   <property name="java.release" value="25"/>
+  <property environment="env"/>
+  <condition property="junit.jar" value="${env.JUNIT_JAR}">
+    <isset property="env.JUNIT_JAR"/>
+  </condition>
   <property name="junit.jar" location="libtest/junit-4.13.2.jar"/>
   <property name="test.includes" value="**/*Test.java"/>
 
