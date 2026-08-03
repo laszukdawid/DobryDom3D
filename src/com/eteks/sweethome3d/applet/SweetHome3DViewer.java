@@ -22,7 +22,6 @@ package com.eteks.sweethome3d.applet;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
-import java.security.AccessControlException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -222,7 +221,7 @@ public class SweetHome3DViewer extends JApplet {
       if (ex instanceof InvocationTargetException) {
         ex = ((InvocationTargetException)ex).getCause();
       }
-      if (ex instanceof AccessControlException) {
+      if (ex instanceof SecurityException) {
         showError(getLocalizedString("signatureError"));
       } else {
         showError("<html>" + getLocalizedString("startError")

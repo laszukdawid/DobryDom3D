@@ -60,7 +60,6 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.net.MalformedURLException;
 import java.net.URL;
-import java.security.AccessControlException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Enumeration;
@@ -1280,7 +1279,7 @@ public class SwingTools {
       if (resolutionScaleProperty != null) {
         return Float.parseFloat(resolutionScaleProperty.trim());
       }
-    } catch (AccessControlException ex) {
+    } catch (SecurityException ex) {
     } catch (NumberFormatException ex) {
       // Ignore resolution
     }

@@ -100,6 +100,7 @@ public class CatalogPieceOfFurniture implements Comparable<CatalogPieceOfFurnitu
    *             parameter since a catalog door and window is supposed to be an instance
    *             of {@link CatalogDoorOrWindow}
    */
+  @Deprecated
   public CatalogPieceOfFurniture(String name, Content icon, Content model,
                                  float width, float depth, float height,
                                  boolean movable, boolean doorOrWindow) {
@@ -130,6 +131,7 @@ public class CatalogPieceOfFurniture implements Comparable<CatalogPieceOfFurnitu
    *             parameter since a catalog door and window is supposed to be an instance
    *             of {@link CatalogDoorOrWindow}
    */
+  @Deprecated
   public CatalogPieceOfFurniture(String id, String name, String description, Content icon, Content model,
                                  float width, float depth, float height, float elevation,
                                  boolean movable, boolean doorOrWindow,
@@ -647,6 +649,7 @@ public class CatalogPieceOfFurniture implements Comparable<CatalogPieceOfFurnitu
    *             parameter since a catalog door and window is supposed to be an instance
    *             of {@link CatalogDoorOrWindow}
    */
+  @Deprecated
   public CatalogPieceOfFurniture(String name, Content icon, Content model,
                                  float width, float depth, float height, float elevation,
                                  boolean movable, boolean doorOrWindow, Integer color,

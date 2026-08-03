@@ -25,7 +25,6 @@ import java.lang.reflect.Constructor;
 import java.lang.reflect.Method;
 import java.net.MalformedURLException;
 import java.net.URL;
-import java.security.AccessControlException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -320,7 +319,7 @@ public class SweetHome3DApplet extends JApplet {
           // Disable JOGL library loader
           System.setProperty("jogamp.gluegen.UseTempJarCache", "false");
           System.setProperty("com.eteks.sweethome3d.j3d.useOffScreen3DView", "true");
-        } catch (AccessControlException ex) {
+        } catch (SecurityException ex) {
           // Unsigned applet
         }
         if (System.getProperty("os.name").startsWith("Mac OS X")
@@ -402,7 +401,7 @@ public class SweetHome3DApplet extends JApplet {
               (String [])java3DFiles.toArray(new String [java3DFiles.size()]),
               (String [])applicationPackages.toArray(new String [applicationPackages.size()]));
       startApplication(applicationClassName, extensionsClassLoader);
-    } catch (AccessControlException ex) {
+    } catch (SecurityException ex) {
       String runWithoutSignature = getParameter("runWithoutSignature");
       if (runWithoutSignature != null && Boolean.parseBoolean(runWithoutSignature)) {
         // Try to run application without 3D

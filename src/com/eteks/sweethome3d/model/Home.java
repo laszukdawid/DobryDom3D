@@ -411,7 +411,7 @@ public class Home implements Serializable, Cloneable {
     // Create a default top camera that matches default point of view
     this.topCamera = new Camera(HOME_TOP_CAMERA_ID, 50, 1050, 1010,
         (float)Math.PI, (float)Math.PI / 4, (float)Math.PI * 63 / 180);
-    // Create a default observer camera (use a 63° field of view equivalent to a 35mm lens for a 24x36 film)
+    // Create a default observer camera (use a 63ï¿½ field of view equivalent to a 35mm lens for a 24x36 film)
     this.observerCamera = new ObserverCamera(HOME_OBSERVER_CAMERA_ID, 50, 50, 170,
         7 * (float)Math.PI / 4, (float)Math.PI / 16, (float)Math.PI * 63 / 180);
     this.storedCameras = Collections.emptyList();
@@ -1533,6 +1533,7 @@ public class Home implements Serializable, Cloneable {
    *     should be replaced by calls to {@link #getFurnitureSortedPropertyName()} and {@link #setFurnitureSortedPropertyName(String)}
    *     to allow sorting on additional properties.
    */
+  @Deprecated
   public HomePieceOfFurniture.SortableProperty getFurnitureSortedProperty() {
     return this.furnitureSortedProperty;
   }
@@ -1545,6 +1546,7 @@ public class Home implements Serializable, Cloneable {
    *     should be replaced by calls to {@link #getFurnitureSortedPropertyName()} and {@link #setFurnitureSortedPropertyName(String)}
    *     to allow sorting on additional properties.
    */
+  @Deprecated
   public void setFurnitureSortedProperty(HomePieceOfFurniture.SortableProperty furnitureSortedProperty) {
     if (furnitureSortedProperty != this.furnitureSortedProperty
         && (furnitureSortedProperty == null || !furnitureSortedProperty.equals(this.furnitureSortedProperty))) {
@@ -1621,6 +1623,7 @@ public class Home implements Serializable, Cloneable {
    *     should be replaced by calls to {@link #getFurnitureVisiblePropertyNames()} and {@link #setFurnitureSortedPropertyName(List<String>)}
    *     to allow displaying additional properties.
    */
+  @Deprecated
   public List<HomePieceOfFurniture.SortableProperty> getFurnitureVisibleProperties() {
     if (this.furnitureVisibleProperties == null) {
       return Collections.emptyList();
@@ -1637,6 +1640,7 @@ public class Home implements Serializable, Cloneable {
    *     should be replaced by calls to {@link #getFurnitureVisiblePropertyNames()} and {@link #setFurnitureSortedPropertyName(List<String>)}
    *     to allow displaying additional properties.
    */
+  @Deprecated
   public void setFurnitureVisibleProperties(List<HomePieceOfFurniture.SortableProperty> furnitureVisibleProperties) {
     if (furnitureVisibleProperties != this.furnitureVisibleProperties
         && (furnitureVisibleProperties == null || !furnitureVisibleProperties.equals(this.furnitureVisibleProperties))) {
@@ -1820,6 +1824,7 @@ public class Home implements Serializable, Cloneable {
    *     should be replaced by calls to {@link #getProperty(String)} and {@link #setProperty(String, String)}
    *     to ensure they can be easily saved and read. Future file format might not save visual properties anymore.
    */
+  @Deprecated
   public Object getVisualProperty(String name) {
     return this.visualProperties.get(name);
   }
@@ -1830,6 +1835,7 @@ public class Home implements Serializable, Cloneable {
    *     should be replaced by calls to {@link #getProperty(String)} and {@link #setProperty(String, String)}
    *     to ensure they can be easily saved and read. Future file format might not save visual properties anymore.
    */
+  @Deprecated
   public void setVisualProperty(String name, Object value) {
     this.visualProperties.put(name, value);
   }

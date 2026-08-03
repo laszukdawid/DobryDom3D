@@ -161,6 +161,7 @@ public abstract class Object3DBranch extends BranchGroup {
    * @deprecated Use {@link #getContextTexture(Texture, Object)} which context
    *    parameter may be equal to different contexts for a given home
    */
+  @Deprecated
   protected Texture getHomeTextureClone(Texture texture, Home home) {
     return getContextTexture(texture, home);
   }

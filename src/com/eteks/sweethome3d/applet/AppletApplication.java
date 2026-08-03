@@ -34,7 +34,6 @@ import java.beans.PropertyChangeEvent;
 import java.beans.PropertyChangeListener;
 import java.net.MalformedURLException;
 import java.net.URL;
-import java.security.AccessControlException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.Executor;
@@ -155,7 +154,7 @@ public class AppletApplication extends HomeApplication {
           || OperatingSystem.isLinux() && System.getProperty("java.runtime.name", "").startsWith("OpenJDK")) {
         System.setProperty("com.eteks.sweethome3d.dragAndDropWithoutTransferHandler", "true");
       }
-    } catch (AccessControlException ex) {
+    } catch (SecurityException ex) {
       // Unsigned applet
     }
 
@@ -249,7 +248,7 @@ public class AppletApplication extends HomeApplication {
         ModelManager.getInstance().clear();
       }
       IconManager.getInstance().clear();
-    } catch (AccessControlException ex) {
+    } catch (SecurityException ex) {
       // If com.eteks.sweethome3d.no3D property can't be read,
       // security manager won't allow to access to Java 3D DLLs required by previous classes too
     }
@@ -467,7 +466,7 @@ public class AppletApplication extends HomeApplication {
     boolean no3D;
     try {
       no3D = Boolean.getBoolean("com.eteks.sweethome3d.no3D");
-    } catch (AccessControlException ex) {
+    } catch (SecurityException ex) {
       // If com.eteks.sweethome3d.no3D property can't be read,
       // security manager won't allow to access to Java 3D DLLs required to manage 3D too
       no3D = true;
@@ -758,7 +757,7 @@ public class AppletApplication extends HomeApplication {
               }
             });
       }
-    } catch (AccessControlException ex) {
+    } catch (SecurityException ex) {
       // If com.eteks.sweethome3d.no3D property can't be read,
       // security manager won't allow to access to Java 3D DLLs required by Component3DManager class too
     }

@@ -24,7 +24,6 @@ import java.beans.PropertyChangeSupport;
 import java.io.IOException;
 import java.io.InputStream;
 import java.math.BigDecimal;
-import java.security.AccessControlException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -37,7 +36,6 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.MissingResourceException;
 import java.util.Properties;
-import java.util.PropertyPermission;
 import java.util.PropertyResourceBundle;
 import java.util.ResourceBundle;
 
@@ -185,7 +183,7 @@ public abstract class UserPreferences {
       } else {
         Locale.setDefault(new Locale(this.language, this.defaultCountry));
       }
-    } catch (AccessControlException ex) {
+    } catch (SecurityException ex) {
       // Let's keep default language even if it's not supported
       this.language = Locale.getDefault().getLanguage();
     }
@@ -332,15 +330,7 @@ public abstract class UserPreferences {
    * @since 3.4
    */
   public boolean isLanguageEditable() {
-    try {
-      SecurityManager securityManager = System.getSecurityManager();
-      if (securityManager != null) {
-        securityManager.checkPermission(new PropertyPermission("user.language", "write"));
-      }
-      return true;
-    } catch (AccessControlException ex) {
-      return false;
-    }
+    return true;
   }
 
   /**

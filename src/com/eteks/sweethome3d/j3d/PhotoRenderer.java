@@ -127,6 +127,7 @@ public class PhotoRenderer extends AbstractPhotoRenderer {
   /**
    * @deprecated From version 7.0, prefer use {@link AbstractPhotoRenderer.Quality} enum.
    */
+  @Deprecated
   public enum Quality {LOW, HIGH} // Copy of AbstractPhotoRenderer.Quality required for backward compatibility in plug-ins
 
   private final Object3DFactory object3dFactory;
@@ -156,6 +157,7 @@ public class PhotoRenderer extends AbstractPhotoRenderer {
    * @throws IOException if texture image files required in the scene couldn't be created.
    * @deprecated From version 7.0, prefer use the constructor with the parameter of {@link AbstractPhotoRenderer.Quality} type.
    */
+  @Deprecated
   public PhotoRenderer(Home home, Quality quality) throws IOException {
     this(home, AbstractPhotoRenderer.Quality.valueOf(quality.name()));
   }
@@ -176,6 +178,7 @@ public class PhotoRenderer extends AbstractPhotoRenderer {
    *            this factory is expected to return an instance of {@link Node} in current implementation.
    * @deprecated From version 7.0, prefer use the constructor with the parameter of {@link AbstractPhotoRenderer.Quality} type.
    */
+  @Deprecated
   public PhotoRenderer(Home home,
                        Object3DFactory object3dFactory,
                        Quality quality) throws IOException {
@@ -1547,5 +1550,4 @@ public class PhotoRenderer extends AbstractPhotoRenderer {
     }
   }
 }
-
 

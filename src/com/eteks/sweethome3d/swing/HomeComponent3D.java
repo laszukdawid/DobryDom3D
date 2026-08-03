@@ -1464,7 +1464,7 @@ public class HomeComponent3D extends JComponent implements View3D, Printable {
     }
 
     // Return distance to plane
-    // from https://fr.wikipedia.org/wiki/Distance_d%27un_point_à_un_plan
+    // from https://fr.wikipedia.org/wiki/Distance_d%27un_point_ï¿½_un_plan
     Vector3f vector1 = new Vector3f(boxVertices [index2].x - boxVertices [index1].x,
         boxVertices [index2].y - boxVertices [index1].y,
         boxVertices [index2].z - boxVertices [index1].z);
@@ -1481,7 +1481,7 @@ public class HomeComponent3D extends JComponent implements View3D, Printable {
    * Returns the distance between the given <code>point</code> and the line defined by two points.
    */
   private float getDistanceToLine(Point3f point, Point3f point1, Point3f point2) {
-    // From https://fr.wikipedia.org/wiki/Distance_d%27un_point_à_une_droite#Dans_l.27espace
+    // From https://fr.wikipedia.org/wiki/Distance_d%27un_point_ï¿½_une_droite#Dans_l.27espace
     Vector3f lineDirection = new Vector3f(point2.x - point1.x, point2.y - point1.y, point2.z - point1.z);
     Vector3f vector = new Vector3f(point.x - point1.x, point.y - point1.y, point.z - point1.z);
     Vector3f crossProduct = new Vector3f();
@@ -2324,6 +2324,7 @@ public class HomeComponent3D extends JComponent implements View3D, Printable {
    * or <code>null</code> if not found.
    * @deprecated Use rather {@linkplain getClosestSelectableItemAt}.
    */
+  @Deprecated
   public Selectable getClosestItemAt(int x, int y) {
     return getClosestSelectableItemAt(x, y);
   }
@@ -3645,6 +3646,7 @@ public class HomeComponent3D extends JComponent implements View3D, Printable {
    * @deprecated Subclasses which used to override this method must be updated to create an instance of
    *    a {@link Object3DFactory factory} and give it as parameter to the constructor of this class.
    */
+  @Deprecated
   private Object3DBranch createObject3D(Selectable homeObject,
                                         boolean waitForLoading) {
     return (Object3DBranch)getObject3DFactory().createObject3D(this.home, homeObject, waitForLoading);

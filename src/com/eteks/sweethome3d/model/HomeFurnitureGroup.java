@@ -1,5 +1,5 @@
 /*
- * HomeFurnitureGroup.java 4 févr. 2010
+ * HomeFurnitureGroup.java 4 fï¿½vr. 2010
  *
  * Sweet Home 3D, Copyright (c) 2024 Space Mushrooms <info@sweethome3d.com>
  *
@@ -658,6 +658,7 @@ public class HomeFurnitureGroup extends HomePieceOfFurniture {
    * @since 6.5
    */
   @Override
+  @Deprecated
   public void setBackFaceShown(boolean backFaceShown) {
     throw new IllegalStateException("Can't set back face shown attribute of a group");
   }
@@ -1218,4 +1219,3 @@ public class HomeFurnitureGroup extends HomePieceOfFurniture {
     return clone;
   }
 }
-

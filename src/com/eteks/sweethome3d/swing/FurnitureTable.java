@@ -49,7 +49,6 @@ import java.io.Writer;
 import java.lang.ref.WeakReference;
 import java.lang.reflect.InvocationTargetException;
 import java.math.BigDecimal;
-import java.security.AccessControlException;
 import java.text.Collator;
 import java.text.DateFormat;
 import java.text.DecimalFormat;
@@ -175,7 +174,7 @@ public class FurnitureTable extends JTable implements FurnitureView, Printable {
     boolean reorderingEnabled = true;
     try {
       reorderingEnabled = Boolean.parseBoolean(System.getProperty("com.eteks.sweethome3d.furnitureTableReorderingEnabled", "true"));
-    } catch (AccessControlException ex) {
+    } catch (SecurityException ex) {
     }
     this.reorderingEnabled = reorderingEnabled;
     float resolutionScale = SwingTools.getResolutionScale();
@@ -1009,7 +1008,7 @@ public class FurnitureTable extends JTable implements FurnitureView, Printable {
         if (csvEncoding.length() == 0) {
           csvEncoding = null;
         }
-      } catch (AccessControlException ex) {
+      } catch (SecurityException ex) {
         csvEncoding = "UTF-8";
       }
       OutputStreamWriter writer = csvEncoding != null

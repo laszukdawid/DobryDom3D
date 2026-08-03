@@ -389,6 +389,7 @@ public class VideoController implements Controller {
    * @deprecated {@link #setVisualProperty(String, Object) setVisualProperty} should be replaced by a call to
    * {@link #setHomeProperty(String, String) setHomeProperty} to ensure the property can be easily saved and read.
    */
+  @Deprecated
   public void setVisualProperty(String propertyName,
                                 Object propertyValue) {
     this.home.setVisualProperty(propertyName, propertyValue);
