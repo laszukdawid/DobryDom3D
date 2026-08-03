@@ -1,0 +1,13 @@
+version: "3"
+
+tasks:
+  run:
+    desc: Build and run Sweet Home 3D
+    cmds:
+      - ant clean jarExecutable
+      - java -jar install/SweetHome3D-7.5.jar
+
+  test:
+    desc: Run all tests, including GUI automation
+    cmds:
+      - ant -Djunit.jar="${JUNIT_JAR:-/usr/share/java/junit4.jar}" clean test-all

@@ -1,0 +1,50 @@
+name: Java CI
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  test-and-build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Java 25
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "25"
+
+      - name: Install build and test tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes ant ant-optional junit4
+
+      - name: Test and build
+        run: ant -noinput -Djunit.jar=/usr/share/java/junit4.jar ci
+
+      - name: Upload test reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: junit-reports-java-25
+          path: build/test-reports/
+          if-no-files-found: warn
+
+      - name: Upload application JAR
+        uses: actions/upload-artifact@v4
+        with:
+          name: SweetHome3D-java-25
+          path: build/SweetHome3D.jar
+          if-no-files-found: error

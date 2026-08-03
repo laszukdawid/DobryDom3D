@@ -6,6 +6,10 @@
      Ant build file. Available targets :
      - build       : Builds SweetHome3D.jar file in build directory
      - application : Builds SweetHome3D.jar file without applet classes in build directory
+     - test        : Builds the application and runs headless unit tests
+     - test-all    : Builds the application and runs all unit and GUI tests
+     - ci          : Cleans, tests and builds the standalone application
+     - clean       : Deletes generated build output
      - furniture   : Builds Furniture.jar file in build directory
      - textures    : Builds Textures.jar file in build directory
      - examples    : Builds Examples.jar file in build directory
@@ -34,19 +38,48 @@
 <project basedir="." default="jarExecutable" name="SweetHome3D">
   <!-- Current version of Sweet Home 3D -->
   <property name="version" value="7.5"/>
-  <!-- Java source and target compatiblity (Java 9 and higher doesn't support 1.5) -->
-  <condition property="appletClassSource" value="1.2" else="1.8">
-    <matches string="${ant.java.version}" pattern="1\.5|1\.6|1\7|1\.8"/>
+  <property name="java.release" value="25"/>
+  <property name="junit.jar" location="libtest/junit-4.13.2.jar"/>
+  <property name="test.includes" value="**/*Test.java"/>
+
+  <path id="application.compile.classpath">
+    <fileset dir="lib" includes="*.jar"/>
+    <pathelement location="libtest/AppleJavaExtensions.jar"/>
+    <pathelement location="libtest/jnlp.jar"/>
+  </path>
+
+  <path id="test.dependencies">
+    <fileset dir="lib">
+      <include name="*.jar"/>
+      <exclude name="j3dcore.jar"/>
+      <exclude name="j3dutils.jar"/>
+      <exclude name="vecmath.jar"/>
+    </fileset>
+    <fileset dir="lib/java3d-1.6" includes="*.jar"/>
+    <fileset dir="libtest">
+      <include name="abbot.jar"/>
+      <include name="jdepend-2.9.jar"/>
+      <include name="jdom-1.1.1.jar"/>
+      <include name="gnu-regexp-1.1.4.jar"/>
+      <include name="AppleJavaExtensions.jar"/>
+      <include name="jnlp.jar"/>
+    </fileset>
+    <pathelement location="${junit.jar}"/>
+  </path>
+
+  <condition property="test.native.library.path"
+             value="${basedir}/lib/java3d-1.6/windows/amd64;${basedir}/lib/yafaray/windows/x64">
+    <os family="windows"/>
   </condition>
-  <condition property="appletClassTarget" value="1.1" else="1.8">
-    <matches string="${ant.java.version}" pattern="1\.5|1\.6|1\7|1\.8"/>
+  <condition property="test.native.library.path"
+             value="${basedir}/lib/java3d-1.6/macosx:${basedir}/lib/yafaray/macosx">
+    <os family="mac"/>
   </condition>
-  <condition property="classSource" value="1.5" else="1.8">
-    <matches string="${ant.java.version}" pattern="1\.5|1\.6|1\7|1\.8"/>
+  <condition property="test.native.library.path"
+             value="${basedir}/lib/java3d-1.6/linux/amd64:${basedir}/lib/yafaray/linux/x64">
+    <os name="Linux"/>
   </condition>
-  <condition property="classTarget" value="1.5" else="1.8">
-    <matches string="${ant.java.version}" pattern="1\.5|1\.6|1\7|1\.8"/>
-  </condition>
+  <property name="test.native.library.path" value=""/>
   <!-- JRE or OpenJDK home for Windows, Mac OS X and Linux -->
   <property name="javaHome_windows_x86" value="C:\Program Files (x86)\Java\jre1.8.0_202"/>
   <property name="javaHome_windows_x64" value="C:\Program Files\OpenJDK\zulu11.62.17-ca-jdk11.0.18-win_x64"/>
@@ -65,31 +98,26 @@
     <os family="unix"/>
   </condition>
 
+  <target name="clean" description="Deletes generated build output">
+    <delete dir="build"/>
+  </target>
+
   <target name="build"
           description="Builds build/SweetHome3D.jar with all its classes">
-    <echo message="compiling Sweet Home 3D for Java ${classTarget} minimum version"/>
+    <echo message="compiling Sweet Home 3D for Java ${java.release} minimum version"/>
     <!-- Compile Sweet Home 3D -->
     <mkdir dir="build/classes"/>
-    <!-- Compile Sweet Home 3D applets first with javac 1.1 to be able to detect current Java version
-         during applet launch (otherwise Java 1.1 to 1.4 plug-ins refuse to load Applet class) -->
+    <!-- Compile Sweet Home 3D applet entry points first. -->
     <javac srcdir="src" destdir="build/classes"
            includes="com/eteks/sweethome3d/applet/SweetHome3D*.java"
-           encoding="ISO-8859-1" target="${appletClassTarget}" source="${appletClassSource}"
+           encoding="ISO-8859-1" release="${java.release}"
+           includeantruntime="false" classpathref="application.compile.classpath"
            debug="false" debuglevel="lines,vars,source"/>
     <!-- Compile other classes -->
     <javac srcdir="src" destdir="build/classes"
-           encoding="ISO-8859-1" target="${classTarget}" source="${classSource}"
-           debug="false" debuglevel="lines,vars,source">
-      <!-- Use lib as an extension directory to override default Java 3D libraries -->
-      <extdirs>
-        <pathelement location="lib"/>
-      </extdirs>
-      <classpath>
-        <pathelement location="libtest/AppleJavaExtensions.jar"/>
-        <pathelement location="libtest/javaAwtDesktop.jar"/>
-        <pathelement location="libtest/jnlp.jar"/>
-      </classpath>
-    </javac>
+           encoding="ISO-8859-1" release="${java.release}"
+           includeantruntime="false" classpathref="application.compile.classpath"
+           debug="false" debuglevel="lines,vars,source"/>
 
     <!-- Copy resources excepted furniture, textures and help files -->
     <copy todir="build/classes">
@@ -123,6 +151,103 @@
     </zip>
     <move file="build/SweetHome3DStandalone.jar" tofile="build/SweetHome3D.jar"/>
   </target>
+
+  <target name="compile-tests" depends="build">
+    <available file="${junit.jar}" property="junit.available"/>
+    <fail unless="junit.available"
+          message="JUnit 4 is required; set -Djunit.jar=/path/to/junit4.jar"/>
+
+    <mkdir dir="build/test-classes"/>
+    <mkdir dir="build/test-reports"/>
+    <mkdir dir="build/test-home"/>
+    <mkdir dir="build/test-prefs"/>
+    <mkdir dir="build/test-tmp"/>
+    <javac srcdir="test" destdir="build/test-classes"
+           encoding="ISO-8859-1" release="${java.release}"
+           includeantruntime="false" debug="true">
+      <classpath>
+        <pathelement location="build/SweetHome3D.jar"/>
+        <path refid="test.dependencies"/>
+      </classpath>
+    </javac>
+  </target>
+
+  <target name="test" depends="compile-tests"
+          description="Builds the application and runs headless unit tests">
+    <junit fork="true" forkmode="perTest"
+           haltonerror="true" haltonfailure="true"
+           printsummary="true" showoutput="true"
+           timeout="120000" tempdir="build/test-tmp">
+      <classpath>
+        <pathelement location="build/test-classes"/>
+        <pathelement location="build/SweetHome3D.jar"/>
+        <pathelement location="src"/>
+        <pathelement location="test"/>
+        <path refid="test.dependencies"/>
+      </classpath>
+      <jvmarg value="--add-opens=java.desktop/java.awt=ALL-UNNAMED"/>
+      <jvmarg value="--add-opens=java.desktop/sun.awt=ALL-UNNAMED"/>
+      <sysproperty key="java.awt.headless" value="true"/>
+      <sysproperty key="com.eteks.sweethome3d.no3D" value="true"/>
+      <sysproperty key="user.home" value="${basedir}/build/test-home"/>
+      <sysproperty key="java.util.prefs.userRoot" value="${basedir}/build/test-prefs"/>
+      <sysproperty key="java.io.tmpdir" value="${basedir}/build/test-tmp"/>
+      <formatter type="plain" usefile="false"/>
+      <formatter type="xml"/>
+      <batchtest todir="build/test-reports">
+        <fileset dir="test">
+          <include name="**/OperatingSystemTest.java"/>
+          <include name="**/HomeTest.java"/>
+          <include name="**/HomeFileRecorderTest.java"/>
+          <include name="**/IconManagerTest.java"/>
+          <include name="**/CatalogTreeTest.java"/>
+          <include name="**/FurnitureTableTest.java"/>
+          <include name="**/WallPanelTest.java"/>
+        </fileset>
+      </batchtest>
+    </junit>
+  </target>
+
+  <target name="test-all" depends="compile-tests"
+          description="Builds the application and runs all unit and GUI tests">
+    <!-- PackageDependenciesTest analyzes the exploded application classes. -->
+    <delete dir="classes"/>
+    <unzip src="build/SweetHome3D.jar" dest="classes"/>
+    <junit fork="true" forkmode="perTest"
+           haltonerror="false" haltonfailure="false"
+           errorproperty="all.tests.failed" failureproperty="all.tests.failed"
+           printsummary="true" showoutput="true"
+           timeout="60000" tempdir="build/test-tmp">
+      <classpath>
+        <pathelement location="build/test-classes"/>
+        <pathelement location="build/SweetHome3D.jar"/>
+        <pathelement location="src"/>
+        <pathelement location="test"/>
+        <path refid="test.dependencies"/>
+      </classpath>
+      <jvmarg value="--add-opens=java.desktop/java.awt=ALL-UNNAMED"/>
+      <jvmarg value="--add-opens=java.desktop/sun.awt=ALL-UNNAMED"/>
+      <jvmarg value="--add-opens=java.desktop/sun.java2d=ALL-UNNAMED"/>
+      <jvmarg value="--add-opens=java.base/java.util=ALL-UNNAMED"/>
+      <jvmarg value="--enable-native-access=ALL-UNNAMED"/>
+      <sysproperty key="java.awt.headless" value="false"/>
+      <sysproperty key="java.library.path" value="${test.native.library.path}"/>
+      <sysproperty key="jogamp.gluegen.UseTempJarCache" value="false"/>
+      <sysproperty key="user.home" value="${basedir}/build/test-home"/>
+      <sysproperty key="java.util.prefs.userRoot" value="${basedir}/build/test-prefs"/>
+      <sysproperty key="java.io.tmpdir" value="${basedir}/build/test-tmp"/>
+      <formatter type="plain" usefile="false"/>
+      <formatter type="xml"/>
+      <batchtest todir="build/test-reports">
+        <fileset dir="test" includes="${test.includes}"/>
+      </batchtest>
+    </junit>
+    <delete dir="classes"/>
+    <fail if="all.tests.failed" message="One or more tests failed; see build/test-reports"/>
+  </target>
+
+  <target name="ci" depends="clean,test,application"
+          description="Cleans, tests and builds the standalone application"/>
 
   <target name="furniture"
           description="Builds build/Furniture.jar that contains the furniture files">
@@ -484,27 +609,19 @@
           description="Builds deploy/lib/SweetHome3DViewer.jar and signs jars required by Sweet Home 3D viewer">
     <!-- Compile Sweet Home 3D Viewer-->
     <mkdir dir="build/classes"/>
-    <!-- Compile Sweet Home 3D Viewer applet first with javac 1.1 to be able to detect current Java version
-         during applet launch (otherwise Java 1.1 to 1.4 plug-ins refuse to load Applet class) -->
+    <!-- Compile the Sweet Home 3D Viewer entry point first. -->
     <javac srcdir="src" destdir="build/classes"
            includes="com/eteks/sweethome3d/applet/SweetHome3DViewer.java"
-           encoding="ISO-8859-1" target="${appletClassTarget}" source="${appletClassSource}"
+           encoding="ISO-8859-1" release="${java.release}"
+           includeantruntime="false" classpathref="application.compile.classpath"
            debug="false" debuglevel="lines,vars,source"/>
     <!-- Compile only classes depending on ViewerHelper to reduce Jar size -->
     <javac srcdir="src" destdir="build/classes"
-           encoding="ISO-8859-1" target="${classTarget}" source="${classSource}"
+           encoding="ISO-8859-1" release="${java.release}"
+           includeantruntime="false" classpathref="application.compile.classpath"
            debug="false" debuglevel="lines,vars,source">
       <include name="com/eteks/sweethome3d/applet/ViewerHelper.java"/>
       <include name="com/eteks/sweethome3d/io/DefaultPatternTexture.java"/>
-      <!-- Use lib as an extension directory to override default Java 3D libraries -->
-      <extdirs>
-        <pathelement location="lib"/>
-      </extdirs>
-      <classpath>
-        <pathelement location="libtest/AppleJavaExtensions.jar"/>
-        <pathelement location="libtest/javaAwtDesktop.jar"/>
-        <pathelement location="libtest/jnlp.jar"/>
-      </classpath>
     </javac>
 
     <!-- Copy only resources used by viewer -->
@@ -581,6 +698,7 @@
     <jar destfile="install/SweetHome3D-${version}.jar">
       <manifest>
         <attribute name="Add-opens" value="java.desktop/java.awt java.desktop/sun.awt java.desktop/com.apple.eio java.desktop/com.apple.eawt"/>
+        <attribute name="Enable-Native-Access" value="ALL-UNNAMED"/>
         <attribute name="Main-Class" value="com.eteks.sweethome3d.SweetHome3DBootstrap"/>
       </manifest>
       <zipfileset src="build/SweetHome3D.jar"/>
