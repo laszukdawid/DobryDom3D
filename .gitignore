@@ -1,0 +1,27 @@
+# Ant and Eclipse build output
+/build/
+/classes/
+/bin/
+
+# Generated deployment libraries and packaging directories
+/deploy/lib/
+/install/source/
+/install/javadoc/
+/install/windows/build/
+/install/macosx/10.4/SweetHome3D-*/
+
+# Generated release artifacts
+/install/SweetHome3D-*.jar
+/install/SweetHome3D-*.zip
+/install/SweetHome3D-*.tgz
+/install/SweetHome3D-*.dmg
+/install/SweetHome3D-*.exe
+
+# Test and local application output
+/test.sh3d
+/*.sweethome3d
+
+# Operating-system and local tool files
+.DS_Store
+Thumbs.db
+*.log
