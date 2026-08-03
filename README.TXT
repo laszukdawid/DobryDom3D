@@ -13,13 +13,13 @@ svn checkout https://svn.code.sf.net/p/sweethome3d/code/tags/V_7_5/SweetHome3D S
 HOW TO USE THIS SOURCE CODE
 ---------------------------
 
-Source code classes are compatible with Java SE 5, and the directory where
+Source code classes require Java SE 25, and the directory where
 you find this file contains all the information required to compile source code
 as an Eclipse project or with Ant.
 
 If you want to compile and test the Java files of this release 
 with Eclipse, please follow the next steps:
-1. install JDK or OpenJDK >= 5 available at http://java.sun.com and elsewhere 
+1. install JDK or OpenJDK 25 available at https://jdk.java.net/25/ and elsewhere
 2. install Eclipse available at http://www.eclipse.org
 3. in Eclipse, select File > Import... menu
 4. In "Select an import source" list of Import dialog box, 
@@ -47,7 +47,7 @@ to run the program:
 The last release of Sweet Home 3D can be tested directly as a Java Web Start 
 application or downloaded at http://www.sweethome3d.com/ 
 
-If you want to build Sweet Home 3D with Ant, please install last JDK 5 or greater and 
+If you want to build Sweet Home 3D with Ant, please install JDK 25 and
 Ant available at http://ant.apache.org/, and run ant command in the directory where
 you uncompressed this archive.
 The default target provided by build.xml Ant file builds the Jar executable version
@@ -64,4 +64,4 @@ and included materials developed by third parties.
     
     
 Sweet Home 3D, Copyright (c) 2024 Space Mushrooms. 
-Distributed under GNU General Public License    
+Distributed under GNU General Public License

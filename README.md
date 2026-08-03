@@ -29,10 +29,39 @@ The original source documentation remains available in [`README.TXT`](README.TXT
 
 ## Building
 
-The upstream build uses Apache Ant. See [`README.TXT`](README.TXT) and
-[`build.xml`](build.xml) for the documented Eclipse and Ant build procedures.
+The project requires JDK 25 and Apache Ant 1.9.8 or newer. Build the standalone
+application with:
+
+```sh
+ant clean application
+```
+
+Run the headless unit test suite by providing a JUnit 4 JAR:
+
+```sh
+ant -Djunit.jar=/path/to/junit4.jar clean test
+```
+
+The `ci` target cleans the workspace, runs the tests, and leaves the standalone
+application at `build/SweetHome3D.jar`:
+
+```sh
+ant -Djunit.jar=/path/to/junit4.jar ci
+```
 
 The default Ant target builds an executable JAR under `install/`.
+
+With [Task](https://taskfile.dev/) installed, the common local commands are:
+
+```sh
+task run
+task test
+```
+
+`task test` runs the complete suite, including tests that require a desktop
+session and the bundled Java 3D native libraries. Set `JUNIT_JAR` if JUnit 4 is
+not installed at `/usr/share/java/junit4.jar`. The legacy GUI tests open and
+control application windows automatically; don't interact with those windows.
 
 ## Fork Status
 
