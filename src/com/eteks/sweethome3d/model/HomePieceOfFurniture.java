@@ -58,7 +58,7 @@ public class HomePieceOfFurniture extends HomeObject implements PieceOfFurniture
       COLOR, TEXTURE, MODEL_MATERIALS, MODEL_TRANSFORMATIONS,
       STAIRCASE_CUT_OUT_SHAPE, SHININESS, VISIBLE,
       X, Y, ELEVATION, ANGLE, PITCH, ROLL, MODEL_ROTATION, MODEL_FLAGS, MODEL_MIRRORED,
-      /** @deprecated */ BACK_FACE_SHOWN, MOVABLE, LEVEL};
+      /** @deprecated */ @Deprecated BACK_FACE_SHOWN, MOVABLE, LEVEL};
 
   /**
    * The properties on which home furniture may be sorted.
@@ -1524,6 +1524,7 @@ public class HomePieceOfFurniture extends HomeObject implements PieceOfFurniture
    * @deprecated Prefer use {@link #setModelFlags} with {@link #SHOW_BACK_FACE} flag.
    * @since 6.5
    */
+  @Deprecated
   public void setBackFaceShown(boolean backFaceShown) {
     setModelFlags((getModelFlags() & ~PieceOfFurniture.SHOW_BACK_FACE)
         | (backFaceShown ? PieceOfFurniture.SHOW_BACK_FACE : 0));

@@ -35,7 +35,6 @@ import java.awt.print.Paper;
 import java.awt.print.Printable;
 import java.awt.print.PrinterException;
 import java.awt.print.PrinterJob;
-import java.security.AccessControlException;
 import java.text.MessageFormat;
 import java.util.Date;
 import java.util.HashSet;
@@ -206,7 +205,7 @@ public class HomePrintableComponent extends JComponent implements Printable {
       }
     } catch (NumberFormatException ex) {
       ex.printStackTrace();
-    } catch (AccessControlException ex) {
+    } catch (SecurityException ex) {
       // If com.eteks.sweethome3d.swing.fixedPrintMargin can't be read, ignore fixed margin
     }
     int pageExists = NO_SUCH_PAGE;

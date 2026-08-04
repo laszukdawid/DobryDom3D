@@ -187,6 +187,7 @@ public class ModelMaterialsController implements Controller {
    * Sets whether the 3D model used to preview materials change should show back face.
    * @deprecated Prefer use {@link #setModelFlags} with {@link PieceOfFurniture#SHOW_BACK_FACE} flag.
    */
+  @Deprecated
   void setBackFaceShown(boolean backFaceShown) {
     setModelFlags((getModelFlags() & ~PieceOfFurniture.SHOW_BACK_FACE)
         | (backFaceShown ? PieceOfFurniture.SHOW_BACK_FACE : 0));

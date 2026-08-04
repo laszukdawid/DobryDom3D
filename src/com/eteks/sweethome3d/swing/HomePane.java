@@ -87,7 +87,6 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.net.MalformedURLException;
 import java.net.URL;
-import java.security.AccessControlException;
 import java.text.DecimalFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -2773,7 +2772,7 @@ public class HomePane extends JRootPane implements HomeView {
     try {
       // Don't use transfer handlers for drag and drop with Plugin2 under Mac OS X or when in an unsigned applet
       dragAndDropWithTransferHandlerSupported = !Boolean.getBoolean("com.eteks.sweethome3d.dragAndDropWithoutTransferHandler");
-    } catch (AccessControlException ex) {
+    } catch (SecurityException ex) {
       dragAndDropWithTransferHandlerSupported = false;
     }
 
@@ -4746,7 +4745,7 @@ public class HomePane extends JRootPane implements HomeView {
       }
     } catch (NumberFormatException ex) {
       // Don't display data model
-    } catch (AccessControlException ex) {
+    } catch (SecurityException ex) {
     }
     Runtime runtime = Runtime.getRuntime();
     float usedMemoryGigaByte = Math.max(0.1f, (runtime.totalMemory() - runtime.freeMemory()) / 1073741824f);
@@ -5736,7 +5735,7 @@ public class HomePane extends JRootPane implements HomeView {
             public void ancestorMoved(AncestorEvent event) {
             }
           });
-      } catch (AccessControlException ex) {
+      } catch (SecurityException ex) {
         // If clipboard can't be accessed, update clipboardEmpty only when explicit copy actions are performed
       }
     }
@@ -5750,7 +5749,7 @@ public class HomePane extends JRootPane implements HomeView {
     if (OperatingSystem.isMacOSX() && !OperatingSystem.isJavaVersionGreaterOrEqual("1.8.0_60")) {
       try {
         checkClipboardContainsHomeItemsOrFiles();
-      } catch (AccessControlException ex) {
+      } catch (SecurityException ex) {
         // If clipboard can't be accessed, update clipboardEmpty only when explicit copy actions are performed
       }
     }
@@ -5774,7 +5773,7 @@ public class HomePane extends JRootPane implements HomeView {
       if (clipboard.isDataFlavorAvailable(HomeTransferableList.HOME_FLAVOR)) {
         return (List<Selectable>)clipboard.getData(HomeTransferableList.HOME_FLAVOR);
       }
-    } catch (AccessControlException ex) {
+    } catch (SecurityException ex) {
     } catch (UnsupportedFlavorException ex) {
     } catch (IOException ex) {
     }

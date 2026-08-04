@@ -307,6 +307,7 @@ public abstract class AbstractPhotoController implements Controller {
    * @deprecated {@link #setVisualProperty(String, Object) setVisualProperty} should be replaced by a call to 
    * {@link #setHomeProperty(String, String)} to ensure the property can be easily saved and read.
    */
+  @Deprecated
   public void setVisualProperty(String propertyName,
                                 Object propertyValue) {
     this.home.setVisualProperty(propertyName, propertyValue);

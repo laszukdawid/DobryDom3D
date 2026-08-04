@@ -33,7 +33,6 @@ import java.awt.image.BufferedImage;
 import java.beans.PropertyChangeEvent;
 import java.beans.PropertyChangeListener;
 import java.lang.ref.WeakReference;
-import java.security.AccessControlException;
 import java.text.DecimalFormat;
 import java.util.Arrays;
 import java.util.Collections;
@@ -359,7 +358,7 @@ public class UserPreferencesPanel extends JPanel implements DialogView {
     boolean no3D;
     try {
       no3D = Boolean.getBoolean("com.eteks.sweethome3d.no3D");
-    } catch (AccessControlException ex) {
+    } catch (SecurityException ex) {
       // If com.eteks.sweethome3d.no3D property can't be read,
       // security manager won't allow to access to Java 3D DLLs required by 3D view too
       no3D = true;

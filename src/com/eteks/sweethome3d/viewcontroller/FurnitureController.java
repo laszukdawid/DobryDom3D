@@ -644,6 +644,7 @@ public class FurnitureController implements Controller {
    *     should be replaced by calls to {@link #toggleFurnitureSort(String)}
    *     to allow displaying additional properties.
    */
+  @Deprecated
   public void toggleFurnitureSort(HomePieceOfFurniture.SortableProperty furnitureProperty) {
     if (furnitureProperty.equals(this.home.getFurnitureSortedProperty())) {
       this.home.setFurnitureSortedProperty(null);
@@ -694,6 +695,7 @@ public class FurnitureController implements Controller {
    *     should be replaced by calls to {@link #sortFurniture(String)}
    *     to allow displaying additional properties.
    */
+  @Deprecated
   public void sortFurniture(HomePieceOfFurniture.SortableProperty furnitureProperty) {
     final HomePieceOfFurniture.SortableProperty oldProperty = this.home.getFurnitureSortedProperty();
     final boolean oldDescending = this.home.isFurnitureDescendingSorted();
@@ -722,6 +724,7 @@ public class FurnitureController implements Controller {
    *     should be replaced by calls to {@link #setFurnitureVisiblePropertyNames(List<String>)}
    *     to allow displaying additional properties.
    */
+  @Deprecated
   public void setFurnitureVisibleProperties(List<HomePieceOfFurniture.SortableProperty> furnitureVisibleProperties) {
     this.home.setFurnitureVisibleProperties(furnitureVisibleProperties);
   }
@@ -796,6 +799,7 @@ public class FurnitureController implements Controller {
    *     should be replaced by calls to {@link #toggleFurnitureVisibleProperty(String)}
    *     to allow displaying additional properties.
    */
+  @Deprecated
   public void toggleFurnitureVisibleProperty(HomePieceOfFurniture.SortableProperty furnitureProperty) {
     toggleFurnitureVisibleProperty(furnitureProperty.name());
   }
@@ -1981,6 +1985,7 @@ public class FurnitureController implements Controller {
    * {@link #setHomeProperty(String, String)} to ensure the property can be easily saved and read.
    * @since 5.0
    */
+  @Deprecated
   public void setVisualProperty(String propertyName,
                                 Object propertyValue) {
     this.home.setVisualProperty(propertyName, propertyValue);

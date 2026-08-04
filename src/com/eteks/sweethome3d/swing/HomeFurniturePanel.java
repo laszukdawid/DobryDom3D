@@ -38,7 +38,6 @@ import java.beans.PropertyChangeListener;
 import java.io.File;
 import java.io.IOException;
 import java.math.BigDecimal;
-import java.security.AccessControlException;
 import java.text.DateFormat;
 import java.text.DecimalFormat;
 import java.text.DecimalFormatSymbols;
@@ -767,7 +766,7 @@ public class HomeFurniturePanel extends JPanel implements DialogView {
                 });
           }
         }
-      } catch (AccessControlException ex) {
+      } catch (SecurityException ex) {
         // com.eteks.sweethome3d.no3D property can't be read
       }
     }
@@ -864,7 +863,7 @@ public class HomeFurniturePanel extends JPanel implements DialogView {
           this.modelMaterialsRadioButton.setEnabled(uniqueModel);
           this.modelMaterialsComponent.setEnabled(uniqueModel);
         }
-      } catch (AccessControlException ex) {
+      } catch (SecurityException ex) {
         // com.eteks.sweethome3d.no3D property can't be read
       }
     }

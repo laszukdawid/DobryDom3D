@@ -1,13 +1,81 @@
 version: "3"
 
+vars:
+  JAVA_VERSION: temurin-25.0.4+7.0.LTS
+  APP_JAR: install/SweetHome3D-7.5.jar
+  JAVA_HOME:
+    sh: asdf where java "{{.JAVA_VERSION}}"
+
+env:
+  JAVA_HOME: "{{.JAVA_HOME}}"
+  JUNIT_JAR: '{{.JUNIT_JAR | default "/usr/share/java/junit4.jar"}}'
+  PATH: "{{.JAVA_HOME}}/bin:{{.PATH}}"
+
 tasks:
-  run:
-    desc: Build and run Sweet Home 3D
+  check-java:
+    internal: true
+    preconditions:
+      - sh: command -v asdf >/dev/null 2>&1
+        msg: asdf is required to run this task
+      - sh: 'test -x "$(asdf where java "{{.JAVA_VERSION}}" 2>/dev/null)/bin/java"'
+        msg: Install Java {{.JAVA_VERSION}} with asdf install java {{.JAVA_VERSION}}
+
+  build:executable:
+    internal: true
+    deps: [check-java]
+    sources:
+      - Taskfile.yml
+      - build.xml
+      - src/**/*
+      - lib/**/*
+      - libtest/AppleJavaExtensions.jar
+      - libtest/jnlp.jar
+      - ./*.TXT
+      - ./*.HTML
+    generates:
+      - "{{.APP_JAR}}"
+    method: timestamp
     cmds:
       - ant clean jarExecutable
-      - java -jar install/SweetHome3D-7.5.jar
+
+  run:
+    desc: Build and run Sweet Home 3D
+    deps: [build:executable]
+    cmds:
+      - '"{{.JAVA_HOME}}/bin/java" -jar "{{.APP_JAR}}"'
+
+  package:image:
+    desc: Build a self-contained Java 25 app image for this platform
+    deps: [check-java]
+    cmds:
+      - ant clean packageAppImage
+
+  package:linux:
+    desc: Build the self-contained Linux x64 release archive
+    deps: [check-java]
+    preconditions:
+      - sh: 'test "$(uname -s)" = Linux && test "$(uname -m)" = x86_64'
+        msg: package:linux requires Linux x64
+    cmds:
+      - ant clean linux64Installer
 
   test:
-    desc: Run all tests, including GUI automation
+    desc: Run all tests in a virtual X server
+    deps: [check-java]
     cmds:
-      - ant -Djunit.jar="${JUNIT_JAR:-/usr/share/java/junit4.jar}" clean test-all
+      - task: test:virtual-x-server
+
+  test:headless:
+    desc: Run the headless test suite
+    deps: [check-java]
+    cmds:
+      - ant clean test
+
+  test:virtual-x-server:
+    desc: Run all tests in an isolated virtual X server
+    deps: [check-java]
+    preconditions:
+      - sh: command -v xvfb-run >/dev/null 2>&1
+        msg: "xvfb-run is required; install it with: sudo apt install xvfb"
+    cmds:
+      - xvfb-run -a -s "-screen 0 1920x1080x24 -ac +extension GLX +render -noreset" ant clean test-all

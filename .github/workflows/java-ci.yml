@@ -34,6 +34,9 @@ jobs:
       - name: Test and build
         run: ant -noinput -Djunit.jar=/usr/share/java/junit4.jar ci
 
+      - name: Build Java 25 Linux archive
+        run: ant -noinput linux64Installer
+
       - name: Upload test reports
         if: always()
         uses: actions/upload-artifact@v4
@@ -47,4 +50,11 @@ jobs:
         with:
           name: SweetHome3D-java-25
           path: build/SweetHome3D.jar
+          if-no-files-found: error
+
+      - name: Upload Linux archive
+        uses: actions/upload-artifact@v4
+        with:
+          name: SweetHome3D-linux-x64-java-25
+          path: install/SweetHome3D-*-linux-x64.tgz
           if-no-files-found: error

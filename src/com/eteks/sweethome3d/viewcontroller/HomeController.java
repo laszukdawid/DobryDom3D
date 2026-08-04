@@ -27,7 +27,6 @@ import java.lang.ref.WeakReference;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLConnection;
-import java.security.AccessControlException;
 import java.text.DateFormat;
 import java.text.DecimalFormat;
 import java.text.ParseException;
@@ -2447,7 +2446,7 @@ public class HomeController implements Controller {
         if (deploymentInformation != null) {
           applicationVersion += " " + deploymentInformation;
         }
-      } catch (AccessControlException ex) {
+      } catch (SecurityException ex) {
         // Ignore com.eteks.sweethome3d.deploymentInformation property since it can't be read
       }
       return applicationVersion;
@@ -3173,6 +3172,7 @@ public class HomeController implements Controller {
    * @deprecated {@link #setVisualProperty(String, Object) setVisualProperty} should be replaced by a call to
    * {@link #setHomeProperty(String, String)} to ensure the property can be easily saved and read.
    */
+  @Deprecated
   public void setVisualProperty(String propertyName,
                                 Object propertyValue) {
     this.home.setVisualProperty(propertyName, propertyValue);

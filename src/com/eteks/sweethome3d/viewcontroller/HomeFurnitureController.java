@@ -1219,6 +1219,7 @@ public class HomeFurnitureController implements Controller {
    * Returns <code>true</code> if base plan item is an enabled property.
    * @deprecated the method is wrongly named and should be replaced by <code>isBasePlanItemEnabled</code>.
    */
+  @Deprecated
   public boolean isBasePlanItemEditable() {
     return this.basePlanItemEnabled;
   }

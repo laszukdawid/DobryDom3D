@@ -16,8 +16,10 @@
 /install/SweetHome3D-*.tgz
 /install/SweetHome3D-*.dmg
 /install/SweetHome3D-*.exe
+/install/SweetHome3D-*/
 
 # Test and local application output
+/.task/
 /test.sh3d
 /*.sweethome3d
 
@@ -25,3 +27,6 @@
 .DS_Store
 Thumbs.db
 *.log
+
+# Local ticketing
+issues.md

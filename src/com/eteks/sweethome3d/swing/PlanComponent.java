@@ -84,7 +84,6 @@ import java.io.OutputStream;
 import java.lang.ref.WeakReference;
 import java.lang.reflect.Method;
 import java.net.URL;
-import java.security.AccessControlException;
 import java.text.DecimalFormat;
 import java.text.Format;
 import java.text.NumberFormat;
@@ -695,7 +694,7 @@ public class PlanComponent extends JComponent implements PlanView, Scrollable, P
       if (object3dFactory == null && !Boolean.getBoolean("com.eteks.sweethome3d.no3D")) {
         object3dFactory = new Object3DBranchFactory();
       }
-    } catch (AccessControlException ex) {
+    } catch (SecurityException ex) {
       // Can't access to properties
     }
     this.object3dFactory = object3dFactory;
@@ -2799,7 +2798,7 @@ public class PlanComponent extends JComponent implements PlanView, Scrollable, P
     try {
       useGridImage = OperatingSystem.isMacOSX()
           && System.getProperty("apple.awt.graphics.UseQuartz", "false").equals("false");
-    } catch (AccessControlException ex) {
+    } catch (SecurityException ex) {
       // Unsigned applet
     }
     if (useGridImage) {
@@ -3000,6 +2999,7 @@ public class PlanComponent extends JComponent implements PlanView, Scrollable, P
    * Outline around selected items will be painted only under <code>PAINT</code> mode.
    * @deprecated Override {@link #paintHomeItems(Graphics, Level, float, Color, Color, PaintMode)} if you want to print different levels
    */
+  @Deprecated
   protected void paintHomeItems(Graphics g, float planScale,
                                 Color backgroundColor, Color foregroundColor, PaintMode paintMode) throws InterruptedIOException {
     paintHomeItems(g, this.home.getSelectedLevel(), planScale, backgroundColor, foregroundColor, paintMode);
@@ -3312,7 +3312,7 @@ public class PlanComponent extends JComponent implements PlanView, Scrollable, P
           // Refuse to share textures under Mac OS X with Java 1.7 for performance reasons
           && !(OperatingSystem.isMacOSX()
                && OperatingSystem.isJavaVersionGreaterOrEqual("1.7"));
-    } catch (AccessControlException ex) {
+    } catch (SecurityException ex) {
       // If com.eteks.sweethome3d.no3D can't be read,
       // security manager won't allow to access to Java 3D DLLs required by TextureManager class too
     }
@@ -3852,6 +3852,7 @@ public class PlanComponent extends JComponent implements PlanView, Scrollable, P
    * Returns <code>true</code> if the given item can be viewed in the plan at the selected level.
    * @deprecated Override {@link #isViewableAtLevel(Elevatable, Level)} if you want to print different levels
    */
+  @Deprecated
   protected boolean isViewableAtSelectedLevel(Elevatable item) {
     return isViewableAtLevel(item, this.home.getSelectedLevel());
   }
@@ -4062,7 +4063,7 @@ public class PlanComponent extends JComponent implements PlanView, Scrollable, P
                     // Evaluate allFurnitureViewedFromTop value as late as possible to avoid mandatory dependency towards Java 3D
                     allFurnitureViewedFromTop = !Boolean.getBoolean("com.eteks.sweethome3d.no3D")
                         && Component3DManager.getInstance().isOffScreenImageSupported();
-                  } catch (AccessControlException ex) {
+                  } catch (SecurityException ex) {
                     // If com.eteks.sweethome3d.no3D property can't be read,
                     // security manager won't allow to access to Java 3D DLLs required by PieceOfFurnitureModelIcon class too
                     allFurnitureViewedFromTop = false;
@@ -6276,7 +6277,7 @@ public class PlanComponent extends JComponent implements PlanView, Scrollable, P
   public boolean isFurnitureSizeInPlanSupported() {
     try {
       return !Boolean.getBoolean("com.eteks.sweethome3d.no3D");
-    } catch (AccessControlException ex) {
+    } catch (SecurityException ex) {
       // If com.eteks.sweethome3d.no3D can't be read,
       // security manager won't allow to access to Java 3D DLLs required by ModelManager class too
       return false;

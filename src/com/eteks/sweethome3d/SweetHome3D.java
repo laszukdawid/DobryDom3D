@@ -46,7 +46,6 @@ import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.URI;
 import java.net.URL;
-import java.security.AccessControlException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -491,7 +490,7 @@ public class SweetHome3D extends HomeApplication {
       // Set User Agent to follow statistics on used operating systems
       System.setProperty("http.agent", getId() + "/" + getVersion()
            + " (" + System.getProperty("os.name") + " " + System.getProperty("os.version") + "; " + System.getProperty("os.arch") + "; " + Locale.getDefault() + ")");
-    } catch (AccessControlException ex) {
+    } catch (SecurityException ex) {
       // Ignore User Agent change
     }
     // Init look and feel afterwards to ensure that Swing takes into account

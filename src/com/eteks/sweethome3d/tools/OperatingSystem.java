@@ -23,7 +23,6 @@ import java.io.File;
 import java.io.FileFilter;
 import java.io.IOException;
 import java.math.BigInteger;
-import java.security.AccessControlException;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
@@ -72,7 +71,7 @@ public class OperatingSystem {
     try {
       temporarySubFolder = System.getProperty(
           "com.eteks.sweethome3d.tools.temporarySubFolder", temporarySubFolder);
-    } catch (AccessControlException ex) {
+    } catch (SecurityException ex) {
       // Don't change temporarySubFolder value
     }
     TEMPORARY_SUB_FOLDER = temporarySubFolder;
@@ -176,7 +175,7 @@ public class OperatingSystem {
         // OpenJDK uses a different version system where updates are noted with a -uxx instead of _xx
         javaVersion = javaVersion.replace("-u", "_");
       }
-    } catch (AccessControlException ex) {
+    } catch (SecurityException ex) {
       // Unsigned applet
     }
     return javaVersion;
@@ -345,7 +344,7 @@ public class OperatingSystem {
       }
     } catch (IOException ex) {
       // Ignore temporary folder that can't be found
-    } catch (AccessControlException ex) {
+    } catch (SecurityException ex) {
     }
   }
 

@@ -79,6 +79,7 @@ public class Wall extends HomeObject implements Selectable, Elevatable {
    * with given thickness. Height, left and right colors are <code>null</code>.
    * @deprecated specify a height with the {@linkplain #Wall(float, float, float, float, float, float) other constructor}.
    */
+  @Deprecated
   public Wall(float xStart, float yStart, float xEnd, float yEnd, float thickness) {
     this(xStart, yStart, xEnd, yEnd, thickness, 0);
   }

@@ -36,7 +36,6 @@ import java.awt.print.Paper;
 import java.awt.print.PrinterJob;
 import java.beans.PropertyChangeEvent;
 import java.beans.PropertyChangeListener;
-import java.security.AccessControlException;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -343,7 +342,7 @@ public class PageSetupPanel extends JPanel implements DialogView {
     boolean no3D;
     try {
       no3D = Boolean.getBoolean("com.eteks.sweethome3d.no3D");
-    } catch (AccessControlException ex) {
+    } catch (SecurityException ex) {
       // If com.eteks.sweethome3d.no3D property can't be read,
       // security manager won't allow to access to Java 3D DLLs required to print 3D images too
       no3D = true;
