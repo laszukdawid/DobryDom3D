@@ -1,0 +1,45 @@
+<?xml version="1.0"?>
+<job>
+  <script language="JScript">
+    var shell = new ActiveXObject("WScript.Shell");
+    var environment = shell.Environment("PROCESS");
+    var thumbprint = environment("WINDOWS_SIGNING_THUMBPRINT");
+
+    if (thumbprint) {
+      var fileSystem = new ActiveXObject("Scripting.FileSystemObject");
+      var timestampUrl = environment("WINDOWS_TIMESTAMP_URL");
+
+      function quote(value) {
+        return '"' + value + '"';
+      }
+
+      function sign(file) {
+        var command = "signtool.exe sign /sha1 " + quote(thumbprint)
+            + " /tr " + quote(timestampUrl)
+            + " /td sha256 /fd sha256 " + quote(file.Path);
+        var result = shell.Run(command, 0, true);
+        if (result != 0) {
+          throw new Error("signtool failed for " + file.Path + " with exit code " + result);
+        }
+      }
+
+      function signFolder(folder) {
+        var files = new Enumerator(folder.Files);
+        for (; !files.atEnd(); files.moveNext()) {
+          var file = files.item();
+          var extension = fileSystem.GetExtensionName(file.Name).toLowerCase();
+          if (extension == "exe" || extension == "dll") {
+            sign(file);
+          }
+        }
+
+        var folders = new Enumerator(folder.SubFolders);
+        for (; !folders.atEnd(); folders.moveNext()) {
+          signFolder(folders.item());
+        }
+      }
+
+      signFolder(fileSystem.GetFolder(environment("JpAppImageDir")));
+    }
+  </script>
+</job>

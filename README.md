@@ -51,10 +51,49 @@ ant -Djunit.jar=/path/to/junit4.jar ci
 
 The default Ant target builds an executable JAR under `install/`.
 
+### Platform Packages
+
+Build a self-contained application image for the current platform with:
+
+```sh
+ant clean packageAppImage
+```
+
+The image contains a runtime linked from the JDK 25 running Ant. Packaging is
+host-native and supports Windows x64, Linux x64, and macOS x64 or arm64. The
+32-bit Windows and Linux packages and the old cross-platform portable archive
+are no longer supported.
+
+Platform release targets are:
+
+```sh
+ant clean windowsInstaller
+ant clean macosxInstaller
+ant clean linux64Installer
+```
+
+Run each target on its matching operating system. The Windows target requires
+the native tooling used by `jpackage` to create an EXE. macOS creates separate
+x64 and arm64 DMGs rather than merging runtimes into a universal application.
+The Linux target creates `install/SweetHome3D-7.5-linux-x64.tgz`.
+
+Signed release targets require platform credentials that are intentionally not
+stored in this repository:
+
+```sh
+ant -Dwindows.signing.thumbprint=THUMBPRINT windowsSignedInstaller
+ant macosxSignedInstaller
+```
+
+`signtool.exe` must be available on `PATH` for Windows signing. The macOS target
+prompts for the team or user portion of an installed Developer ID identity.
+
 With [Task](https://taskfile.dev/) installed, the common local commands are:
 
 ```sh
 task run
+task package:image
+task package:linux
 task test
 task test:headless
 task test:virtual-x-server

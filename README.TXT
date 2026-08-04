@@ -52,11 +52,16 @@ Ant available at http://ant.apache.org/, and run ant command in the directory wh
 you uncompressed this archive.
 The default target provided by build.xml Ant file builds the Jar executable version
 in the install subdirectory. Read build.xml Ant file for more information about
-other available targets. 
-Note that the last part of the Ant targets javaWebStart and signed installers
-requires a signature alias and a certificate.pem file to sign the generated files. 
-For security reasons, the required data isn't provided with this source code. You'll have 
-first to provide your own way to sign code if needed.
+other available targets.
+The packageAppImage target creates a self-contained application image with a
+Java 25 runtime for the current platform. Platform packages must be built on
+their target operating system. Windows and Linux packages support x64; macOS
+packages support x64 and arm64 as separate downloads. 32-bit packages are no
+longer supported.
+The javaWebStart signing target requires a signature alias and certificate.pem.
+The signed platform installer targets use certificates installed in the host
+operating system. For security reasons, signing credentials aren't provided
+with this source code.
 
 
 Read LICENSE.TXT file for more details about licenses applicable to this software

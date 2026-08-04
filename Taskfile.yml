@@ -44,6 +44,21 @@ tasks:
     cmds:
       - '"{{.JAVA_HOME}}/bin/java" -jar "{{.APP_JAR}}"'
 
+  package:image:
+    desc: Build a self-contained Java 25 app image for this platform
+    deps: [check-java]
+    cmds:
+      - ant clean packageAppImage
+
+  package:linux:
+    desc: Build the self-contained Linux x64 release archive
+    deps: [check-java]
+    preconditions:
+      - sh: 'test "$(uname -s)" = Linux && test "$(uname -m)" = x86_64'
+        msg: package:linux requires Linux x64
+    cmds:
+      - ant clean linux64Installer
+
   test:
     desc: Run all tests in a virtual X server
     deps: [check-java]
