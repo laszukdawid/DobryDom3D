@@ -1297,7 +1297,6 @@
         <include name="build.xml"/>
         <include name="README.md"/>
         <include name="Taskfile.yml"/>
-        <include name="issues.md"/>
         <include name="*.TXT"/>
         <include name="THIRDPARTY-LICENSE-*.HTML"/>
         <include name="*-diff.zip"/>
