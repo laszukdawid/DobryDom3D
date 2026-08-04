@@ -256,6 +256,7 @@
         <fileset dir="test">
           <include name="**/OperatingSystemTest.java"/>
           <include name="**/HomeTest.java"/>
+          <include name="**/HomeController3DTest.java"/>
           <include name="**/HomeFileRecorderTest.java"/>
           <include name="**/IconManagerTest.java"/>
           <include name="**/CatalogTreeTest.java"/>

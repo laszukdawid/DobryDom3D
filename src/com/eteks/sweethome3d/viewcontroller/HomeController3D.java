@@ -311,6 +311,22 @@ public class HomeController3D implements Controller {
   }
 
   /**
+   * Moves home camera forward or backward on the ground plane.
+   * @param delta the value in cm that the camera should move forward
+   *              (with a positive delta) or backward (with a negative delta)
+   */
+  public void moveCameraOnGround(float delta) {
+    this.cameraState.moveCameraOnGround(delta);
+  }
+
+  /**
+   * Zooms home camera of <code>delta</code> along its viewing direction.
+   */
+  public void zoomCamera(float delta) {
+    this.cameraState.zoomCamera(delta);
+  }
+
+  /**
    * Moves home camera sideways of <code>delta</code>.
    * @param delta  the value in cm that the camera should move left
    *               (with a negative delta) or right (with a positive delta)
@@ -452,6 +468,12 @@ public class HomeController3D implements Controller {
     public void moveCamera(float delta) {
     }
 
+    public void moveCameraOnGround(float delta) {
+    }
+
+    public void zoomCamera(float delta) {
+    }
+
     public void moveCameraSideways(float delta) {
     }
 
@@ -534,6 +556,14 @@ public class HomeController3D implements Controller {
     }
 
     public void moveCamera(float delta) {
+      this.cameraMoved = true;
+    }
+
+    public void moveCameraOnGround(float delta) {
+      this.cameraMoved = true;
+    }
+
+    public void zoomCamera(float delta) {
       this.cameraMoved = true;
     }
 
@@ -828,6 +858,8 @@ public class HomeController3D implements Controller {
     private Camera      topCamera;
     private float []    aerialViewBoundsLowerPoint;
     private float []    aerialViewBoundsUpperPoint;
+    private float       aerialViewCenterXOffset;
+    private float       aerialViewCenterYOffset;
     private float       minDistanceToAerialViewCenter;
     private float       maxDistanceToAerialViewCenter;
     private boolean     aerialViewCenteredOnSelectionEnabled;
@@ -1021,8 +1053,10 @@ public class HomeController3D implements Controller {
      * Returns the distance between the current camera location and home bounds center.
      */
     private float getCameraToAerialViewCenterDistance() {
-      return (float)Math.sqrt(Math.pow((this.aerialViewBoundsLowerPoint [0] + this.aerialViewBoundsUpperPoint [0]) / 2 - this.topCamera.getX(), 2)
-          + Math.pow((this.aerialViewBoundsLowerPoint [1] + this.aerialViewBoundsUpperPoint [1]) / 2 - this.topCamera.getY(), 2)
+      return (float)Math.sqrt(Math.pow((this.aerialViewBoundsLowerPoint [0] + this.aerialViewBoundsUpperPoint [0]) / 2
+              + this.aerialViewCenterXOffset - this.topCamera.getX(), 2)
+          + Math.pow((this.aerialViewBoundsLowerPoint [1] + this.aerialViewBoundsUpperPoint [1]) / 2
+              + this.aerialViewCenterYOffset - this.topCamera.getY(), 2)
           + Math.pow((this.aerialViewBoundsLowerPoint [2] + this.aerialViewBoundsUpperPoint [2]) / 2 - this.topCamera.getZ(), 2));
     }
 
@@ -1250,6 +1284,33 @@ public class HomeController3D implements Controller {
       placeCameraAt(newDistanceToCenter, false);
     }
 
+    @Override
+    public void moveCameraOnGround(float delta) {
+      super.moveCameraOnGround(delta);
+      float deltaX = -(float)Math.sin(this.topCamera.getYaw()) * delta;
+      float deltaY = (float)Math.cos(this.topCamera.getYaw()) * delta;
+      this.aerialViewCenterXOffset += deltaX;
+      this.aerialViewCenterYOffset += deltaY;
+      this.topCamera.setX(this.topCamera.getX() + deltaX);
+      this.topCamera.setY(this.topCamera.getY() + deltaY);
+    }
+
+    @Override
+    public void zoomCamera(float delta) {
+      moveCamera(delta);
+    }
+
+    @Override
+    public void moveCameraSideways(float delta) {
+      super.moveCameraSideways(delta);
+      float deltaX = -(float)Math.cos(this.topCamera.getYaw()) * delta;
+      float deltaY = -(float)Math.sin(this.topCamera.getYaw()) * delta;
+      this.aerialViewCenterXOffset += deltaX;
+      this.aerialViewCenterYOffset += deltaY;
+      this.topCamera.setX(this.topCamera.getX() + deltaX);
+      this.topCamera.setY(this.topCamera.getY() + deltaY);
+    }
+
     public void placeCameraAt(float distanceToCenter, boolean firstPieceOfFurnitureAddedToEmptyHome) {
       // Check camera is always outside the sphere centered in home center and with a radius equal to minimum distance
       distanceToCenter = Math.max(distanceToCenter, this.minDistanceToAerialViewCenter);
@@ -1261,8 +1322,10 @@ public class HomeController3D implements Controller {
       }
       double distanceToCenterAtGroundLevel = distanceToCenter * Math.cos(this.topCamera.getPitch());
       this.topCamera.setX((this.aerialViewBoundsLowerPoint [0] + this.aerialViewBoundsUpperPoint [0]) / 2
+          + this.aerialViewCenterXOffset
           + (float)(Math.sin(this.topCamera.getYaw()) * distanceToCenterAtGroundLevel));
       this.topCamera.setY((this.aerialViewBoundsLowerPoint [1] + this.aerialViewBoundsUpperPoint [1]) / 2
+          + this.aerialViewCenterYOffset
           - (float)(Math.cos(this.topCamera.getYaw()) * distanceToCenterAtGroundLevel));
       this.topCamera.setZ((this.aerialViewBoundsLowerPoint [2] + this.aerialViewBoundsUpperPoint [2]) / 2
           + (float)Math.sin(this.topCamera.getPitch()) * distanceToCenter);
@@ -1276,8 +1339,10 @@ public class HomeController3D implements Controller {
       // Change camera yaw and location so user turns around home
       this.topCamera.setYaw(newYaw);
       this.topCamera.setX((this.aerialViewBoundsLowerPoint [0] + this.aerialViewBoundsUpperPoint [0]) / 2
+          + this.aerialViewCenterXOffset
           + (float)(Math.sin(newYaw) * distanceToCenterAtGroundLevel));
       this.topCamera.setY((this.aerialViewBoundsLowerPoint [1] + this.aerialViewBoundsUpperPoint [1]) / 2
+          + this.aerialViewCenterYOffset
           - (float)(Math.cos(newYaw) * distanceToCenterAtGroundLevel));
     }
 
@@ -1294,8 +1359,10 @@ public class HomeController3D implements Controller {
       // Change camera pitch
       this.topCamera.setPitch(newPitch);
       this.topCamera.setX((this.aerialViewBoundsLowerPoint [0] + this.aerialViewBoundsUpperPoint [0]) / 2
+          + this.aerialViewCenterXOffset
           + (float)(Math.sin(this.topCamera.getYaw()) * distanceToCenterAtGroundLevel));
       this.topCamera.setY((this.aerialViewBoundsLowerPoint [1] + this.aerialViewBoundsUpperPoint [1]) / 2
+          + this.aerialViewCenterYOffset
           - (float)(Math.cos(this.topCamera.getYaw()) * distanceToCenterAtGroundLevel));
       this.topCamera.setZ((this.aerialViewBoundsLowerPoint [2] + this.aerialViewBoundsUpperPoint [2]) / 2
           + (float)(distanceToCenter * Math.sin(newPitch)));
@@ -1431,6 +1498,30 @@ public class HomeController3D implements Controller {
       super.moveCamera(delta);
       this.observerCamera.setX(this.observerCamera.getX() - (float)Math.sin(this.observerCamera.getYaw()) * delta);
       this.observerCamera.setY(this.observerCamera.getY() + (float)Math.cos(this.observerCamera.getYaw()) * delta);
+      selectCamera();
+    }
+
+    @Override
+    public void moveCameraOnGround(float delta) {
+      super.moveCameraOnGround(delta);
+      this.observerCamera.setX(this.observerCamera.getX() - (float)Math.sin(this.observerCamera.getYaw()) * delta);
+      this.observerCamera.setY(this.observerCamera.getY() + (float)Math.cos(this.observerCamera.getYaw()) * delta);
+      selectCamera();
+    }
+
+    @Override
+    public void zoomCamera(float delta) {
+      super.zoomCamera(delta);
+      float pitchSin = (float)Math.sin(this.observerCamera.getPitch());
+      float newZ = this.observerCamera.getZ() - pitchSin * delta;
+      newZ = Math.min(Math.max(newZ, getMinimumElevation()), preferences.getLengthUnit().getMaximumElevation());
+      if (pitchSin != 0) {
+        delta = (this.observerCamera.getZ() - newZ) / pitchSin;
+      }
+      float horizontalDelta = (float)Math.cos(this.observerCamera.getPitch()) * delta;
+      this.observerCamera.setX(this.observerCamera.getX() - (float)Math.sin(this.observerCamera.getYaw()) * horizontalDelta);
+      this.observerCamera.setY(this.observerCamera.getY() + (float)Math.cos(this.observerCamera.getYaw()) * horizontalDelta);
+      this.observerCamera.setZ(newZ);
       selectCamera();
     }
 

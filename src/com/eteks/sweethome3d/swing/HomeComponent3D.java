@@ -1798,14 +1798,14 @@ public class HomeComponent3D extends JComponent implements View3D, Printable {
                   delta *= 5;
                 }
                 controller.moveCamera(delta);
+              } else if (ev.isShiftDown()) {
+                // Mouse move while shift is down pans camera sideways and forward or backward
+                controller.moveCameraSideways(-1.25f * (ev.getX() - this.xLastMouseMove));
+                controller.moveCameraOnGround(-1.25f * (this.yLastMouseMove - ev.getY()));
               } else {
                 final float ANGLE_FACTOR = 0.005f;
                 // Mouse move along X axis changes camera yaw
                 float yawDelta = ANGLE_FACTOR * (ev.getX() - this.xLastMouseMove);
-                // Multiply yaw delta by 5 if shift is down
-                if (ev.isShiftDown()) {
-                  yawDelta *= 5;
-                }
                 controller.rotateCameraYaw(yawDelta);
 
                 // Mouse move along Y axis changes camera pitch
@@ -1941,7 +1941,7 @@ public class HomeComponent3D extends JComponent implements View3D, Printable {
             if (ev.isShiftDown()) {
               delta *= 5;
             }
-            controller.moveCamera(delta);
+            controller.zoomCamera(delta);
           }
         }
       };
@@ -1981,12 +1981,12 @@ public class HomeComponent3D extends JComponent implements View3D, Printable {
     inputMap.put(KeyStroke.getKeyStroke("alt LEFT"), ActionType.MOVE_CAMERA_LEFT);
     inputMap.put(KeyStroke.getKeyStroke("shift alt RIGHT"), ActionType.MOVE_CAMERA_FAST_RIGHT);
     inputMap.put(KeyStroke.getKeyStroke("alt RIGHT"), ActionType.MOVE_CAMERA_RIGHT);
-    inputMap.put(KeyStroke.getKeyStroke("shift LEFT"), ActionType.ROTATE_CAMERA_YAW_FAST_LEFT);
-    inputMap.put(KeyStroke.getKeyStroke("shift A"), ActionType.ROTATE_CAMERA_YAW_FAST_LEFT);
+    inputMap.put(KeyStroke.getKeyStroke("shift LEFT"), ActionType.MOVE_CAMERA_FAST_LEFT);
+    inputMap.put(KeyStroke.getKeyStroke("shift A"), ActionType.MOVE_CAMERA_FAST_LEFT);
     inputMap.put(KeyStroke.getKeyStroke("LEFT"), ActionType.ROTATE_CAMERA_YAW_LEFT);
     inputMap.put(KeyStroke.getKeyStroke("A"), ActionType.ROTATE_CAMERA_YAW_LEFT);
-    inputMap.put(KeyStroke.getKeyStroke("shift RIGHT"), ActionType.ROTATE_CAMERA_YAW_FAST_RIGHT);
-    inputMap.put(KeyStroke.getKeyStroke("shift D"), ActionType.ROTATE_CAMERA_YAW_FAST_RIGHT);
+    inputMap.put(KeyStroke.getKeyStroke("shift RIGHT"), ActionType.MOVE_CAMERA_FAST_RIGHT);
+    inputMap.put(KeyStroke.getKeyStroke("shift D"), ActionType.MOVE_CAMERA_FAST_RIGHT);
     inputMap.put(KeyStroke.getKeyStroke("RIGHT"), ActionType.ROTATE_CAMERA_YAW_RIGHT);
     inputMap.put(KeyStroke.getKeyStroke("D"), ActionType.ROTATE_CAMERA_YAW_RIGHT);
     inputMap.put(KeyStroke.getKeyStroke("shift PAGE_UP"), ActionType.ROTATE_CAMERA_PITCH_FAST_UP);
@@ -2095,6 +2095,18 @@ public class HomeComponent3D extends JComponent implements View3D, Printable {
         controller.moveCamera(this.delta);
       }
     }
+    // Move camera on the ground plane action mapped to Shift + arrow keys
+    class MoveCameraOnGroundAction extends AbstractAction {
+      private final float delta;
+
+      public MoveCameraOnGroundAction(float delta) {
+        this.delta = delta;
+      }
+
+      public void actionPerformed(ActionEvent e) {
+        controller.moveCameraOnGround(this.delta);
+      }
+    }
     // Move camera sideways action mapped to arrow keys
     class MoveCameraSidewaysAction extends AbstractAction {
       private final float delta;
@@ -2145,9 +2157,9 @@ public class HomeComponent3D extends JComponent implements View3D, Printable {
     }
     ActionMap actionMap = getActionMap();
     actionMap.put(ActionType.MOVE_CAMERA_FORWARD, new MoveCameraAction(6.5f));
-    actionMap.put(ActionType.MOVE_CAMERA_FAST_FORWARD, new MoveCameraAction(32.5f));
+    actionMap.put(ActionType.MOVE_CAMERA_FAST_FORWARD, new MoveCameraOnGroundAction(32.5f));
     actionMap.put(ActionType.MOVE_CAMERA_BACKWARD, new MoveCameraAction(-6.5f));
-    actionMap.put(ActionType.MOVE_CAMERA_FAST_BACKWARD, new MoveCameraAction(-32.5f));
+    actionMap.put(ActionType.MOVE_CAMERA_FAST_BACKWARD, new MoveCameraOnGroundAction(-32.5f));
     actionMap.put(ActionType.MOVE_CAMERA_LEFT, new MoveCameraSidewaysAction(-2.5f));
     actionMap.put(ActionType.MOVE_CAMERA_FAST_LEFT, new MoveCameraSidewaysAction(-10f));
     actionMap.put(ActionType.MOVE_CAMERA_RIGHT, new MoveCameraSidewaysAction(2.5f));
