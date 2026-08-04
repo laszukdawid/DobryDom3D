@@ -262,6 +262,7 @@
           <include name="**/CatalogTreeTest.java"/>
           <include name="**/FurnitureTableTest.java"/>
           <include name="**/WallPanelTest.java"/>
+          <include name="**/YafarayRendererTest.java"/>
         </fileset>
       </batchtest>
     </junit>
@@ -305,7 +306,31 @@
     <fail if="all.tests.failed" message="One or more tests failed; see build/test-reports"/>
   </target>
 
-  <target name="ci" depends="clean,test,application"
+  <target name="test-yafaray" depends="compile-tests"
+          description="Runs the YafaRay native lifecycle test with finalization disabled">
+    <junit fork="true" haltonerror="true" haltonfailure="true"
+           printsummary="true" showoutput="true"
+           timeout="120000" tempdir="build/test-tmp">
+      <classpath>
+        <pathelement location="build/test-classes"/>
+        <pathelement location="build/SweetHome3D.jar"/>
+        <pathelement location="src"/>
+        <pathelement location="test"/>
+        <path refid="test.dependencies"/>
+      </classpath>
+      <jvmarg value="--finalization=disabled"/>
+      <jvmarg value="--enable-native-access=ALL-UNNAMED"/>
+      <sysproperty key="java.library.path" value="${test.native.library.path}"/>
+      <sysproperty key="jogamp.gluegen.UseTempJarCache" value="false"/>
+      <sysproperty key="com.eteks.sweethome3d.j3d.requireYafaray" value="true"/>
+      <formatter type="plain" usefile="false"/>
+      <formatter type="xml"/>
+      <test name="com.eteks.sweethome3d.junit.YafarayRendererTest"
+            todir="build/test-reports"/>
+    </junit>
+  </target>
+
+  <target name="ci" depends="clean,test,test-yafaray,application"
           description="Cleans, tests and builds the standalone application"/>
 
   <target name="furniture"

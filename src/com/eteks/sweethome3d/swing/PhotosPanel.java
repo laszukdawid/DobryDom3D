@@ -129,6 +129,8 @@ public class PhotosPanel extends JPanel implements DialogView {
   private JComboBox                fileFormatComboBox;
   private String                   dialogTitle;
   private ExecutorService          photosCreationExecutor;
+  private volatile AbstractPhotoRenderer photoRenderer;
+  private boolean                  photosCreationCancelled;
   private JButton                  startStopButton;
   private JButton                  closeButton;
 
@@ -557,6 +559,10 @@ public class PhotosPanel extends JPanel implements DialogView {
    * Creates the photo images in a folder depending on the quality requested by the user.
    */
   private void startPhotosCreation() {
+    if (this.photosCreationExecutor != null) {
+      return;
+    }
+    this.photosCreationCancelled = false;
     final String directory = this.controller.getContentManager().showSaveDialog(this,
         this.preferences.getLocalizedString(PhotosPanel.class, "selectPhotosFolderDialog.title"),
         ContentManager.ContentType.PHOTOS_DIRECTORY, this.home.getName());
@@ -617,10 +623,11 @@ public class PhotosPanel extends JPanel implements DialogView {
       final Home home = this.home.clone();
       List<Selectable> emptySelection = Collections.emptyList();
       home.setSelectedItems(emptySelection);
-      this.photosCreationExecutor = Executors.newSingleThreadExecutor();
-      this.photosCreationExecutor.execute(new Runnable() {
+      final ExecutorService photosCreationExecutor = Executors.newSingleThreadExecutor();
+      this.photosCreationExecutor = photosCreationExecutor;
+      photosCreationExecutor.execute(new Runnable() {
           public void run() {
-            computePhotos(home, cameraFiles);
+            computePhotos(home, cameraFiles, photosCreationExecutor);
           }
         });
     }
@@ -630,12 +637,16 @@ public class PhotosPanel extends JPanel implements DialogView {
    * Computes the photo of the given home.
    * Caution : this method must be thread safe because it's called from an executor.
    */
-  private void computePhotos(Home home, final Map<Camera, File> cameraFiles) {
+  private void computePhotos(Home home, final Map<Camera, File> cameraFiles,
+                             final ExecutorService photosCreationExecutor) {
     BufferedImage image = null;
     boolean success = false;
     try {
       int photoIndex = 0;
       for (Map.Entry<Camera, File> cameraEntry : cameraFiles.entrySet()) {
+        if (photosCreationExecutor.isShutdown()) {
+          return;
+        }
         int quality = this.controller.getQuality();
         int imageWidth = this.controller.getWidth();
         int imageHeight = this.controller.getHeight();
@@ -643,25 +654,33 @@ public class PhotosPanel extends JPanel implements DialogView {
         home.setCamera(camera);
         if (quality >= 2) {
           // Use photo renderer
-          AbstractPhotoRenderer photoRenderer = AbstractPhotoRenderer.createInstance(
+          this.photoRenderer = AbstractPhotoRenderer.createInstance(
               camera.getRenderer(), home, this.object3dFactory,
               quality == 2
                   ? AbstractPhotoRenderer.Quality.LOW
                   : AbstractPhotoRenderer.Quality.HIGH);
-          int bestImageHeight;
-          // Update ratio if lens is fisheye or spherical
-          if (camera.getLens() == Camera.Lens.FISHEYE) {
-            bestImageHeight = imageWidth;
-          } else if (camera.getLens() == Camera.Lens.SPHERICAL) {
-            bestImageHeight = imageWidth / 2;
-          } else {
-            bestImageHeight = imageHeight;
-          }
-          if (this.photosCreationExecutor != null) {
-            image = new BufferedImage(imageWidth, bestImageHeight, BufferedImage.TYPE_INT_RGB);
-            this.photoComponent.setImage(image);
-            updateProgressBar(photoIndex++, cameraFiles.size());
-            photoRenderer.render(image, camera, this.photoComponent);
+          try {
+            int bestImageHeight;
+            // Update ratio if lens is fisheye or spherical
+            if (camera.getLens() == Camera.Lens.FISHEYE) {
+              bestImageHeight = imageWidth;
+            } else if (camera.getLens() == Camera.Lens.SPHERICAL) {
+              bestImageHeight = imageWidth / 2;
+            } else {
+              bestImageHeight = imageHeight;
+            }
+            if (!photosCreationExecutor.isShutdown()) {
+              image = new BufferedImage(imageWidth, bestImageHeight, BufferedImage.TYPE_INT_RGB);
+              this.photoComponent.setImage(image);
+              updateProgressBar(photoIndex++, cameraFiles.size());
+              this.photoRenderer.render(image, camera, this.photoComponent);
+            }
+          } finally {
+            AbstractPhotoRenderer rendererToDispose = this.photoRenderer;
+            this.photoRenderer = null;
+            if (rendererToDispose != null) {
+              rendererToDispose.dispose();
+            }
           }
         } else {
           // Compute 3D view offscreen image
@@ -673,7 +692,7 @@ public class PhotosPanel extends JPanel implements DialogView {
         }
 
         try {
-          if (this.photosCreationExecutor != null) {
+          if (!photosCreationExecutor.isShutdown()) {
             savePhoto(image, cameraEntry.getValue());
           }
         } catch (final IOException ex) {
@@ -681,7 +700,7 @@ public class PhotosPanel extends JPanel implements DialogView {
           return;
         }
 
-        if (this.photosCreationExecutor == null) {
+        if (photosCreationExecutor.isShutdown()) {
           return;
         }
       }
@@ -694,19 +713,21 @@ public class PhotosPanel extends JPanel implements DialogView {
       showPhotosComputingError(ex);
     } finally {
       final boolean succeeded = success;
+      photosCreationExecutor.shutdown();
       EventQueue.invokeLater(new Runnable() {
           public void run() {
             startStopButton.setAction(getActionMap().get(ActionType.START_PHOTOS_CREATION));
+            startStopButton.setEnabled(true);
             selectedCamerasList.setEnabled(true);
             sizeAndQualityPanel.setEnabled(true);
             sizeAndQualityPanel.setProportionsChoiceEnabled(true);
             fileFormatComboBox.setEnabled(true);
-            if (succeeded) {
+            if (succeeded && !photosCreationCancelled) {
               statusLayout.show(statusPanel, END_CARD);
             } else {
               statusLayout.show(statusPanel, TIP_CARD);
             }
-            photosCreationExecutor = null;
+            PhotosPanel.this.photosCreationExecutor = null;
           }
         });
     }
@@ -761,9 +782,14 @@ public class PhotosPanel extends JPanel implements DialogView {
   private void stopPhotosCreation() {
     if (this.photosCreationExecutor != null) {
       // Will interrupt executor thread
+      this.photosCreationCancelled = true;
       this.photosCreationExecutor.shutdownNow();
-      this.photosCreationExecutor = null;
+      AbstractPhotoRenderer rendererToStop = this.photoRenderer;
+      if (rendererToStop != null) {
+        rendererToStop.stop();
+      }
       this.startStopButton.setAction(getActionMap().get(ActionType.START_PHOTOS_CREATION));
+      this.startStopButton.setEnabled(false);
     }
   }
 

@@ -148,7 +148,8 @@ public class PhotoPanel extends JPanel implements DialogView {
   private JButton                  closeButton;
 
   private static PhotoPanel        currentPhotoPanel; // Support only one photo panel opened at a time
-  private AbstractPhotoRenderer    photoRenderer;
+  private volatile AbstractPhotoRenderer photoRenderer;
+  private boolean                  photoCreationCancelled;
 
   public PhotoPanel(Home home,
                     UserPreferences preferences,
@@ -781,6 +782,10 @@ public class PhotoPanel extends JPanel implements DialogView {
    * Creates the photo image depending on the quality requested by the user.
    */
   private void startPhotoCreation() {
+    if (this.photoCreationExecutor != null) {
+      return;
+    }
+    this.photoCreationCancelled = false;
     this.photoComponent.setImage(null);
     this.sizeAndQualityPanel.setEnabled(false);
     this.dateSpinner.setEnabled(false);
@@ -798,10 +803,11 @@ public class PhotoPanel extends JPanel implements DialogView {
     final Home home = this.home.clone();
     List<Selectable> emptySelection = Collections.emptyList();
     home.setSelectedItems(emptySelection);
-    this.photoCreationExecutor = Executors.newSingleThreadExecutor();
-    this.photoCreationExecutor.execute(new Runnable() {
+    final ExecutorService photoCreationExecutor = Executors.newSingleThreadExecutor();
+    this.photoCreationExecutor = photoCreationExecutor;
+    photoCreationExecutor.execute(new Runnable() {
         public void run() {
-          computePhoto(home);
+          computePhoto(home, photoCreationExecutor);
         }
       });
   }
@@ -810,13 +816,16 @@ public class PhotoPanel extends JPanel implements DialogView {
    * Computes the photo of the given home.
    * Caution : this method must be thread safe because it's called from an executor.
    */
-  private void computePhoto(Home home) {
+  private void computePhoto(Home home, final ExecutorService photoCreationExecutor) {
     this.photoCreationStartTime = System.currentTimeMillis();
     BufferedImage image = null;
     int quality = this.controller.getQuality();
     int imageWidth = this.controller.getWidth();
     int imageHeight = this.controller.getHeight();
     try {
+      if (photoCreationExecutor.isShutdown()) {
+        return;
+      }
       if (quality >= 2) {
         this.photoRenderer = AbstractPhotoRenderer.createInstance(
             this.controller.getRenderer(), home, this.object3dFactory,
@@ -833,7 +842,7 @@ public class PhotoPanel extends JPanel implements DialogView {
         } else {
           bestImageHeight = imageHeight;
         }
-        if (photoCreationExecutor != null) {
+        if (!photoCreationExecutor.isShutdown()) {
           image = new BufferedImage(imageWidth, bestImageHeight, BufferedImage.TYPE_INT_RGB);
           this.photoComponent.setImage(image);
           EventQueue.invokeLater(new Runnable() {
@@ -842,10 +851,6 @@ public class PhotoPanel extends JPanel implements DialogView {
             }
           });
           this.photoRenderer.render(image, camera, this.photoComponent);
-          if (this.photoRenderer != null) {
-            this.photoRenderer.dispose();
-            this.photoRenderer = null;
-          }
         }
       } else {
         // Compute 3D view offscreen image
@@ -866,11 +871,16 @@ public class PhotoPanel extends JPanel implements DialogView {
     } catch (IOException ex) {
       image = getErrorImage();
     } finally {
-      final BufferedImage photoImage = this.photoCreationExecutor != null
-          ? image
-          : null;
+      AbstractPhotoRenderer rendererToDispose = this.photoRenderer;
+      this.photoRenderer = null;
+      if (rendererToDispose != null) {
+        rendererToDispose.dispose();
+      }
+      photoCreationExecutor.shutdown();
+      final BufferedImage renderedImage = image;
       EventQueue.invokeLater(new Runnable() {
           public void run() {
+            BufferedImage photoImage = photoCreationCancelled ? null : renderedImage;
             getActionMap().get(ActionType.SAVE_PHOTO).setEnabled(photoImage != null);
             if (photoImage != null) {
               getRootPane().setDefaultButton(saveButton);
@@ -886,7 +896,7 @@ public class PhotoPanel extends JPanel implements DialogView {
             rendererComboBox.setEnabled(true);
             ceilingLightEnabledCheckBox.setEnabled(true);
             photoCardLayout.show(photoPanel, PHOTO_CARD);
-            photoCreationExecutor = null;
+            PhotoPanel.this.photoCreationExecutor = null;
           }
         });
     }
@@ -919,11 +929,11 @@ public class PhotoPanel extends JPanel implements DialogView {
                   JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE) == JOptionPane.YES_OPTION)) {
       if (this.photoCreationExecutor != null) { // Check a second time in case rendering stopped meanwhile
         // Will interrupt executor thread
+        this.photoCreationCancelled = true;
         this.photoCreationExecutor.shutdownNow();
-        this.photoCreationExecutor = null;
-        if (this.photoRenderer != null) {
-          this.photoRenderer.stop();
-          this.photoRenderer = null;
+        AbstractPhotoRenderer rendererToStop = this.photoRenderer;
+        if (rendererToStop != null) {
+          rendererToStop.stop();
         }
         this.createButton.setAction(getActionMap().get(ActionType.START_PHOTO_CREATION));
         // Disable button until the rendering process will actually end

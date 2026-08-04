@@ -21,6 +21,8 @@ This changelog records changes made in this fork after the upstream Sweet Home
 - Added Task targets for app images, Linux packages, headless tests, and tests
   running in an isolated Xvfb display.
 - Added Linux package building and artifact upload to GitHub Actions CI.
+- Added a mandatory YafaRay native lifecycle CI test that runs with JVM
+  finalization disabled under an isolated virtual X server.
 
 ### Changed
 
@@ -34,6 +36,9 @@ This changelog records changes made in this fork after the upstream Sweet Home
 - Made `task run` rebuild the executable only when its inputs have changed.
 - Updated build, packaging, licensing, and user documentation for the new
   platform package workflow.
+- Made YafaRay renderer cleanup deterministic across photo, batch-photo, video,
+  cancellation, failure, and scene-rebuild paths using the existing
+  cross-platform JNI ABI.
 - Excluded generated package directories, Task state, and local `issues.md`
   files from repository and source archive output.
 

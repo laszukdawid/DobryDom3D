@@ -208,6 +208,8 @@ public class VideoPanel extends JPanel implements DialogView {
   private JCheckBox             ceilingLightEnabledCheckBox;
   private String                dialogTitle;
   private ExecutorService       videoCreationExecutor;
+  private volatile FrameGenerator frameGenerator;
+  private boolean               videoCreationCancelled;
   private long                  videoCreationStartTime;
   private File                  videoFile;
   private JButton               createButton;
@@ -1440,6 +1442,10 @@ public class VideoPanel extends JPanel implements DialogView {
    * Creates the video image depending on the quality requested by the user.
    */
   private void startVideoCreation() {
+    if (this.videoCreationExecutor != null) {
+      return;
+    }
+    this.videoCreationCancelled = false;
     ActionMap actionMap = getActionMap();
     actionMap.get(ActionType.SAVE_VIDEO).setEnabled(false);
     this.createButton.setAction(getActionMap().get(ActionType.STOP_VIDEO_CREATION));
@@ -1462,10 +1468,11 @@ public class VideoPanel extends JPanel implements DialogView {
     final Home home = this.home.clone();
     List<Selectable> emptySelection = Collections.emptyList();
     home.setSelectedItems(emptySelection);
-    this.videoCreationExecutor = Executors.newSingleThreadExecutor();
-    this.videoCreationExecutor.execute(new Runnable() {
+    final ExecutorService videoCreationExecutor = Executors.newSingleThreadExecutor();
+    this.videoCreationExecutor = videoCreationExecutor;
+    videoCreationExecutor.execute(new Runnable() {
         public void run() {
-          computeVideo(home);
+          computeVideo(home, videoCreationExecutor);
         }
       });
   }
@@ -1474,7 +1481,7 @@ public class VideoPanel extends JPanel implements DialogView {
    * Computes the video of the given home.
    * Caution : this method must be thread safe because it's called from an executor.
    */
-  private void computeVideo(Home home) {
+  private void computeVideo(Home home, final ExecutorService videoCreationExecutor) {
     this.videoCreationStartTime = System.currentTimeMillis();
     int frameRate = this.controller.getFrameRate();
     int quality = this.controller.getQuality();
@@ -1492,7 +1499,6 @@ public class VideoPanel extends JPanel implements DialogView {
           progressModel.setValue(0);
         }
       });
-    FrameGenerator frameGenerator = null;
     // Delete previous file if it exists
     if (this.videoFile != null) {
       this.videoFile.delete();
@@ -1502,20 +1508,20 @@ public class VideoPanel extends JPanel implements DialogView {
     try {
       file = OperatingSystem.createTemporaryFile("video", ".mov");
       if (quality >= 2) {
-        frameGenerator = new PhotoImageGenerator(home, width, height,
+        this.frameGenerator = new PhotoImageGenerator(home, width, height,
             this.controller.getRenderer(), this.object3dFactory,
             quality == 2
                 ? AbstractPhotoRenderer.Quality.LOW
                 : AbstractPhotoRenderer.Quality.HIGH);
       } else {
-        frameGenerator = new Image3DGenerator(home, this.preferences, width, height, this.object3dFactory,
+        this.frameGenerator = new Image3DGenerator(home, this.preferences, width, height, this.object3dFactory,
             quality == 1
             && (!this.preferences.isDrawingModeEnabled()
                 || home.getEnvironment().getDrawingMode() != HomeEnvironment.DrawingMode.OUTLINE));
       }
       if (!Thread.currentThread().isInterrupted()) {
         ImageDataSource sourceStream = new ImageDataSource((VideoFormat)this.videoFormatComboBox.getSelectedItem(),
-            frameGenerator, videoFramesPath, progressModel);
+            this.frameGenerator, videoFramesPath, progressModel);
         new JPEGImagesToVideo().createVideoFile(width, height, frameRate, sourceStream, file);
       }
     } catch (InterruptedIOException ex) {
@@ -1531,12 +1537,25 @@ public class VideoPanel extends JPanel implements DialogView {
           this.preferences.getLocalizedString(VideoPanel.class, "outOfMemory.message"));
       file = null;
     } finally {
-      this.videoFile = file;
+      FrameGenerator generatorToDispose = this.frameGenerator;
+      this.frameGenerator = null;
+      if (generatorToDispose != null) {
+        generatorToDispose.dispose();
+      }
+      videoCreationExecutor.shutdown();
+      final File generatedVideoFile = file;
       EventQueue.invokeLater(new Runnable() {
           public void run() {
+            if (videoCreationCancelled && generatedVideoFile != null) {
+              generatedVideoFile.delete();
+              VideoPanel.this.videoFile = null;
+            } else {
+              VideoPanel.this.videoFile = generatedVideoFile;
+            }
             ActionMap actionMap = getActionMap();
             actionMap.get(ActionType.SAVE_VIDEO).setEnabled(videoFile != null);
             createButton.setAction(actionMap.get(ActionType.START_VIDEO_CREATION));
+            createButton.setEnabled(true);
             actionMap.get(ActionType.RECORD).setEnabled(true);
             actionMap.get(ActionType.DELETE_CAMERA_PATH).setEnabled(true);
             actionMap.get(ActionType.DELETE_LAST_RECORD).setEnabled(true);
@@ -1550,7 +1569,7 @@ public class VideoPanel extends JPanel implements DialogView {
             rendererComboBox.setEnabled(true);
             ceilingLightEnabledCheckBox.setEnabled(true);
             statusLayout.show(statusPanel, TIP_CARD);
-            videoCreationExecutor = null;
+            VideoPanel.this.videoCreationExecutor = null;
           }
         });
     }
@@ -1584,9 +1603,14 @@ public class VideoPanel extends JPanel implements DialogView {
                   JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE) == JOptionPane.YES_OPTION)) {
       if (this.videoCreationExecutor != null) { // Check a second time in case rendering stopped meanwhile
         // Interrupt executor thread
+        this.videoCreationCancelled = true;
         this.videoCreationExecutor.shutdownNow();
-        this.videoCreationExecutor = null;
+        FrameGenerator generatorToStop = this.frameGenerator;
+        if (generatorToStop != null) {
+          generatorToStop.stop();
+        }
         this.createButton.setAction(getActionMap().get(ActionType.START_VIDEO_CREATION));
+        this.createButton.setEnabled(false);
       }
     }
   }
@@ -1813,8 +1837,7 @@ public class VideoPanel extends JPanel implements DialogView {
       } else {
         checkAppContext();
         ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
-        BufferedImage frame = this.frameGenerator.renderImageAt(this.framesPath [this.imageIndex],
-            this.imageIndex == this.framesPath.length - 1);
+        BufferedImage frame = this.frameGenerator.renderImageAt(this.framesPath [this.imageIndex]);
         ImageIO.write(frame, "JPEG", outputStream);
         byte [] data = outputStream.toByteArray();
         buffer.setData(data);
@@ -1895,7 +1918,12 @@ public class VideoPanel extends JPanel implements DialogView {
       this.launchingThread = Thread.currentThread();
     }
 
-    public abstract BufferedImage renderImageAt(Camera frameCamera, boolean last) throws IOException;
+    public abstract BufferedImage renderImageAt(Camera frameCamera) throws IOException;
+
+    public void stop() {
+    }
+
+    public abstract void dispose();
 
     protected void checkLaunchingThreadIsntInterrupted() throws InterruptedIOException {
       if (this.launchingThread.isInterrupted()) {
@@ -1908,7 +1936,7 @@ public class VideoPanel extends JPanel implements DialogView {
    * A frame generator using photo renderer.
    */
   private static class PhotoImageGenerator extends FrameGenerator {
-    private AbstractPhotoRenderer renderer;
+    private volatile AbstractPhotoRenderer renderer;
     private BufferedImage         image;
 
     public PhotoImageGenerator(Home home, int width, int height, String photoRendererClass,
@@ -1917,20 +1945,25 @@ public class VideoPanel extends JPanel implements DialogView {
       this.image = new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB);
     }
 
-    public BufferedImage renderImageAt(Camera frameCamera, boolean last) throws IOException {
-      try {
-        checkLaunchingThreadIsntInterrupted();
-        this.renderer.render(this.image, frameCamera, null);
-        checkLaunchingThreadIsntInterrupted();
-        return image;
-      } catch(InterruptedIOException ex) {
-        this.renderer = null;
-        throw ex;
-      } finally {
-        if (last) {
-          this.renderer.dispose();
-          this.renderer = null;
-        }
+    public BufferedImage renderImageAt(Camera frameCamera) throws IOException {
+      checkLaunchingThreadIsntInterrupted();
+      this.renderer.render(this.image, frameCamera, null);
+      checkLaunchingThreadIsntInterrupted();
+      return image;
+    }
+
+    public void stop() {
+      AbstractPhotoRenderer rendererToStop = this.renderer;
+      if (rendererToStop != null) {
+        rendererToStop.stop();
+      }
+    }
+
+    public void dispose() {
+      AbstractPhotoRenderer rendererToDispose = this.renderer;
+      this.renderer = null;
+      if (rendererToDispose != null) {
+        rendererToDispose.dispose();
       }
     }
   }
@@ -1952,30 +1985,28 @@ public class VideoPanel extends JPanel implements DialogView {
       this.image = new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB);
     }
 
-    public BufferedImage renderImageAt(Camera frameCamera, boolean last) throws IOException {
-      try {
-        checkLaunchingThreadIsntInterrupted();
-        // Replace home camera with frameCamera to avoid animation interpolator in 3D component
-        this.home.setCamera(frameCamera);
-        // Get a twice bigger offscreen image for better quality
-        // (antialiasing isn't always available for offscreen canvas)
-        BufferedImage offScreenImage = this.homeComponent3D.getOffScreenImage(
-            2 * this.image.getWidth(), 2 * this.image.getHeight());
+    public BufferedImage renderImageAt(Camera frameCamera) throws IOException {
+      checkLaunchingThreadIsntInterrupted();
+      // Replace home camera with frameCamera to avoid animation interpolator in 3D component
+      this.home.setCamera(frameCamera);
+      // Get a twice bigger offscreen image for better quality
+      // (antialiasing isn't always available for offscreen canvas)
+      BufferedImage offScreenImage = this.homeComponent3D.getOffScreenImage(
+          2 * this.image.getWidth(), 2 * this.image.getHeight());
 
-        checkLaunchingThreadIsntInterrupted();
-        Graphics graphics = this.image.getGraphics();
-        graphics.drawImage(offScreenImage.getScaledInstance(
-            this.image.getWidth(), this.image.getHeight(), Image.SCALE_SMOOTH), 0, 0, null);
-        graphics.dispose();
-        checkLaunchingThreadIsntInterrupted();
-        return this.image;
-      } catch(InterruptedIOException ex) {
+      checkLaunchingThreadIsntInterrupted();
+      Graphics graphics = this.image.getGraphics();
+      graphics.drawImage(offScreenImage.getScaledInstance(
+          this.image.getWidth(), this.image.getHeight(), Image.SCALE_SMOOTH), 0, 0, null);
+      graphics.dispose();
+      checkLaunchingThreadIsntInterrupted();
+      return this.image;
+    }
+
+    public void dispose() {
+      if (this.homeComponent3D != null) {
         this.homeComponent3D.endOffscreenImagesCreation();
-        throw ex;
-      } finally {
-        if (last) {
-          this.homeComponent3D.endOffscreenImagesCreation();
-        }
+        this.homeComponent3D = null;
       }
     }
   }

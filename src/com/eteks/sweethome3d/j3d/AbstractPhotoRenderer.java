@@ -59,9 +59,9 @@ import com.eteks.sweethome3d.viewcontroller.Object3DFactory;
 /**
  * A renderer able to create a photo realistic image of a home.
  * @author Emmanuel Puybaret
- * @author Frédéric Mantegazza (Sun location algorithm)
+ * @author Fr&eacute;d&eacute;ric Mantegazza (Sun location algorithm)
  */
-public abstract class AbstractPhotoRenderer {
+public abstract class AbstractPhotoRenderer implements AutoCloseable {
   public enum Quality {LOW, HIGH}
 
   private final Quality quality;
@@ -161,10 +161,17 @@ public abstract class AbstractPhotoRenderer {
   public abstract void stop();
 
   /**
-   * Disposes temporary data that may be required to run this renderer.
-   * Trying to use this renderer after a call to this method may lead to errors.
+   * Releases the resources owned by this renderer.
    */
   public abstract void dispose();
+
+  /**
+   * Disposes the resources owned by this renderer.
+   */
+  @Override
+  public void close() {
+    dispose();
+  }
 
   /**
    * Returns the value of the given rendering parameter.
@@ -273,7 +280,7 @@ public abstract class AbstractPhotoRenderer {
 
   /**
    * Returns sun direction at a given <code>time</code>.
-   * @author Frédéric Mantegazza
+   * @author Fr&eacute;d&eacute;ric Mantegazza
    */
   float [] getSunDirection(Compass compass, long time) {
     float elevation = compass.getSunElevation(time);

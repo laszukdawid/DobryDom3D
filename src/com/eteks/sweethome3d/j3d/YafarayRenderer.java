@@ -283,7 +283,8 @@ public class YafarayRenderer extends AbstractPhotoRenderer {
   private boolean useSunskyLight;
 
   private long environment;
-  private long scene;
+  private volatile long scene;
+  private boolean disposed;
   private final Map<Selectable, String []> homeItemsNames = new HashMap<Selectable, String []>();
   private final Map<TransparentTextureKey, String> texturesCache = new HashMap<TransparentTextureKey, String>();
 
@@ -582,10 +583,13 @@ public class YafarayRenderer extends AbstractPhotoRenderer {
     }
   }
 
-  public void render(final BufferedImage image,
-                     Camera camera,
-                     List<? extends Selectable> updatedItems,
-                     final ImageObserver observer) throws IOException {
+  public synchronized void render(final BufferedImage image,
+                                  Camera camera,
+                                  List<? extends Selectable> updatedItems,
+                                  final ImageObserver observer) throws IOException {
+    if (this.disposed) {
+      throw new IllegalStateException("Renderer is closed");
+    }
     if (Thread.currentThread().isInterrupted()
         || !isAvailable()) {
       return;
@@ -595,6 +599,7 @@ public class YafarayRenderer extends AbstractPhotoRenderer {
       init();
     } else if (updatedItems != null && !updatedItems.isEmpty()) {
       clearAll();
+      deleteCurrentScene();
       this.homeItemsNames.clear();
       this.texturesCache.clear();
       init();
@@ -755,8 +760,8 @@ public class YafarayRenderer extends AbstractPhotoRenderer {
    * Stops the rendering process.
    */
   public void stop() {
-    if (this.scene != 0) {
-      synchronized (YafarayRenderer.class) {
+    synchronized (YafarayRenderer.class) {
+      if (this.scene != 0) {
         // Synchronize the creation of a new rendering session
         abort();
       }
@@ -764,11 +769,33 @@ public class YafarayRenderer extends AbstractPhotoRenderer {
   }
 
   /**
-   * Disposes temporary data that may be required to run this renderer.
-   * Trying to use this renderer after a call to this method may lead to errors.
+   * Releases the resources owned by this renderer.
    */
   public synchronized void dispose() {
+    if (!this.disposed) {
+      synchronized (YafarayRenderer.class) {
+        if (this.environment != 0 || this.scene != 0) {
+          finalize();
+        }
+        this.environment = 0;
+        this.scene = 0;
+      }
+      this.disposed = true;
+    }
+    this.homeItemsNames.clear();
     this.texturesCache.clear();
+  }
+
+  /**
+   * Deletes the current scene before it is rebuilt after a home update.
+   */
+  private void deleteCurrentScene() {
+    synchronized (YafarayRenderer.class) {
+      // The existing JNI cleanup releases both handles; init recreates them.
+      finalize();
+      this.environment = 0;
+      this.scene = 0;
+    }
   }
 
   /**
@@ -1812,6 +1839,8 @@ public class YafarayRenderer extends AbstractPhotoRenderer {
 
   private native void render(ImageOutput imageOutput, Map<String, Object> params);
 
+  @Deprecated
+  @SuppressWarnings("removal")
   protected native void finalize();
 
   private interface ImageOutput {
