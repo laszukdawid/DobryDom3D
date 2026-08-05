@@ -23,7 +23,6 @@ import java.awt.Component;
 import java.awt.Image;
 import java.awt.image.BufferedImage;
 import java.net.URL;
-import java.util.Arrays;
 import java.util.concurrent.BrokenBarrierException;
 import java.util.concurrent.CyclicBarrier;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -45,6 +44,9 @@ import com.eteks.sweethome3d.tools.URLContent;
  */
 public class IconManagerTest extends TestCase {
   private final int HEIGHT = 32;
+  // Tolerance on each ARGB component between an icon scaled with bilinear steps
+  // and the same icon scaled with area averaging
+  private final int MAX_COMPONENT_DIFFERENCE = 16;
 
   public void testIconManager()
       throws NoSuchFieldException, IllegalAccessException, InterruptedException, BrokenBarrierException, ClassNotFoundException {
@@ -140,14 +142,33 @@ public class IconManagerTest extends TestCase {
 
   /**
    * Asserts icons in parameter at same size contains the same image data.
+   * IconManager scales icons with bilinear steps whereas the expected image below is
+   * scaled with area averaging, so image data is compared with a small tolerance.
    */
   private void assertEquals(String message, URL expectedIconURL, Icon actualIcon) {
     ImageIcon expectedIcon = new ImageIcon(expectedIconURL);
     Image scaledExpectedImage = expectedIcon.getImage()
         .getScaledInstance(actualIcon.getIconWidth(),
             actualIcon.getIconHeight(), Image.SCALE_SMOOTH);
-    assertTrue(message, Arrays.equals(getIconData(new ImageIcon(scaledExpectedImage)),
-                                      getIconData(actualIcon)));
+    int maxDifference = getMaxComponentDifference(getIconData(new ImageIcon(scaledExpectedImage)),
+        getIconData(actualIcon));
+    assertTrue(message + " (max ARGB component difference " + maxDifference + ")",
+        maxDifference <= MAX_COMPONENT_DIFFERENCE);
+  }
+
+  /**
+   * Returns the largest difference between the components of the ARGB pixels in parameter.
+   */
+  private int getMaxComponentDifference(int [] expectedImageData, int [] imageData) {
+    assertEquals("Different image data size", expectedImageData.length, imageData.length);
+    int maxDifference = 0;
+    for (int i = 0; i < imageData.length; i++) {
+      for (int shift = 0; shift < 32; shift += 8) {
+        maxDifference = Math.max(maxDifference,
+            Math.abs(((expectedImageData [i] >>> shift) & 0xFF) - ((imageData [i] >>> shift) & 0xFF)));
+      }
+    }
+    return maxDifference;
   }
 
   private int [] getIconData(Icon icon) {
