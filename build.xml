@@ -63,7 +63,7 @@
     <fileset dir="lib/java3d-1.6" includes="*.jar"/>
     <fileset dir="libtest">
       <include name="abbot.jar"/>
-      <include name="jdepend-2.9.jar"/>
+      <include name="jdepend-2.10.jar"/>
       <include name="jdom-1.1.1.jar"/>
       <include name="gnu-regexp-1.1.4.jar"/>
       <include name="AppleJavaExtensions.jar"/>
@@ -1422,7 +1422,7 @@
     <!-- Run JDepend UI -->
     <java classname="jdepend.swingui.JDepend" fork="true">
       <classpath>
-        <pathelement location="libtest/jdepend-2.9.jar"/>
+        <pathelement location="libtest/jdepend-2.10.jar"/>
         <pathelement location="build"/>
       </classpath>
       <arg value="build"/>
