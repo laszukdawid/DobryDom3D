@@ -43,7 +43,14 @@ public class PackageDependenciesTest extends TestCase {
     packageFilter.addPackage("com.eteks.sweethome3d.junit");
 
     JDepend jdepend = new JDepend(packageFilter);
-    jdepend.addDirectory("classes");
+    // Analyze the application JAR passed by Ant, or the exploded classes directory
+    // as an IDE fallback when the property is not set
+    String applicationJar = System.getProperty("com.eteks.sweethome3d.applicationJar");
+    if (applicationJar != null && applicationJar.length() > 0) {
+      jdepend.addDirectory(applicationJar);
+    } else {
+      jdepend.addDirectory("classes");
+    }
 
     DependencyConstraint constraint = new DependencyConstraint();
     // Sweet Home 3D packages

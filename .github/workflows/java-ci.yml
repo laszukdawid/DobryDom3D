@@ -29,10 +29,10 @@ jobs:
       - name: Install build and test tools
         run: |
           sudo apt-get update
-          sudo apt-get install --yes ant ant-optional junit4 xvfb
+          sudo apt-get install --yes ant ant-optional xvfb
 
       - name: Test and build
-        run: xvfb-run -a -s "-screen 0 1920x1080x24 -ac +extension GLX +render -noreset" ant -noinput -Djunit.jar=/usr/share/java/junit4.jar ci
+        run: xvfb-run -a -s "-screen 0 1920x1080x24 -ac +extension GLX +render -noreset" ant -noinput ci
 
       - name: Build Java 25 Linux archive
         run: ant -noinput linux64Installer
