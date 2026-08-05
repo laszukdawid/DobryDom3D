@@ -20,7 +20,11 @@
 package com.eteks.sweethome3d.junit;
 
 import java.io.IOException;
+import java.lang.reflect.Field;
 import java.util.Enumeration;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 
 import javax.media.j3d.BranchGroup;
 import javax.media.j3d.Group;
@@ -50,6 +54,36 @@ public class ModelManagerTest extends TestCase {
     assertTrue("Model shouldn't be empty", getShapesCount(model) > 0);
   }
   
+  /**
+   * Tests that a model may be cloned while an other thread holds the lock guarding
+   * the caches of loaded models.
+   */
+  public void testCloneNodeDoesntNeedCacheLock() throws Exception {
+    final ModelManager modelManager = ModelManager.getInstance();
+    final BranchGroup model = modelManager.loadModel(
+        new URLContent(ModelManagerTest.class.getResource("resources/test.obj")));
+    Field cacheLockField = ModelManager.class.getDeclaredField("cacheLock");
+    cacheLockField.setAccessible(true);
+    Object cacheLock = cacheLockField.get(modelManager);
+
+    final AtomicReference<Node> clonedModel = new AtomicReference<Node>();
+    final CountDownLatch clonedModelReady = new CountDownLatch(1);
+    Thread cloningThread = new Thread(new Runnable() {
+        public void run() {
+          clonedModel.set(modelManager.cloneNode(model));
+          clonedModelReady.countDown();
+        }
+      });
+    synchronized (cacheLock) {
+      cloningThread.start();
+      assertTrue("Clone didn't complete while the cache lock was held",
+          clonedModelReady.await(20, TimeUnit.SECONDS));
+    }
+    cloningThread.join();
+    assertEquals("Cloned model should contain as many shapes as the model",
+        getShapesCount(model), getShapesCount(clonedModel.get()));
+  }
+
   private int getShapesCount(Node node) {
     if (node instanceof Group) {
       int shapesCount = 0;
