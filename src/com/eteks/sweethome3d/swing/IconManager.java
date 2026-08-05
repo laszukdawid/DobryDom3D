@@ -215,9 +215,9 @@ public class IconManager {
           BufferedImage reducedImage = image;
           int reducedWidth = image.getWidth();
           int reducedHeight = image.getHeight();
-          while (reducedWidth > width * 2 && reducedHeight > height * 2) {
-            reducedWidth /= 2;
-            reducedHeight /= 2;
+          while (reducedWidth > width * 2 || reducedHeight > height * 2) {
+            reducedWidth = Math.max(width, reducedWidth / 2);
+            reducedHeight = Math.max(height, reducedHeight / 2);
             reducedImage = getScaledImage(reducedImage, reducedWidth, reducedHeight);
           }
           // Create a scaled image not bound to original image to let the original image being garbage collected
