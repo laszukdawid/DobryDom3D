@@ -67,19 +67,30 @@ public class ModelManagerTest extends TestCase {
     Object cacheLock = cacheLockField.get(modelManager);
 
     final AtomicReference<Node> clonedModel = new AtomicReference<Node>();
+    final AtomicReference<Throwable> cloneError = new AtomicReference<Throwable>();
     final CountDownLatch clonedModelReady = new CountDownLatch(1);
     Thread cloningThread = new Thread(new Runnable() {
         public void run() {
-          clonedModel.set(modelManager.cloneNode(model));
-          clonedModelReady.countDown();
+          try {
+            clonedModel.set(modelManager.cloneNode(model));
+          } catch (Throwable ex) {
+            cloneError.set(ex);
+          } finally {
+            clonedModelReady.countDown();
+          }
         }
       });
+    cloningThread.setDaemon(true);
+    boolean cloneCompleted;
     synchronized (cacheLock) {
       cloningThread.start();
-      assertTrue("Clone didn't complete while the cache lock was held",
-          clonedModelReady.await(20, TimeUnit.SECONDS));
+      cloneCompleted = clonedModelReady.await(20, TimeUnit.SECONDS);
     }
-    cloningThread.join();
+    assertTrue("Clone didn't complete while the cache lock was held", cloneCompleted);
+    cloningThread.join(20000);
+    if (cloneError.get() != null) {
+      throw new AssertionError("Clone failed: " + cloneError.get());
+    }
     assertEquals("Cloned model should contain as many shapes as the model",
         getShapesCount(model), getShapesCount(clonedModel.get()));
   }

@@ -1484,7 +1484,10 @@ public class ModelManager {
             // Check shape color is white
             Material material = appearance.getMaterial();
             if (material == null) {
-              appearance.setMaterial((Material)DEFAULT_MATERIAL.cloneNodeComponent(true));
+              // DEFAULT_MATERIAL is shared by all the loader threads
+              synchronized (this.cloneLock) {
+                appearance.setMaterial((Material)DEFAULT_MATERIAL.cloneNodeComponent(true));
+              }
             } else {
               Color3f color = new Color3f();
               DEFAULT_MATERIAL.getDiffuseColor(color);
