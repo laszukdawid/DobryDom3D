@@ -46,7 +46,7 @@ public class IconManagerTest extends TestCase {
   private final int HEIGHT = 32;
   // Tolerance on each ARGB component between an icon scaled with bilinear steps
   // and the same icon scaled with area averaging
-  private final int MAX_COMPONENT_DIFFERENCE = 16;
+  private final int MAX_COMPONENT_DIFFERENCE = 0;
 
   public void testIconManager()
       throws NoSuchFieldException, IllegalAccessException, InterruptedException, BrokenBarrierException, ClassNotFoundException {
