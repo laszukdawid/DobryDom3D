@@ -40,6 +40,7 @@ import java.util.zip.ZipFile;
 
 import javax.swing.JOptionPane;
 
+import com.eteks.sweethome3d.tools.Architecture;
 import com.eteks.sweethome3d.tools.ExtensionsClassLoader;
 
 /**
@@ -65,6 +66,11 @@ public class SweetHome3DBootstrap {
     String operatingSystemName = System.getProperty("os.name");
     String operatingSystemVersion = System.getProperty("os.version");
     String javaVersion = System.getProperty("java.version");
+    if (Architecture.getBitness() == -1) {
+      // Fail clearly for unknown architectures instead of silently using 32 bits libraries
+      throw new UnsupportedOperationException(
+          "Sweet Home 3D doesn't support architecture " + System.getProperty("os.arch"));
+    }
     if (operatingSystemName.startsWith("Mac OS X")) {
       boolean macOSXLionOrInferior = operatingSystemVersion.startsWith("10.4")
           || operatingSystemVersion.startsWith("10.5")
@@ -129,13 +135,16 @@ public class SweetHome3DBootstrap {
       }
 
       // Yafaray DLLs for Mac OS X
-      if ("64".equals(System.getProperty("sun.arch.data.model"))) {
+      if (Architecture.is64Bit()) {
         extensionJarsAndDlls.addAll(Arrays.asList(new String [] {
             "yafaray/macosx/libyafaray_v3_core.dylib",
             "yafaray/macosx/libyafarayjni.dylib"}));
         yafarayPluginsFolder = "yafaray/macosx/yafaray-plugins";
       }
     } else { // Other OS
+      String java3dFolderName = Architecture.getJava3DFolderName();
+      String yafarayFolderName = Architecture.getYafarayFolderName();
+      boolean architecture64Bits = Architecture.is64Bit();
       if ("1.5.2".equals(System.getProperty("com.eteks.sweethome3d.j3d.version", "1.6"))
           || "d3d".equals(System.getProperty("j3d.rend", "jogl"))
           || javaVersion.startsWith("1.5")
@@ -145,25 +154,22 @@ public class SweetHome3DBootstrap {
             "j3dcore.jar", // Main Java 3D jars
             "vecmath.jar",
             "j3dutils.jar"}));
-        if ("64".equals(System.getProperty("sun.arch.data.model"))) {
+        extensionJarsAndDlls.addAll(Arrays.asList(new String [] {
+            "linux/" + yafarayFolderName + "/libj3dcore-ogl.so",    // Linux Java 3D 1.5.2 DLLs
+            "windows/" + yafarayFolderName + "/j3dcore-ogl.dll"})); // Windows Java 3D 1.5.2 DLL
+        if (!architecture64Bits) {
           extensionJarsAndDlls.addAll(Arrays.asList(new String [] {
-              "linux/x64/libj3dcore-ogl.so",    // Linux 64 bits DLL for Java 3D 1.5.2
-              "windows/x64/j3dcore-ogl.dll"})); // Windows 64 bits DLL for Java 3D 1.5.2
-        } else {
-          extensionJarsAndDlls.addAll(Arrays.asList(new String [] {
-              "linux/i386/libj3dcore-ogl.so", // Linux 32 bits DLLs
-              "linux/i386/libj3dcore-ogl-cg.so",
-              "windows/i386/j3dcore-d3d.dll", // Windows 32 bits DLLs
-              "windows/i386/j3dcore-ogl.dll",
-              "windows/i386/j3dcore-ogl-cg.dll",
-              "windows/i386/j3dcore-ogl-chk.dll"}));
+              "linux/" + yafarayFolderName + "/libj3dcore-ogl-cg.so", // Linux 32 bits extra DLLs
+              "windows/" + yafarayFolderName + "/j3dcore-d3d.dll",    // Windows 32 bits extra DLLs
+              "windows/" + yafarayFolderName + "/j3dcore-ogl-cg.dll",
+              "windows/" + yafarayFolderName + "/j3dcore-ogl-chk.dll"}));
         }
       } else {
         extensionJarsAndDlls.addAll(Arrays.asList(new String [] {
             "java3d-1.6/j3dcore.jar", // Java 3D 1.6 jars
             "java3d-1.6/vecmath.jar",
             "java3d-1.6/j3dutils.jar"}));
-        if ("64".equals(System.getProperty("sun.arch.data.model"))) {
+        if (architecture64Bits) {
           extensionJarsAndDlls.addAll(Arrays.asList(new String [] {
             "java3d-1.6/gluegen-rt.jar",
             "java3d-1.6/jogl-java3d.jar"}));
@@ -174,62 +180,34 @@ public class SweetHome3DBootstrap {
         }
         // Disable JOGL library loader
         System.setProperty("jogamp.gluegen.UseTempJarCache", "false");
-        if ("64".equals(System.getProperty("sun.arch.data.model"))) {
-          extensionJarsAndDlls.addAll(Arrays.asList(new String [] {
-              "java3d-1.6/linux/amd64/libgluegen_rt.so", // Linux 64 bits DLLs for Java 3D 1.6
-              "java3d-1.6/linux/amd64/libjogl_desktop.so",
-              "java3d-1.6/linux/amd64/libnativewindow_awt.so",
-              "java3d-1.6/linux/amd64/libnativewindow_x11.so",
-              "java3d-1.6/windows/amd64/gluegen_rt.dll", // Windows 64 bits DLLs for Java 3D 1.6
-              "java3d-1.6/windows/amd64/jogl_desktop.dll",
-              "java3d-1.6/windows/amd64/nativewindow_awt.dll",
-              "java3d-1.6/windows/amd64/nativewindow_win32.dll"}));
-        } else {
-          extensionJarsAndDlls.addAll(Arrays.asList(new String [] {
-              "java3d-1.6/linux/i586/libgluegen_rt.so", // Linux 32 bits DLLs for Java 3D 1.6
-              "java3d-1.6/linux/i586/libjogl_desktop.so",
-              "java3d-1.6/linux/i586/libnativewindow_awt.so",
-              "java3d-1.6/linux/i586/libnativewindow_x11.so",
-              "java3d-1.6/windows/i586/gluegen_rt.dll", // Windows 32 bits DLLs for Java 3D 1.6
-              "java3d-1.6/windows/i586/jogl_desktop.dll",
-              "java3d-1.6/windows/i586/nativewindow_awt.dll",
-              "java3d-1.6/windows/i586/nativewindow_win32.dll"}));
-        }
+        extensionJarsAndDlls.addAll(Arrays.asList(new String [] {
+            "java3d-1.6/linux/" + java3dFolderName + "/libgluegen_rt.so", // Linux DLLs for Java 3D 1.6
+            "java3d-1.6/linux/" + java3dFolderName + "/libjogl_desktop.so",
+            "java3d-1.6/linux/" + java3dFolderName + "/libnativewindow_awt.so",
+            "java3d-1.6/linux/" + java3dFolderName + "/libnativewindow_x11.so",
+            "java3d-1.6/windows/" + java3dFolderName + "/gluegen_rt.dll", // Windows DLLs for Java 3D 1.6
+            "java3d-1.6/windows/" + java3dFolderName + "/jogl_desktop.dll",
+            "java3d-1.6/windows/" + java3dFolderName + "/nativewindow_awt.dll",
+            "java3d-1.6/windows/" + java3dFolderName + "/nativewindow_win32.dll"}));
       }
 
       if (operatingSystemName.startsWith("Windows")) {
         // Yafaray DLLs for Windows
-        if ("64".equals(System.getProperty("sun.arch.data.model"))) {
-          // YafaRay Windows DLLs are managed differently to be loaded by System#load method
-          yafarayWindowsDlls.addAll(Arrays.asList(new String [] {
-              "yafaray/windows/x64/libgcc_s_seh-1.dll",
-              "yafaray/windows/x64/libstdc++-6.dll",
-              "yafaray/windows/x64/libwinpthread-1.dll",
-              "yafaray/windows/x64/libyafaray_v3_core.dll",
-              "yafaray/windows/x64/libyafarayjni.dll"}));
-          yafarayPluginsFolder = "yafaray/windows/x64/yafaray-plugins";
-        } else {
-          yafarayWindowsDlls.addAll(Arrays.asList(new String [] {
-              "yafaray/windows/i386/libgcc_s_dw2-1.dll",
-              "yafaray/windows/i386/libstdc++-6.dll",
-              "yafaray/windows/i386/libwinpthread-1.dll",
-              "yafaray/windows/i386/libyafaray_v3_core.dll",
-              "yafaray/windows/i386/libyafarayjni.dll"}));
-          yafarayPluginsFolder = "yafaray/windows/i386/yafaray-plugins";
-        }
+        // YafaRay Windows DLLs are managed differently to be loaded by System#load method
+        yafarayWindowsDlls.addAll(Arrays.asList(new String [] {
+            "yafaray/windows/" + yafarayFolderName + "/"
+                + (architecture64Bits ? "libgcc_s_seh-1.dll" : "libgcc_s_dw2-1.dll"),
+            "yafaray/windows/" + yafarayFolderName + "/libstdc++-6.dll",
+            "yafaray/windows/" + yafarayFolderName + "/libwinpthread-1.dll",
+            "yafaray/windows/" + yafarayFolderName + "/libyafaray_v3_core.dll",
+            "yafaray/windows/" + yafarayFolderName + "/libyafarayjni.dll"}));
+        yafarayPluginsFolder = "yafaray/windows/" + yafarayFolderName + "/yafaray-plugins";
       } else if (operatingSystemName.startsWith("Linux")) {
         // Yafaray DLLs for Linux
-        if ("64".equals(System.getProperty("sun.arch.data.model"))) {
-          extensionJarsAndDlls.addAll(Arrays.asList(new String [] {
-              "yafaray/linux/x64/libyafaray_v3_core.so",
-              "yafaray/linux/x64/libyafarayjni.so"}));
-          yafarayPluginsFolder = "yafaray/linux/x64/yafaray-plugins";
-        } else {
-          extensionJarsAndDlls.addAll(Arrays.asList(new String [] {
-              "yafaray/linux/i386/libyafaray_v3_core.so",
-              "yafaray/linux/i386/libyafarayjni.so"}));
-          yafarayPluginsFolder = "yafaray/linux/i386/yafaray-plugins";
-        }
+        extensionJarsAndDlls.addAll(Arrays.asList(new String [] {
+            "yafaray/linux/" + yafarayFolderName + "/libyafaray_v3_core.so",
+            "yafaray/linux/" + yafarayFolderName + "/libyafarayjni.so"}));
+        yafarayPluginsFolder = "yafaray/linux/" + yafarayFolderName + "/yafaray-plugins";
       }
     }
 
@@ -281,7 +259,7 @@ public class SweetHome3DBootstrap {
           String pluginDllsFolder = "yafaray-plugins";
           // Create a temporary folder for YafaRay plugins
           if (operatingSystemName.startsWith("Windows") && applicationJarDate != 0 && applicationJarLength != 0) {
-            yafarayCacheFolder = new File(cacheFolder, cachedFilesPrefix + "yafaray-" + System.getProperty("sun.arch.data.model") + "-" + applicationJarLength + "-" + (applicationJarDate / 1000L));
+            yafarayCacheFolder = new File(cacheFolder, cachedFilesPrefix + "yafaray-" + Architecture.getBitness() + "-" + applicationJarLength + "-" + (applicationJarDate / 1000L));
             if (!yafarayCacheFolder.exists()
                 && !yafarayCacheFolder.mkdirs()) {
               yafarayCacheFolder = null;

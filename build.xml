@@ -279,6 +279,7 @@
       <batchtest todir="build/test-reports">
         <fileset dir="test">
           <include name="**/OperatingSystemTest.java"/>
+          <include name="**/ArchitectureTest.java"/>
           <include name="**/HomeTest.java"/>
           <include name="**/HomeController3DTest.java"/>
           <include name="**/HomeFileRecorderTest.java"/>

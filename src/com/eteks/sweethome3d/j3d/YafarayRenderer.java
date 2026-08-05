@@ -113,6 +113,7 @@ import com.eteks.sweethome3d.model.Room;
 import com.eteks.sweethome3d.model.Selectable;
 import com.eteks.sweethome3d.model.Transformation;
 import com.eteks.sweethome3d.model.Wall;
+import com.eteks.sweethome3d.tools.Architecture;
 import com.eteks.sweethome3d.tools.OperatingSystem;
 import com.eteks.sweethome3d.tools.URLContent;
 import com.eteks.sweethome3d.viewcontroller.Object3DFactory;
@@ -191,7 +192,7 @@ public class YafarayRenderer extends AbstractPhotoRenderer {
             if (applicationJarDate != 0 && applicationJarLength != 0) {
               File cacheFolder = new File(System.getProperty("java.io.tmpdir"));
               pluginsCacheFolder = new File(cacheFolder, "sweethome3d-cache-yafaray-plugins-"
-                  + System.getProperty("sun.arch.data.model") + "-" + applicationJarLength + "-" + (applicationJarDate / 1000L));
+                  + Architecture.getBitness() + "-" + applicationJarLength + "-" + (applicationJarDate / 1000L));
               if (!pluginsCacheFolder.exists()
                   && !pluginsCacheFolder.mkdirs()) {
                 pluginsCacheFolder = null;
@@ -228,7 +229,7 @@ public class YafarayRenderer extends AbstractPhotoRenderer {
           // Under Windows, use System.load rather than System.loadLibrary which doesn't work
           // Change library loading order with great care because of dependencies (use Dependency Walker to check them)
           System.load(yafarayLibraryFolder + "\\libwinpthread-1.dll");
-          System.load(yafarayLibraryFolder + ("64".equals(System.getProperty("sun.arch.data.model")) ? "\\libgcc_s_seh-1.dll" : "\\libgcc_s_dw2-1.dll"));
+          System.load(yafarayLibraryFolder + (Architecture.is64Bit() ? "\\libgcc_s_seh-1.dll" : "\\libgcc_s_dw2-1.dll"));
           System.load(yafarayLibraryFolder + "\\libstdc++-6.dll");
           System.load(yafarayLibraryFolder + "\\libyafaray_v3_core.dll");
           System.load(yafarayLibraryFolder + "\\libyafarayjni.dll");

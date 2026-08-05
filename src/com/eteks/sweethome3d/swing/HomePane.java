@@ -208,6 +208,7 @@ import com.eteks.sweethome3d.plugin.HomePluginController;
 import com.eteks.sweethome3d.plugin.Plugin;
 import com.eteks.sweethome3d.plugin.PluginAction;
 import com.eteks.sweethome3d.plugin.PluginManager;
+import com.eteks.sweethome3d.tools.Architecture;
 import com.eteks.sweethome3d.tools.OperatingSystem;
 import com.eteks.sweethome3d.tools.URLContent;
 import com.eteks.sweethome3d.viewcontroller.ContentManager;
@@ -4736,15 +4737,13 @@ public class HomePane extends JRootPane implements HomeView {
       javaVendor = "<a href='" + javaVendorUrl + "'>" + javaVendor + "</a>";
     }
     try {
-      String dataModel = System.getProperty("sun.arch.data.model");
-      if (dataModel != null) {
-        javaVersion += " - <span>" + Integer.parseInt(dataModel) + "bit</span>"; // Glue "bit" to int value to avoid rendering issues in RTL
-        if (System.getProperty("os.arch").startsWith("aarch")) {
+      int bitness = Architecture.getBitness();
+      if (bitness != -1) {
+        javaVersion += " - <span>" + bitness + "bit</span>"; // Glue "bit" to int value to avoid rendering issues in RTL
+        if (Architecture.ARM.equals(Architecture.getFamily())) {
           javaVersion += " - ARM";
         }
       }
-    } catch (NumberFormatException ex) {
-      // Don't display data model
     } catch (SecurityException ex) {
     }
     Runtime runtime = Runtime.getRuntime();
