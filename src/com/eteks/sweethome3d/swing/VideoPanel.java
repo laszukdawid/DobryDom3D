@@ -35,10 +35,10 @@ import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
-import java.awt.Image;
 import java.awt.Insets;
 import java.awt.Point;
 import java.awt.Rectangle;
+import java.awt.RenderingHints;
 import java.awt.Window;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
@@ -1995,10 +1995,12 @@ public class VideoPanel extends JPanel implements DialogView {
           2 * this.image.getWidth(), 2 * this.image.getHeight());
 
       checkLaunchingThreadIsntInterrupted();
-      Graphics graphics = this.image.getGraphics();
-      graphics.drawImage(offScreenImage.getScaledInstance(
-          this.image.getWidth(), this.image.getHeight(), Image.SCALE_SMOOTH), 0, 0, null);
-      graphics.dispose();
+      Graphics2D g2D = (Graphics2D)this.image.getGraphics();
+      g2D.setRenderingHint(RenderingHints.KEY_INTERPOLATION,
+          RenderingHints.VALUE_INTERPOLATION_BILINEAR);
+      g2D.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
+      g2D.drawImage(offScreenImage, 0, 0, this.image.getWidth(), this.image.getHeight(), null);
+      g2D.dispose();
       checkLaunchingThreadIsntInterrupted();
       return this.image;
     }
