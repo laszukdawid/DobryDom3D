@@ -36,17 +36,18 @@ application with:
 ant clean application
 ```
 
-Run the headless unit test suite by providing a JUnit 4 JAR:
+Run the headless unit test suite. JUnit 4.13.2 and Hamcrest Core 1.3 are
+downloaded automatically, verified by SHA-256 checksum, and cached:
 
 ```sh
-ant -Djunit.jar=/path/to/junit4.jar clean test
+ant clean test
 ```
 
 The `ci` target cleans the workspace, runs the tests, and leaves the standalone
 application at `build/SweetHome3D.jar`:
 
 ```sh
-ant -Djunit.jar=/path/to/junit4.jar ci
+ant ci
 ```
 
 The default Ant target builds an executable JAR under `install/`.
@@ -101,8 +102,7 @@ task test:virtual-x-server
 
 `task test` delegates to `task test:virtual-x-server`, which runs the complete
 suite in Xvfb without opening windows on the desktop. `task test:headless` runs
-the stable non-GUI suite used by CI. Set `JUNIT_JAR` if JUnit 4 is not installed
-at `/usr/share/java/junit4.jar`.
+the stable non-GUI suite used by CI.
 
 ## Fork Status
 

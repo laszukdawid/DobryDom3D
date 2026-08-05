@@ -37,10 +37,14 @@
   <property name="version" value="7.5"/>
   <property name="java.release" value="25"/>
   <property environment="env"/>
-  <condition property="junit.jar" value="${env.JUNIT_JAR}">
-    <isset property="env.JUNIT_JAR"/>
-  </condition>
-  <property name="junit.jar" location="libtest/junit-4.13.2.jar"/>
+  <!-- Pinned test JARs, downloaded with checksum verification by the fetch-junit
+       target into a cache directory. Override junit.jar and hamcrest.jar on the
+       command line to use local copies. -->
+  <property name="junit.version" value="4.13.2"/>
+  <property name="hamcrest.version" value="1.3"/>
+  <property name="junit.cache.dir" value="${user.home}/.cache/sweethome3d"/>
+  <property name="junit.jar" location="${junit.cache.dir}/junit-${junit.version}.jar"/>
+  <property name="hamcrest.jar" location="${junit.cache.dir}/hamcrest-core-${hamcrest.version}.jar"/>
   <property name="test.includes" value="**/*Test.java"/>
 
   <path id="application.compile.classpath">
@@ -59,13 +63,14 @@
     <fileset dir="lib/java3d-1.6" includes="*.jar"/>
     <fileset dir="libtest">
       <include name="abbot.jar"/>
-      <include name="jdepend-2.9.jar"/>
+      <include name="jdepend-2.10.jar"/>
       <include name="jdom-1.1.1.jar"/>
       <include name="gnu-regexp-1.1.4.jar"/>
       <include name="AppleJavaExtensions.jar"/>
       <include name="jnlp.jar"/>
     </fileset>
     <pathelement location="${junit.jar}"/>
+    <pathelement location="${hamcrest.jar}"/>
   </path>
 
   <condition property="test.native.library.path"
@@ -210,11 +215,30 @@
     <move file="build/SweetHome3DStandalone.jar" tofile="build/SweetHome3D.jar"/>
   </target>
 
-  <target name="compile-tests" depends="build">
-    <available file="${junit.jar}" property="junit.available"/>
-    <fail unless="junit.available"
-          message="JUnit 4 is required; set -Djunit.jar=/path/to/junit4.jar"/>
+  <target name="fetch-junit"
+          description="Downloads the pinned JUnit and Hamcrest test JARs with checksum verification">
+    <mkdir dir="${junit.cache.dir}"/>
+    <get src="https://repo1.maven.org/maven2/junit/junit/${junit.version}/junit-${junit.version}.jar"
+         dest="${junit.jar}" skipexisting="true" verbose="false"/>
+    <checksum file="${junit.jar}" algorithm="SHA-256" property="junit.checksum"/>
+    <condition property="junit.checksum.ok">
+      <equals arg1="${junit.checksum}"
+              arg2="8e495b634469d64fb8acfa3495a065cbacc8a0fff55ce1e31007be4c16dc57d3"/>
+    </condition>
+    <fail unless="junit.checksum.ok"
+          message="Checksum mismatch for ${junit.jar}; delete it and retry"/>
+    <get src="https://repo1.maven.org/maven2/org/hamcrest/hamcrest-core/${hamcrest.version}/hamcrest-core-${hamcrest.version}.jar"
+         dest="${hamcrest.jar}" skipexisting="true" verbose="false"/>
+    <checksum file="${hamcrest.jar}" algorithm="SHA-256" property="hamcrest.checksum"/>
+    <condition property="hamcrest.checksum.ok">
+      <equals arg1="${hamcrest.checksum}"
+              arg2="66fdef91e9739348df7a096aa384a5685f4e875584cce89386a7a47251c4d8e9"/>
+    </condition>
+    <fail unless="hamcrest.checksum.ok"
+          message="Checksum mismatch for ${hamcrest.jar}; delete it and retry"/>
+  </target>
 
+  <target name="compile-tests" depends="build,fetch-junit">
     <mkdir dir="build/test-classes"/>
     <mkdir dir="build/test-reports"/>
     <mkdir dir="build/test-home"/>
@@ -270,9 +294,6 @@
 
   <target name="test-all" depends="compile-tests"
           description="Builds the application and runs all unit and GUI tests">
-    <!-- PackageDependenciesTest analyzes the exploded application classes. -->
-    <delete dir="classes"/>
-    <unzip src="build/SweetHome3D.jar" dest="classes"/>
     <junit fork="true" forkmode="perTest"
            haltonerror="false" haltonfailure="false"
            errorproperty="all.tests.failed" failureproperty="all.tests.failed"
@@ -291,6 +312,7 @@
       <jvmarg value="--add-opens=java.base/java.util=ALL-UNNAMED"/>
       <jvmarg value="--enable-native-access=ALL-UNNAMED"/>
       <sysproperty key="java.awt.headless" value="false"/>
+      <sysproperty key="com.eteks.sweethome3d.applicationJar" value="${basedir}/build/SweetHome3D.jar"/>
       <sysproperty key="java.library.path" value="${test.native.library.path}"/>
       <sysproperty key="jogamp.gluegen.UseTempJarCache" value="false"/>
       <sysproperty key="user.home" value="${basedir}/build/test-home"/>
@@ -302,7 +324,6 @@
         <fileset dir="test" includes="${test.includes}"/>
       </batchtest>
     </junit>
-    <delete dir="classes"/>
     <fail if="all.tests.failed" message="One or more tests failed; see build/test-reports"/>
   </target>
 
@@ -1401,7 +1422,7 @@
     <!-- Run JDepend UI -->
     <java classname="jdepend.swingui.JDepend" fork="true">
       <classpath>
-        <pathelement location="libtest/jdepend-2.9.jar"/>
+        <pathelement location="libtest/jdepend-2.10.jar"/>
         <pathelement location="build"/>
       </classpath>
       <arg value="build"/>
