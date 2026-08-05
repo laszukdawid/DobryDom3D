@@ -1995,7 +1995,7 @@ public class VideoPanel extends JPanel implements DialogView {
           2 * this.image.getWidth(), 2 * this.image.getHeight());
 
       checkLaunchingThreadIsntInterrupted();
-      Graphics2D g2D = (Graphics2D)this.image.getGraphics();
+      Graphics2D g2D = this.image.createGraphics();
       g2D.setRenderingHint(RenderingHints.KEY_INTERPOLATION,
           RenderingHints.VALUE_INTERPOLATION_BILINEAR);
       g2D.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
