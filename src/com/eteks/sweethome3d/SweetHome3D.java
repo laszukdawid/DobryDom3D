@@ -59,6 +59,7 @@ import java.util.concurrent.Executors;
 import java.util.prefs.BackingStoreException;
 import java.util.prefs.Preferences;
 
+import javax.imageio.ImageIO;
 import javax.jnlp.BasicService;
 import javax.jnlp.ServiceManager;
 import javax.jnlp.ServiceManagerStub;
@@ -391,6 +392,8 @@ public class SweetHome3D extends HomeApplication {
    */
   protected void init(final String [] args) {
     initSystemProperties();
+    // Images are read only once from start to end, making ImageIO temporary cache files pure overhead
+    ImageIO.setUseCache(false);
 
     // If Sweet Home 3D is launched from outside of Java Web Start
     if (ServiceManager.getServiceNames() == null) {
