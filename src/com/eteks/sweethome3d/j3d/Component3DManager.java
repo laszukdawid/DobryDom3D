@@ -61,6 +61,8 @@ import com.sun.j3d.utils.universe.ViewingPlatform;
 public class Component3DManager {
   private static final String CHECK_OFF_SCREEN_IMAGE_SUPPORT = "com.eteks.sweethome3d.j3d.checkOffScreenSupport";
   private static final String FORCE_GARBAGE_COLLECTION = "com.eteks.sweethome3d.j3d.forceGarbageCollection";
+  // 16 M pixels, i.e. a 64 MB off screen buffer
+  private static final long   MAX_KEPT_OFF_SCREEN_IMAGE_PIXEL_COUNT = 16L * 1024 * 1024;
 
   private static Component3DManager instance;
 
@@ -379,6 +381,9 @@ public class Component3DManager {
     synchronized (this.offScreenImageLock) {
       Canvas3D offScreenCanvas = null;
       boolean rendered = false;
+      // Don't keep the canvas of the largest images, whose off screen buffer would be
+      // retained long after the image was created
+      boolean keepCanvas = (long)width * height <= MAX_KEPT_OFF_SCREEN_IMAGE_PIXEL_COUNT;
       RenderingErrorObserver previousRenderingErrorObserver = getRenderingErrorObserver();
       try {
         // Replace current rendering error observer by a listener that counts down
@@ -405,11 +410,13 @@ public class Component3DManager {
           throw new IllegalRenderingStateException("Off screen rendering unavailable");
         }
 
-        // Copy the buffer of the reused canvas, which the next render would overwrite,
-        // because some callers keep the returned image
-        BufferedImage image = copyImage(offScreenCanvas.getOffScreenBuffer().getImage());
+        BufferedImage image = offScreenCanvas.getOffScreenBuffer().getImage();
+        // Copy the buffer of a kept canvas, which the next render would overwrite,
+        // because some callers keep the returned image. A canvas which isn't kept is
+        // released below, leaving its buffer to its caller
+        BufferedImage returnedImage = keepCanvas ? copyImage(image) : image;
         rendered = true;
-        return image;
+        return returnedImage;
       } catch (InterruptedException ex) {
         IllegalRenderingStateException ex2 =
             new IllegalRenderingStateException("Off screen rendering interrupted");
@@ -421,8 +428,8 @@ public class Component3DManager {
             view.removeCanvas3D(offScreenCanvas);
           }
         } finally {
-          if (!rendered) {
-            // Don't reuse a canvas which failed to render
+          if (!rendered || !keepCanvas) {
+            // A canvas which failed to render might be broken, don't keep it either
             releaseReusedOffScreenCanvas3D();
           }
           // Reset previous rendering error listener
@@ -454,13 +461,15 @@ public class Component3DManager {
    * Frees the off screen buffer and the context of the reused off screen canvas 3D.
    */
   private void releaseReusedOffScreenCanvas3D() {
-    if (this.reusedOffScreenCanvas != null) {
+    Canvas3D offScreenCanvas = this.reusedOffScreenCanvas;
+    if (offScreenCanvas != null) {
+      // Drop the reference first to keep this method idempotent whatever happens next
+      this.reusedOffScreenCanvas = null;
       try {
-        this.reusedOffScreenCanvas.setOffScreenBuffer(null);
+        offScreenCanvas.setOffScreenBuffer(null);
       } catch (NullPointerException ex) {
         // Java 3D 1.3 may throw an exception
       }
-      this.reusedOffScreenCanvas = null;
     }
   }
 
