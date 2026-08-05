@@ -67,6 +67,7 @@ import javax.swing.event.ChangeListener;
 
 import com.eteks.sweethome3d.j3d.Component3DManager;
 import com.eteks.sweethome3d.model.LengthUnit;
+import com.eteks.sweethome3d.model.PlanView3DSplitOrientation;
 import com.eteks.sweethome3d.model.TextureImage;
 import com.eteks.sweethome3d.model.UserPreferences;
 import com.eteks.sweethome3d.tools.OperatingSystem;
@@ -99,6 +100,9 @@ public class UserPreferencesPanel extends JPanel implements DialogView {
   private JCheckBox        aerialViewCenteredOnSelectionCheckBox;
   private JLabel           observerCameraSelectedAtChangeLabel;
   private JCheckBox        observerCameraSelectedAtChangeCheckBox;
+  private JLabel           planView3DSplitLabel;
+  private JRadioButton     planView3DVerticalSplitRadioButton;
+  private JRadioButton     planView3DHorizontalSplitRadioButton;
   private JLabel           magnetismLabel;
   private JCheckBox        magnetismCheckBox;
   private JLabel           rulersLabel;
@@ -447,6 +451,38 @@ public class UserPreferencesPanel extends JPanel implements DialogView {
           new PropertyChangeListener() {
             public void propertyChange(PropertyChangeEvent ev) {
               observerCameraSelectedAtChangeCheckBox.setSelected(controller.isObserverCameraSelectedAtChange());
+            }
+          });
+    }
+
+    if (controller.isPropertyEditable(UserPreferencesController.Property.PLAN_VIEW_3D_SPLIT_ORIENTATION)
+        && !no3D) {
+      // Create plan view and 3D view split label and radio buttons bound to controller PLAN_VIEW_3D_SPLIT_ORIENTATION property
+      this.planView3DSplitLabel = new JLabel(preferences.getLocalizedString(
+          UserPreferencesPanel.class, "planView3DSplitLabel.text"));
+      this.planView3DVerticalSplitRadioButton = new JRadioButton(SwingTools.getLocalizedLabelText(preferences,
+          UserPreferencesPanel.class, "planView3DVerticalSplitRadioButton.text"),
+          controller.getPlanView3DSplitOrientation() == PlanView3DSplitOrientation.VERTICAL_SPLIT);
+      this.planView3DHorizontalSplitRadioButton = new JRadioButton(SwingTools.getLocalizedLabelText(preferences,
+          UserPreferencesPanel.class, "planView3DHorizontalSplitRadioButton.text"),
+          controller.getPlanView3DSplitOrientation() == PlanView3DSplitOrientation.HORIZONTAL_SPLIT);
+      ButtonGroup planView3DSplitButtonGroup = new ButtonGroup();
+      planView3DSplitButtonGroup.add(this.planView3DVerticalSplitRadioButton);
+      planView3DSplitButtonGroup.add(this.planView3DHorizontalSplitRadioButton);
+      ItemListener planView3DSplitChangeListener = new ItemListener() {
+          public void itemStateChanged(ItemEvent ev) {
+            controller.setPlanView3DSplitOrientation(planView3DVerticalSplitRadioButton.isSelected()
+                ? PlanView3DSplitOrientation.VERTICAL_SPLIT
+                : PlanView3DSplitOrientation.HORIZONTAL_SPLIT);
+          }
+        };
+      this.planView3DVerticalSplitRadioButton.addItemListener(planView3DSplitChangeListener);
+      this.planView3DHorizontalSplitRadioButton.addItemListener(planView3DSplitChangeListener);
+      controller.addPropertyChangeListener(UserPreferencesController.Property.PLAN_VIEW_3D_SPLIT_ORIENTATION,
+          new PropertyChangeListener() {
+            public void propertyChange(PropertyChangeEvent ev) {
+              planView3DVerticalSplitRadioButton.setSelected(
+                  controller.getPlanView3DSplitOrientation() == PlanView3DSplitOrientation.VERTICAL_SPLIT);
             }
           });
     }
@@ -951,6 +987,12 @@ public class UserPreferencesPanel extends JPanel implements DialogView {
           this.observerCameraSelectedAtChangeCheckBox.setMnemonic(KeyStroke.getKeyStroke(mnemonic).getKeyCode());
         }
       }
+      if (this.planView3DSplitLabel != null) {
+        this.planView3DVerticalSplitRadioButton.setMnemonic(KeyStroke.getKeyStroke(preferences.getLocalizedString(
+            UserPreferencesPanel.class, "planView3DVerticalSplitRadioButton.mnemonic")).getKeyCode());
+        this.planView3DHorizontalSplitRadioButton.setMnemonic(KeyStroke.getKeyStroke(preferences.getLocalizedString(
+            UserPreferencesPanel.class, "planView3DHorizontalSplitRadioButton.mnemonic")).getKeyCode());
+      }
       if (this.magnetismLabel != null) {
         this.magnetismCheckBox.setMnemonic(KeyStroke.getKeyStroke(preferences.getLocalizedString(
             UserPreferencesPanel.class, "magnetismCheckBox.mnemonic")).getKeyCode());
@@ -1136,22 +1178,39 @@ public class UserPreferencesPanel extends JPanel implements DialogView {
           1, 8, 2, 1, 0, 0, GridBagConstraints.LINE_START,
           GridBagConstraints.NONE, rightComponentInsetsWithSpace, 0, 0));
     }
-    if (this.magnetismLabel != null) {
+    if (this.planView3DSplitLabel != null) {
       // Tenth row
-      add(this.magnetismLabel, new GridBagConstraints(
+      add(this.planView3DSplitLabel, new GridBagConstraints(
           0, 9, 1, 1, 0, 0, labelAlignment,
           GridBagConstraints.NONE, checkBoxLabelInsets, 0, 0));
-      add(this.magnetismCheckBox, new GridBagConstraints(
+
+      JPanel planView3DSplitPanel = new JPanel(new GridBagLayout());
+      planView3DSplitPanel.add(this.planView3DVerticalSplitRadioButton, new GridBagConstraints(
+          0, 0, 1, 1, 0, 0, GridBagConstraints.LINE_START,
+          GridBagConstraints.NONE, new Insets(0, 0, 0, 10), 0, 0));
+      planView3DSplitPanel.add(this.planView3DHorizontalSplitRadioButton, new GridBagConstraints(
+          1, 0, 1, 1, 0, 0, GridBagConstraints.LINE_START,
+          GridBagConstraints.NONE, new Insets(0, 0, 0, 0), 0, 0));
+      add(planView3DSplitPanel, new GridBagConstraints(
           1, 9, 2, 1, 0, 0, GridBagConstraints.LINE_START,
           GridBagConstraints.NONE, checkBoxInsets, 0, 0));
     }
-    if (this.rulersLabel != null) {
+    if (this.magnetismLabel != null) {
       // Eleventh row
-      add(this.rulersLabel, new GridBagConstraints(
+      add(this.magnetismLabel, new GridBagConstraints(
           0, 10, 1, 1, 0, 0, labelAlignment,
           GridBagConstraints.NONE, checkBoxLabelInsets, 0, 0));
-      add(this.rulersCheckBox, new GridBagConstraints(
+      add(this.magnetismCheckBox, new GridBagConstraints(
           1, 10, 2, 1, 0, 0, GridBagConstraints.LINE_START,
+          GridBagConstraints.NONE, checkBoxInsets, 0, 0));
+    }
+    if (this.rulersLabel != null) {
+      // Twelfth row
+      add(this.rulersLabel, new GridBagConstraints(
+          0, 11, 1, 1, 0, 0, labelAlignment,
+          GridBagConstraints.NONE, checkBoxLabelInsets, 0, 0));
+      add(this.rulersCheckBox, new GridBagConstraints(
+          1, 11, 2, 1, 0, 0, GridBagConstraints.LINE_START,
           GridBagConstraints.NONE, checkBoxInsets, 0, 0));
     }
     if (this.gridLabel != null) {
@@ -1163,13 +1222,13 @@ public class UserPreferencesPanel extends JPanel implements DialogView {
           1, 0, 1, 1, 0, 0, GridBagConstraints.LINE_START,
           GridBagConstraints.NONE, checkBoxInsets, 0, 0));
       add(gridPanel, new GridBagConstraints(
-          2, 10, 1, 1, 0, 0, GridBagConstraints.LINE_START,
+          2, 11, 1, 1, 0, 0, GridBagConstraints.LINE_START,
           GridBagConstraints.NONE, new Insets(0, 0, 0, 0), 0, 0));
     }
     if (this.defaultFontNameLabel != null) {
-      // Twelfth row
+      // Thirteenth row
       add(this.defaultFontNameLabel, new GridBagConstraints(
-          0, 11, 1, 1, 0, 0, labelAlignment,
+          0, 12, 1, 1, 0, 0, labelAlignment,
           GridBagConstraints.NONE, labelInsets, 0, 0));
       Dimension preferredSize = this.defaultFontNameComboBox.getPreferredSize();
       if (this.unitComboBox != null
@@ -1181,16 +1240,16 @@ public class UserPreferencesPanel extends JPanel implements DialogView {
       }
       this.defaultFontNameComboBox.setPreferredSize(preferredSize);
       add(this.defaultFontNameComboBox, new GridBagConstraints(
-          1, 11, 2, 1, 0, 0, GridBagConstraints.LINE_START,
+          1, 12, 2, 1, 0, 0, GridBagConstraints.LINE_START,
           GridBagConstraints.NONE, rightComponentInsets, 0, 0));
     }
     if (this.furnitureIconLabel != null) {
-      // Thirteenth and fourteenth row
+      // Fourteenth and fifteenth row
       add(this.furnitureIconLabel, new GridBagConstraints(
-          0, 12, 1, 1, 0, 0, labelAlignment,
+          0, 13, 1, 1, 0, 0, labelAlignment,
           GridBagConstraints.NONE, checkBoxLabelInsets, 0, 0));
       add(this.catalogIconRadioButton, new GridBagConstraints(
-          1, 12, 1, 1, 0, 0, GridBagConstraints.LINE_START,
+          1, 13, 1, 1, 0, 0, GridBagConstraints.LINE_START,
           GridBagConstraints.NONE, checkBoxInsets, 0, 0));
 
       JPanel topViewPanel = new JPanel(new GridBagLayout());
@@ -1206,13 +1265,13 @@ public class UserPreferencesPanel extends JPanel implements DialogView {
             GridBagConstraints.NONE, new Insets(0, 0, 0, 0), 0, 0));
       }
       add(topViewPanel, new GridBagConstraints(
-          1, 13, 2, 1, 0, 0, GridBagConstraints.LINE_START,
+          1, 14, 2, 1, 0, 0, GridBagConstraints.LINE_START,
           GridBagConstraints.NONE, rightComponentInsetsWithSpace, 0, 0));
     }
     if (this.roomRenderingLabel != null) {
-      // Fifteenth row
+      // Sixteenth row
       add(this.roomRenderingLabel, new GridBagConstraints(
-          0, 14, 1, 1, 0, 0, labelAlignment,
+          0, 15, 1, 1, 0, 0, labelAlignment,
           GridBagConstraints.NONE, checkBoxLabelInsets, 0, 0));
 
       JPanel roomRenderingPanel = new JPanel(new GridBagLayout());
@@ -1223,55 +1282,55 @@ public class UserPreferencesPanel extends JPanel implements DialogView {
           1, 0, 1, 1, 1, 0, GridBagConstraints.LINE_START,
           GridBagConstraints.HORIZONTAL, new Insets(0, 0, 0, 0), 0, 0));
       add(roomRenderingPanel, new GridBagConstraints(
-          1, 14, 2, 1, 0, 0, GridBagConstraints.LINE_START,
+          1, 15, 2, 1, 0, 0, GridBagConstraints.LINE_START,
           GridBagConstraints.HORIZONTAL, checkBoxInsets, 0, 0));
     }
     if (this.newWallPatternLabel != null) {
-      // Sixteenth row
+      // Seventeenth row
       add(this.newWallPatternLabel, new GridBagConstraints(
-          0, 15, 1, 1, 0, 0, labelAlignment,
+          0, 16, 1, 1, 0, 0, labelAlignment,
           GridBagConstraints.NONE, labelInsets, 0, 0));
       add(this.newWallPatternComboBox, new GridBagConstraints(
-          1, 15, 2, 1, 0, 0, GridBagConstraints.LINE_START,
+          1, 16, 2, 1, 0, 0, GridBagConstraints.LINE_START,
           GridBagConstraints.NONE, rightComponentInsets, 0, 0));
     } else if (this.wallPatternLabel != null) {
       add(this.wallPatternLabel, new GridBagConstraints(
-          0, 15, 1, 1, 0, 0, labelAlignment,
+          0, 16, 1, 1, 0, 0, labelAlignment,
           GridBagConstraints.NONE, labelInsets, 0, 0));
       add(this.wallPatternComboBox, new GridBagConstraints(
-          1, 15, 2, 1, 0, 0, GridBagConstraints.LINE_START,
+          1, 16, 2, 1, 0, 0, GridBagConstraints.LINE_START,
           GridBagConstraints.NONE, rightComponentInsets, 0, 0));
     }
     if (this.newWallThicknessLabel != null) {
-      // Seventeenth row
-      add(this.newWallThicknessLabel, new GridBagConstraints(
-          0, 16, 1, 1, 0, 0, labelAlignment,
-          GridBagConstraints.NONE, labelInsets, 0, 0));
-      add(this.newWallThicknessSpinner, new GridBagConstraints(
-          1, 16, 1, 1, 0, 0, GridBagConstraints.LINE_START,
-          GridBagConstraints.HORIZONTAL, rightComponentInsets, 0, 0));
-    }
-    if (this.newWallHeightLabel != null) {
       // Eighteenth row
-      add(this.newWallHeightLabel, new GridBagConstraints(
+      add(this.newWallThicknessLabel, new GridBagConstraints(
           0, 17, 1, 1, 0, 0, labelAlignment,
           GridBagConstraints.NONE, labelInsets, 0, 0));
-      add(this.newWallHeightSpinner, new GridBagConstraints(
+      add(this.newWallThicknessSpinner, new GridBagConstraints(
           1, 17, 1, 1, 0, 0, GridBagConstraints.LINE_START,
           GridBagConstraints.HORIZONTAL, rightComponentInsets, 0, 0));
     }
-    if (this.newFloorThicknessLabel != null) {
+    if (this.newWallHeightLabel != null) {
       // Nineteenth row
-      add(this.newFloorThicknessLabel, new GridBagConstraints(
+      add(this.newWallHeightLabel, new GridBagConstraints(
           0, 18, 1, 1, 0, 0, labelAlignment,
           GridBagConstraints.NONE, labelInsets, 0, 0));
-      add(this.newFloorThicknessSpinner, new GridBagConstraints(
+      add(this.newWallHeightSpinner, new GridBagConstraints(
           1, 18, 1, 1, 0, 0, GridBagConstraints.LINE_START,
+          GridBagConstraints.HORIZONTAL, rightComponentInsets, 0, 0));
+    }
+    if (this.newFloorThicknessLabel != null) {
+      // Twentieth row
+      add(this.newFloorThicknessLabel, new GridBagConstraints(
+          0, 19, 1, 1, 0, 0, labelAlignment,
+          GridBagConstraints.NONE, labelInsets, 0, 0));
+      add(this.newFloorThicknessSpinner, new GridBagConstraints(
+          1, 19, 1, 1, 0, 0, GridBagConstraints.LINE_START,
           GridBagConstraints.HORIZONTAL, rightComponentInsets, 0, 0));
     }
     if (this.checkUpdatesCheckBox != null
         || this.autoSaveDelayForRecoveryCheckBox != null) {
-      // Twentieth row
+      // Twenty-first row
       JPanel updatesAndAutoSaveDelayForRecoveryPanel = new JPanel(new GridBagLayout());
       if (this.checkUpdatesCheckBox != null) {
         updatesAndAutoSaveDelayForRecoveryPanel.add(this.checkUpdatesCheckBox,
@@ -1298,7 +1357,7 @@ public class UserPreferencesPanel extends JPanel implements DialogView {
                 GridBagConstraints.NONE, new Insets(0, 0, 0, 0), 0, 0));
       }
       add(updatesAndAutoSaveDelayForRecoveryPanel, new GridBagConstraints(
-          0, 19, 3, 1, 0, 0, GridBagConstraints.LINE_START,
+          0, 20, 3, 1, 0, 0, GridBagConstraints.LINE_START,
           GridBagConstraints.HORIZONTAL, rightComponentInsets, 0, 0));
     }
 
@@ -1307,7 +1366,7 @@ public class UserPreferencesPanel extends JPanel implements DialogView {
         && this.resetDisplayedActionTipsButton.getText().length() > 0) {
       // Display reset button only if its text isn't empty
       add(this.resetDisplayedActionTipsButton, new GridBagConstraints(
-          0, 20, 3, 1, 0, 0, GridBagConstraints.CENTER,
+          0, 21, 3, 1, 0, 0, GridBagConstraints.CENTER,
           GridBagConstraints.NONE, new Insets(0, 0, 0, 0), 0, 0));
     }
   }

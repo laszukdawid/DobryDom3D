@@ -51,6 +51,7 @@ import com.eteks.sweethome3d.model.FurnitureCategory;
 import com.eteks.sweethome3d.model.LengthUnit;
 import com.eteks.sweethome3d.model.Library;
 import com.eteks.sweethome3d.model.PatternsCatalog;
+import com.eteks.sweethome3d.model.PlanView3DSplitOrientation;
 import com.eteks.sweethome3d.model.RecorderException;
 import com.eteks.sweethome3d.model.TextureImage;
 import com.eteks.sweethome3d.model.TexturesCatalog;
@@ -68,6 +69,7 @@ public class AppletUserPreferences extends UserPreferences {
   private static final String NAVIGATION_PANEL_VISIBLE                  = "navigationPanelVisible";
   private static final String AERIAL_VIEW_CENTERED_ON_SELECTION_ENABLED = "aerialViewCenteredOnSelectionEnabled";
   private static final String OBSERVER_CAMERA_SELECTED_AT_CHANGE        = "observerCameraSelectedAtChange";
+  private static final String PLAN_VIEW_3D_SPLIT_ORIENTATION            = "planView3DSplitOrientation";
   private static final String MAGNETISM_ENABLED                         = "magnetismEnabled";
   private static final String RULERS_VISIBLE                            = "rulersVisible";
   private static final String GRID_VISIBLE                              = "gridVisible";
@@ -232,6 +234,12 @@ public class AppletUserPreferences extends UserPreferences {
         String.valueOf(defaultPreferences.isAerialViewCenteredOnSelectionEnabled()))));
     setObserverCameraSelectedAtChange(Boolean.parseBoolean(properties.getProperty(OBSERVER_CAMERA_SELECTED_AT_CHANGE, 
         String.valueOf(defaultPreferences.isObserverCameraSelectedAtChange()))));
+    try {
+      setPlanView3DSplitOrientation(PlanView3DSplitOrientation.valueOf(properties.getProperty(PLAN_VIEW_3D_SPLIT_ORIENTATION,
+          defaultPreferences.getPlanView3DSplitOrientation().name())));
+    } catch (IllegalArgumentException ex) {
+      setPlanView3DSplitOrientation(defaultPreferences.getPlanView3DSplitOrientation());
+    }
     setMagnetismEnabled(Boolean.parseBoolean(properties.getProperty(MAGNETISM_ENABLED, "true")));
     setRulersVisible(Boolean.parseBoolean(properties.getProperty(RULERS_VISIBLE, 
         String.valueOf(defaultPreferences.isMagnetismEnabled()))));
@@ -304,6 +312,7 @@ public class AppletUserPreferences extends UserPreferences {
         Property.NAVIGATION_PANEL_VISIBLE,
         Property.AERIAL_VIEW_CENTERED_ON_SELECTION_ENABLED,
         Property.OBSERVER_CAMERA_SELECTED_AT_CHANGE,
+        Property.PLAN_VIEW_3D_SPLIT_ORIENTATION,
         Property.MAGNETISM_ENABLED,
         Property.RULERS_VISIBLE,
         Property.GRID_VISIBLE,
@@ -397,6 +406,7 @@ public class AppletUserPreferences extends UserPreferences {
       properties.setProperty(NAVIGATION_PANEL_VISIBLE, String.valueOf(isNavigationPanelVisible()));    
       properties.setProperty(AERIAL_VIEW_CENTERED_ON_SELECTION_ENABLED, String.valueOf(isAerialViewCenteredOnSelectionEnabled()));    
       properties.setProperty(OBSERVER_CAMERA_SELECTED_AT_CHANGE, String.valueOf(isObserverCameraSelectedAtChange()));    
+      properties.setProperty(PLAN_VIEW_3D_SPLIT_ORIENTATION, getPlanView3DSplitOrientation().name());
       properties.setProperty(MAGNETISM_ENABLED, String.valueOf(isMagnetismEnabled()));
       properties.setProperty(RULERS_VISIBLE, String.valueOf(isRulersVisible()));
       properties.setProperty(GRID_VISIBLE, String.valueOf(isGridVisible()));

@@ -69,6 +69,7 @@ import com.eteks.sweethome3d.model.LengthUnit;
 import com.eteks.sweethome3d.model.Library;
 import com.eteks.sweethome3d.model.PatternsCatalog;
 import com.eteks.sweethome3d.model.PieceOfFurniture;
+import com.eteks.sweethome3d.model.PlanView3DSplitOrientation;
 import com.eteks.sweethome3d.model.RecorderException;
 import com.eteks.sweethome3d.model.Sash;
 import com.eteks.sweethome3d.model.TextureImage;
@@ -97,6 +98,7 @@ public class FileUserPreferences extends UserPreferences {
   private static final String EDITING_IN_3D_VIEW_ENABLED                = "editingIn3DViewEnabled";
   private static final String AERIAL_VIEW_CENTERED_ON_SELECTION_ENABLED = "aerialViewCenteredOnSelectionEnabled";
   private static final String OBSERVER_CAMERA_SELECTED_AT_CHANGE        = "observerCameraSelectedAtChange";
+  private static final String PLAN_VIEW_3D_SPLIT_ORIENTATION            = "planView3DSplitOrientation";
   private static final String MAGNETISM_ENABLED                         = "magnetismEnabled";
   private static final String RULERS_VISIBLE                            = "rulersVisible";
   private static final String GRID_VISIBLE                              = "gridVisible";
@@ -314,6 +316,12 @@ public class FileUserPreferences extends UserPreferences {
         defaultPreferences.isAerialViewCenteredOnSelectionEnabled()));
     setObserverCameraSelectedAtChange(preferences.getBoolean(OBSERVER_CAMERA_SELECTED_AT_CHANGE,
         defaultPreferences.isObserverCameraSelectedAtChange()));
+    try {
+      setPlanView3DSplitOrientation(PlanView3DSplitOrientation.valueOf(preferences.get(PLAN_VIEW_3D_SPLIT_ORIENTATION,
+          defaultPreferences.getPlanView3DSplitOrientation().name())));
+    } catch (IllegalArgumentException ex) {
+      setPlanView3DSplitOrientation(defaultPreferences.getPlanView3DSplitOrientation());
+    }
     setMagnetismEnabled(preferences.getBoolean(MAGNETISM_ENABLED, true));
     setRulersVisible(preferences.getBoolean(RULERS_VISIBLE, defaultPreferences.isRulersVisible()));
     setGridVisible(preferences.getBoolean(GRID_VISIBLE, defaultPreferences.isGridVisible()));
@@ -971,6 +979,7 @@ public class FileUserPreferences extends UserPreferences {
     preferences.putBoolean(EDITING_IN_3D_VIEW_ENABLED, isEditingIn3DViewEnabled());
     preferences.putBoolean(AERIAL_VIEW_CENTERED_ON_SELECTION_ENABLED, isAerialViewCenteredOnSelectionEnabled());
     preferences.putBoolean(OBSERVER_CAMERA_SELECTED_AT_CHANGE, isObserverCameraSelectedAtChange());
+    preferences.put(PLAN_VIEW_3D_SPLIT_ORIENTATION, getPlanView3DSplitOrientation().name());
     preferences.putBoolean(MAGNETISM_ENABLED, isMagnetismEnabled());
     preferences.putBoolean(RULERS_VISIBLE, isRulersVisible());
     preferences.putBoolean(GRID_VISIBLE, isGridVisible());

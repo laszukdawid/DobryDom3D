@@ -54,7 +54,8 @@ public abstract class UserPreferences {
                         NEW_WALL_THICKNESS, NEW_WALL_HEIGHT, NEW_WALL_SIDEBOARD_THICKNESS, NEW_WALL_SIDEBOARD_HEIGHT, NEW_ROOM_FLOOR_COLOR, NEW_FLOOR_THICKNESS,
                         RECENT_HOMES, IGNORED_ACTION_TIP, FURNITURE_CATALOG_VIEWED_IN_TREE, NAVIGATION_PANEL_VISIBLE,
                         AERIAL_VIEW_CENTERED_ON_SELECTION_ENABLED, OBSERVER_CAMERA_SELECTED_AT_CHANGE, EDITING_IN_3D_VIEW_ENABLED, CHECK_UPDATES_ENABLED,
-                        UPDATES_MINIMUM_DATE, AUTO_SAVE_DELAY_FOR_RECOVERY, AUTO_COMPLETION_STRINGS, RECENT_COLORS, RECENT_TEXTURES, HOME_EXAMPLES, PHOTO_RENDERER}
+                        UPDATES_MINIMUM_DATE, AUTO_SAVE_DELAY_FOR_RECOVERY, AUTO_COMPLETION_STRINGS, RECENT_COLORS, RECENT_TEXTURES, HOME_EXAMPLES, PHOTO_RENDERER,
+                        PLAN_VIEW_3D_SPLIT_ORIENTATION}
 
   public static final String FURNITURE_LIBRARY_TYPE = "Furniture library";
   public static final String TEXTURES_LIBRARY_TYPE  = "Textures library";
@@ -104,6 +105,7 @@ public abstract class UserPreferences {
   private boolean          editingIn3DViewEnabled;
   private boolean          aerialViewCenteredOnSelectionEnabled;
   private boolean          observerCameraSelectedAtChange = true;
+  private PlanView3DSplitOrientation planView3DSplitOrientation = PlanView3DSplitOrientation.VERTICAL_SPLIT;
   private boolean          magnetismEnabled    = true;
   private boolean          rulersVisible       = true;
   private boolean          gridVisible         = true;
@@ -689,6 +691,30 @@ public abstract class UserPreferences {
       this.observerCameraSelectedAtChange = observerCameraSelectedAtChange;
       this.propertyChangeSupport.firePropertyChange(Property.OBSERVER_CAMERA_SELECTED_AT_CHANGE.name(),
           !observerCameraSelectedAtChange, observerCameraSelectedAtChange);
+    }
+  }
+
+  /**
+   * Returns how the plan view and the 3D view should be split in the home view.
+   * @return {@link PlanView3DSplitOrientation#VERTICAL_SPLIT} by default.
+   */
+  public PlanView3DSplitOrientation getPlanView3DSplitOrientation() {
+    return this.planView3DSplitOrientation;
+  }
+
+  /**
+   * Sets how the plan view and the 3D view should be split in the home view,
+   * and notifies listeners of this change.
+   * @param planView3DSplitOrientation {@link PlanView3DSplitOrientation#VERTICAL_SPLIT}
+   *          to display them one above the other, or
+   *          {@link PlanView3DSplitOrientation#HORIZONTAL_SPLIT} to display them side by side.
+   */
+  public void setPlanView3DSplitOrientation(PlanView3DSplitOrientation planView3DSplitOrientation) {
+    if (this.planView3DSplitOrientation != planView3DSplitOrientation) {
+      PlanView3DSplitOrientation oldSplitOrientation = this.planView3DSplitOrientation;
+      this.planView3DSplitOrientation = planView3DSplitOrientation;
+      this.propertyChangeSupport.firePropertyChange(Property.PLAN_VIEW_3D_SPLIT_ORIENTATION.name(),
+          oldSplitOrientation, planView3DSplitOrientation);
     }
   }
 

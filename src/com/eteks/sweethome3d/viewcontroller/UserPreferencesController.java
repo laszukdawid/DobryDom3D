@@ -23,6 +23,7 @@ import java.beans.PropertyChangeListener;
 import java.beans.PropertyChangeSupport;
 
 import com.eteks.sweethome3d.model.LengthUnit;
+import com.eteks.sweethome3d.model.PlanView3DSplitOrientation;
 import com.eteks.sweethome3d.model.TextureImage;
 import com.eteks.sweethome3d.model.UserPreferences;
 
@@ -39,6 +40,7 @@ public class UserPreferencesController implements Controller {
       FURNITURE_VIEWED_FROM_TOP, FURNITURE_MODEL_ICON_SIZE, ROOM_FLOOR_COLORED_OR_TEXTURED, WALL_PATTERN, NEW_WALL_PATTERN,
       NEW_WALL_THICKNESS, NEW_WALL_HEIGHT, NEW_FLOOR_THICKNESS, FURNITURE_CATALOG_VIEWED_IN_TREE,
       NAVIGATION_PANEL_VISIBLE, EDITING_IN_3D_VIEW_ENABLED, AERIAL_VIEW_CENTERED_ON_SELECTION_ENABLED, OBSERVER_CAMERA_SELECTED_AT_CHANGE,
+      PLAN_VIEW_3D_SPLIT_ORIENTATION,
       CHECK_UPDATES_ENABLED, AUTO_SAVE_DELAY_FOR_RECOVERY, AUTO_SAVE_FOR_RECOVERY_ENABLED}
 
   private final UserPreferences         preferences;
@@ -56,6 +58,7 @@ public class UserPreferencesController implements Controller {
   private boolean                       editingIn3DViewEnabled;
   private boolean                       aerialViewCenteredOnSelectionEnabled;
   private boolean                       observerCameraSelectedAtChange;
+  private PlanView3DSplitOrientation     planView3DSplitOrientation;
   private boolean                       magnetismEnabled;
   private boolean                       rulersVisible;
   private boolean                       gridVisible;
@@ -141,6 +144,7 @@ public class UserPreferencesController implements Controller {
     setEditingIn3DViewEnabled(this.preferences.isEditingIn3DViewEnabled());
     setAerialViewCenteredOnSelectionEnabled(this.preferences.isAerialViewCenteredOnSelectionEnabled());
     setObserverCameraSelectedAtChange(this.preferences.isObserverCameraSelectedAtChange());
+    setPlanView3DSplitOrientation(this.preferences.getPlanView3DSplitOrientation());
     setMagnetismEnabled(this.preferences.isMagnetismEnabled());
     setRulersVisible(this.preferences.isRulersVisible());
     setGridVisible(this.preferences.isGridVisible());
@@ -349,6 +353,25 @@ public class UserPreferencesController implements Controller {
     return this.observerCameraSelectedAtChange;
   }
 
+
+  /**
+   * Sets how the plan view and the 3D view should be split in the home view.
+   */
+  public void setPlanView3DSplitOrientation(PlanView3DSplitOrientation planView3DSplitOrientation) {
+    if (this.planView3DSplitOrientation != planView3DSplitOrientation) {
+      PlanView3DSplitOrientation oldSplitOrientation = this.planView3DSplitOrientation;
+      this.planView3DSplitOrientation = planView3DSplitOrientation;
+      this.propertyChangeSupport.firePropertyChange(Property.PLAN_VIEW_3D_SPLIT_ORIENTATION.name(),
+          oldSplitOrientation, planView3DSplitOrientation);
+    }
+  }
+
+  /**
+   * Returns how the plan view and the 3D view should be split in the home view.
+   */
+  public PlanView3DSplitOrientation getPlanView3DSplitOrientation() {
+    return this.planView3DSplitOrientation;
+  }
 
   /**
    * Sets whether magnetism is enabled or not.
@@ -678,6 +701,7 @@ public class UserPreferencesController implements Controller {
     this.preferences.setEditingIn3DViewEnabled(isEditingIn3DViewEnabled());
     this.preferences.setAerialViewCenteredOnSelectionEnabled(isAerialViewCenteredOnSelectionEnabled());
     this.preferences.setObserverCameraSelectedAtChange(isObserverCameraSelectedAtChange());
+    this.preferences.setPlanView3DSplitOrientation(getPlanView3DSplitOrientation());
     this.preferences.setMagnetismEnabled(isMagnetismEnabled());
     this.preferences.setRulersVisible(isRulersVisible());
     this.preferences.setGridVisible(isGridVisible());

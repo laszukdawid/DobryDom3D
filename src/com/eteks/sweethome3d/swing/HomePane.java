@@ -195,6 +195,7 @@ import com.eteks.sweethome3d.model.Label;
 import com.eteks.sweethome3d.model.Level;
 import com.eteks.sweethome3d.model.Library;
 import com.eteks.sweethome3d.model.ObjectProperty;
+import com.eteks.sweethome3d.model.PlanView3DSplitOrientation;
 import com.eteks.sweethome3d.model.Polyline;
 import com.eteks.sweethome3d.model.RecorderException;
 import com.eteks.sweethome3d.model.Room;
@@ -251,6 +252,7 @@ public class HomePane extends JRootPane implements HomeView {
   private final Home            home;
   private final UserPreferences preferences;
   private final HomeController  controller;
+  private JSplitPane            planView3DSplitPane;
   private JComponent            lastFocusedComponent;
   private PlanController.Mode   previousPlanControllerMode;
   private TransferHandler       catalogTransferHandler;
@@ -813,6 +815,7 @@ public class HomePane extends JRootPane implements HomeView {
     preferences.addPropertyChangeListener(UserPreferences.Property.CURRENCY, listener);
     preferences.addPropertyChangeListener(UserPreferences.Property.VALUE_ADDED_TAX_ENABLED, listener);
     preferences.addPropertyChangeListener(UserPreferences.Property.EDITING_IN_3D_VIEW_ENABLED, listener);
+    preferences.addPropertyChangeListener(UserPreferences.Property.PLAN_VIEW_3D_SPLIT_ORIENTATION, listener);
   }
 
   /**
@@ -876,6 +879,9 @@ public class HomePane extends JRootPane implements HomeView {
             if (view3D != null) {
               view3D.setTransferHandler(preferences.isEditingIn3DViewEnabled() ? homePane.view3DTransferHandler : null);
             }
+            break;
+          case PLAN_VIEW_3D_SPLIT_ORIENTATION :
+            homePane.updatePlanView3DSplitOrientation();
             break;
         }
       }
@@ -3558,9 +3564,13 @@ public class HomePane extends JRootPane implements HomeView {
       final JComponent planView3DPane;
       boolean detachedView3D = Boolean.parseBoolean(home.getProperty(view3D.getClass().getName() + DETACHED_VIEW_VISUAL_PROPERTY));
       if (planView != null) {
-        // Create a split pane that displays both components
-        final JSplitPane planView3DSplitPane = new JSplitPane(JSplitPane.VERTICAL_SPLIT, planView, view3D);
+        // Create a split pane that displays both components according to split orientation in preferences
+        int splitOrientation = preferences.getPlanView3DSplitOrientation() == PlanView3DSplitOrientation.HORIZONTAL_SPLIT
+            ? JSplitPane.HORIZONTAL_SPLIT
+            : JSplitPane.VERTICAL_SPLIT;
+        final JSplitPane planView3DSplitPane = new JSplitPane(splitOrientation, planView, view3D);
         planView3DSplitPane.setMinimumSize(new Dimension());
+        this.planView3DSplitPane = planView3DSplitPane;
         configureSplitPane((JSplitPane)planView3DSplitPane, home,
             PLAN_PANE_DIVIDER_LOCATION_VISUAL_PROPERTY, 0.5, false, controller);
 
@@ -3636,6 +3646,35 @@ public class HomePane extends JRootPane implements HomeView {
       return planView3DPane;
     } else {
       return planView;
+    }
+  }
+
+  /**
+   * Changes the orientation of the split pane displaying the plan view and the 3D view
+   * according to the split orientation in preferences, keeping the current divider ratio
+   * and syncing the related toggle actions.
+   */
+  private void updatePlanView3DSplitOrientation() {
+    JSplitPane splitPane = this.planView3DSplitPane;
+    if (splitPane != null) {
+      int newOrientation = this.preferences.getPlanView3DSplitOrientation() == PlanView3DSplitOrientation.HORIZONTAL_SPLIT
+          ? JSplitPane.HORIZONTAL_SPLIT
+          : JSplitPane.VERTICAL_SPLIT;
+      if (splitPane.getOrientation() != newOrientation) {
+        int availableSize = splitPane.getOrientation() == JSplitPane.VERTICAL_SPLIT
+            ? splitPane.getHeight() - splitPane.getDividerSize()
+            : splitPane.getWidth() - splitPane.getDividerSize();
+        float dividerRatio = availableSize > 0
+            ? (float)splitPane.getDividerLocation() / availableSize
+            : 0.5f;
+        splitPane.setOrientation(newOrientation);
+        int newAvailableSize = newOrientation == JSplitPane.VERTICAL_SPLIT
+            ? splitPane.getHeight() - splitPane.getDividerSize()
+            : splitPane.getWidth() - splitPane.getDividerSize();
+        if (newAvailableSize > 0) {
+          splitPane.setDividerLocation(Math.round(dividerRatio * newAvailableSize));
+        }
+      }
     }
   }
 

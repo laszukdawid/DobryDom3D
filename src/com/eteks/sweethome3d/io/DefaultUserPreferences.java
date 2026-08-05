@@ -34,6 +34,7 @@ import com.eteks.sweethome3d.model.HomeDescriptor;
 import com.eteks.sweethome3d.model.LengthUnit;
 import com.eteks.sweethome3d.model.Library;
 import com.eteks.sweethome3d.model.PatternsCatalog;
+import com.eteks.sweethome3d.model.PlanView3DSplitOrientation;
 import com.eteks.sweethome3d.model.RecorderException;
 import com.eteks.sweethome3d.model.TextureImage;
 import com.eteks.sweethome3d.model.TexturesCatalog;
@@ -91,6 +92,11 @@ public class DefaultUserPreferences extends UserPreferences {
     setEditingIn3DViewEnabled(Boolean.parseBoolean(getOptionalLocalizedString(localizedPreferences, "editingIn3DViewEnabled", "false")));
     setAerialViewCenteredOnSelectionEnabled(Boolean.parseBoolean(getOptionalLocalizedString(localizedPreferences, "aerialViewCenteredOnSelectionEnabled", "false")));
     setObserverCameraSelectedAtChange(Boolean.parseBoolean(getOptionalLocalizedString(localizedPreferences, "observerCameraSelectedAtChange", "true")));
+    try {
+      setPlanView3DSplitOrientation(PlanView3DSplitOrientation.valueOf(getOptionalLocalizedString(localizedPreferences, "planView3DSplitOrientation", "VERTICAL_SPLIT").toUpperCase(Locale.ENGLISH)));
+    } catch (IllegalArgumentException ex) {
+      setPlanView3DSplitOrientation(PlanView3DSplitOrientation.VERTICAL_SPLIT);
+    }
     setUnit(LengthUnit.valueOf(localizedPreferences.getLocalizedString(DefaultUserPreferences.class, "unit").toUpperCase(Locale.ENGLISH)));
     setRulersVisible(Boolean.parseBoolean(localizedPreferences.getLocalizedString(DefaultUserPreferences.class, "rulersVisible")));
     setGridVisible(Boolean.parseBoolean(localizedPreferences.getLocalizedString(DefaultUserPreferences.class, "gridVisible")));
