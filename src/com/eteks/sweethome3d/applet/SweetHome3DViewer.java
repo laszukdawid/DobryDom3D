@@ -27,6 +27,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.ResourceBundle;
 
+import javax.imageio.ImageIO;
 import javax.swing.JApplet;
 import javax.swing.JLabel;
 
@@ -85,6 +86,8 @@ public class SweetHome3DViewer extends JApplet {
     if (!isJava5OrSuperior()) {
       showError(getLocalizedString("requirementsMessage"));
     } else {
+      // Images are read only once from start to end, making ImageIO temporary cache files pure overhead
+      ImageIO.setUseCache(false);
       createAppletApplication();
     }
   }

@@ -246,6 +246,7 @@ public class PackageDependenciesTest extends TestCase {
     sweetHome3DApplet.dependsUpon(swing);
     sweetHome3DApplet.dependsUpon(swingEvent);
     sweetHome3DApplet.dependsUpon(swingTable);
+    sweetHome3DApplet.dependsUpon(imageio);
     sweetHome3DApplet.dependsUpon(jnlp);
 
     jdepend.analyze();

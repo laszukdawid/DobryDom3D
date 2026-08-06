@@ -36,6 +36,7 @@ import java.util.Set;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 
+import javax.imageio.ImageIO;
 import javax.swing.JApplet;
 import javax.swing.JLabel;
 
@@ -204,6 +205,8 @@ public class SweetHome3DApplet extends JApplet {
                && !getDocumentBase().getHost().equals(getCodeBase().getHost())) {
       showText(getLocalizedString("unauthorizedHostError"));
     } else {
+      // Images are read only once from start to end, making ImageIO temporary cache files pure overhead
+      ImageIO.setUseCache(false);
       createAppletApplication();
     }
   }
