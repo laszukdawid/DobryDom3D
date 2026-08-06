@@ -60,6 +60,9 @@ import com.sun.j3d.utils.universe.ViewingPlatform;
  */
 public class Component3DManager {
   private static final String CHECK_OFF_SCREEN_IMAGE_SUPPORT = "com.eteks.sweethome3d.j3d.checkOffScreenSupport";
+  private static final String FORCE_GARBAGE_COLLECTION = "com.eteks.sweethome3d.j3d.forceGarbageCollection";
+  // 16 M pixels, i.e. a 64 MB off screen buffer
+  private static final long   MAX_KEPT_OFF_SCREEN_IMAGE_PIXEL_COUNT = 16L * 1024 * 1024;
 
   private static Component3DManager instance;
 
@@ -70,6 +73,10 @@ public class Component3DManager {
   private Boolean                offScreenImageSupported;
   private GraphicsConfiguration  defaultScreenConfiguration;
   private int                    depthSize;
+  private final Object           offScreenImageLock = new Object();
+  private Canvas3D               reusedOffScreenCanvas;
+  private int                    reusedOffScreenCanvasWidth;
+  private int                    reusedOffScreenCanvasHeight;
 
   private Component3DManager() {
     if (!GraphicsEnvironment.isHeadless()) {
@@ -248,8 +255,10 @@ public class Component3DManager {
       throw new IllegalRenderingStateException("Can't create graphics environment for Canvas 3D");
     }
     try {
-      // Ensure unused canvases are freed
-      System.gc();
+      if (Boolean.getBoolean(FORCE_GARBAGE_COLLECTION)) {
+        // Escape hatch for Java 3D drivers requiring unused canvases to be freed first
+        System.gc();
+      }
 
       // Create a Java 3D canvas
       final Canvas3D canvas3D;
@@ -368,52 +377,116 @@ public class Component3DManager {
    * @throws IllegalRenderingStateException  if the image couldn't be created.
    */
   public BufferedImage getOffScreenImage(View view, int width, int height)  {
-    Canvas3D offScreenCanvas = null;
-    RenderingErrorObserver previousRenderingErrorObserver = getRenderingErrorObserver();
-    try {
-      // Replace current rendering error observer by a listener that counts down
-      // a latch to check further if a rendering error happened during off screen rendering
-      // (rendering error listener is called from a notification thread)
-      final CountDownLatch latch = new CountDownLatch(1);
-      setRenderingErrorObserver(new RenderingErrorObserver() {
-          public void errorOccured(int errorCode, String errorMessage) {
-            latch.countDown();
-          }
-        });
+    // Serialize the renders sharing the reused canvas, Java 3D serializing them anyway
+    synchronized (this.offScreenImageLock) {
+      Canvas3D offScreenCanvas = null;
+      boolean rendered = false;
+      // Don't keep the canvas of the largest images, whose off screen buffer would be
+      // retained long after the image was created
+      boolean keepCanvas = (long)width * height <= MAX_KEPT_OFF_SCREEN_IMAGE_PIXEL_COUNT;
+      RenderingErrorObserver previousRenderingErrorObserver = getRenderingErrorObserver();
+      try {
+        // Replace current rendering error observer by a listener that counts down
+        // a latch to check further if a rendering error happened during off screen rendering
+        // (rendering error listener is called from a notification thread)
+        final CountDownLatch latch = new CountDownLatch(1);
+        setRenderingErrorObserver(new RenderingErrorObserver() {
+            public void errorOccured(int errorCode, String errorMessage) {
+              latch.countDown();
+            }
+          });
 
-      // Create an off screen canvas and bind it to view
-      offScreenCanvas = getOffScreenCanvas3D(width, height);
-      view.addCanvas3D(offScreenCanvas);
+        // Bind to view the off screen canvas of the previous call at the same size, if any
+        offScreenCanvas = getReusedOffScreenCanvas3D(width, height);
+        view.addCanvas3D(offScreenCanvas);
 
-      // Render off screen canvas
-      offScreenCanvas.renderOffScreenBuffer();
-      offScreenCanvas.waitForOffScreenRendering();
+        // Render off screen canvas
+        offScreenCanvas.renderOffScreenBuffer();
+        offScreenCanvas.waitForOffScreenRendering();
 
-      // If latch count becomes equal to 0 during the past instructions or in the coming 10 milliseconds,
-      // this means that a rendering error happened (for example, in case changing default depth size isn't supported)
-      if (latch.await(10, TimeUnit.MILLISECONDS)) {
-        throw new IllegalRenderingStateException("Off screen rendering unavailable");
-      }
+        // If latch count becomes equal to 0 during the past instructions or in the coming 10 milliseconds,
+        // this means that a rendering error happened (for example, in case changing default depth size isn't supported)
+        if (latch.await(10, TimeUnit.MILLISECONDS)) {
+          throw new IllegalRenderingStateException("Off screen rendering unavailable");
+        }
 
-      return offScreenCanvas.getOffScreenBuffer().getImage();
-    } catch (InterruptedException ex) {
-      IllegalRenderingStateException ex2 =
-          new IllegalRenderingStateException("Off screen rendering interrupted");
-      ex2.initCause(ex);
-      throw ex2;
-    } finally {
-      if (offScreenCanvas != null) {
-        view.removeCanvas3D(offScreenCanvas);
+        BufferedImage image = offScreenCanvas.getOffScreenBuffer().getImage();
+        // Copy the buffer of a kept canvas, which the next render would overwrite,
+        // because some callers keep the returned image. A canvas which isn't kept is
+        // released below, leaving its buffer to its caller
+        BufferedImage returnedImage = keepCanvas ? copyImage(image) : image;
+        rendered = true;
+        return returnedImage;
+      } catch (InterruptedException ex) {
+        IllegalRenderingStateException ex2 =
+            new IllegalRenderingStateException("Off screen rendering interrupted");
+        ex2.initCause(ex);
+        throw ex2;
+      } finally {
         try {
-          // Free off screen buffer and context
-          offScreenCanvas.setOffScreenBuffer(null);
-        } catch (NullPointerException ex) {
-          // Java 3D 1.3 may throw an exception
+          if (offScreenCanvas != null) {
+            view.removeCanvas3D(offScreenCanvas);
+          }
+        } finally {
+          if (!rendered || !keepCanvas) {
+            // A canvas which failed to render might be broken, don't keep it either
+            releaseReusedOffScreenCanvas3D();
+          }
+          // Reset previous rendering error listener
+          setRenderingErrorObserver(previousRenderingErrorObserver);
         }
       }
-      // Reset previous rendering error listener
-      setRenderingErrorObserver(previousRenderingErrorObserver);
     }
+  }
+
+  /**
+   * Returns the off screen canvas 3D used by {@link #getOffScreenImage(View, int, int)},
+   * creating it at the requested size if it doesn't exist yet or if its size changed.
+   */
+  private Canvas3D getReusedOffScreenCanvas3D(int width, int height) {
+    if (this.reusedOffScreenCanvas != null
+        && (this.reusedOffScreenCanvasWidth != width
+            || this.reusedOffScreenCanvasHeight != height)) {
+      releaseReusedOffScreenCanvas3D();
+    }
+    if (this.reusedOffScreenCanvas == null) {
+      this.reusedOffScreenCanvas = getOffScreenCanvas3D(width, height);
+      this.reusedOffScreenCanvasWidth = width;
+      this.reusedOffScreenCanvasHeight = height;
+    }
+    return this.reusedOffScreenCanvas;
+  }
+
+  /**
+   * Frees the off screen buffer and the context of the reused off screen canvas 3D.
+   */
+  private void releaseReusedOffScreenCanvas3D() {
+    Canvas3D offScreenCanvas = this.reusedOffScreenCanvas;
+    if (offScreenCanvas != null) {
+      // Drop the reference first to keep this method idempotent whatever happens next
+      this.reusedOffScreenCanvas = null;
+      try {
+        offScreenCanvas.setOffScreenBuffer(null);
+      } catch (NullPointerException ex) {
+        // Java 3D 1.3 may throw an exception
+      }
+    }
+  }
+
+  /**
+   * Returns a copy of the given image.
+   */
+  private BufferedImage copyImage(BufferedImage image) {
+    int imageType = image.getType();
+    BufferedImage imageCopy = new BufferedImage(image.getWidth(), image.getHeight(),
+        imageType != BufferedImage.TYPE_CUSTOM ? imageType : BufferedImage.TYPE_INT_RGB);
+    Graphics g = imageCopy.getGraphics();
+    try {
+      g.drawImage(image, 0, 0, null);
+    } finally {
+      g.dispose();
+    }
+    return imageCopy;
   }
 
   /**
