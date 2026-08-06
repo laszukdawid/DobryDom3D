@@ -21,7 +21,8 @@ package com.eteks.sweethome3d.swing;
 
 import java.awt.Component;
 import java.awt.Graphics;
-import java.awt.Image;
+import java.awt.Graphics2D;
+import java.awt.RenderingHints;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.io.InputStream;
@@ -208,13 +209,19 @@ public class IconManager {
       contentStream.close();
       if (image != null) {
         if (height != -1 && height != image.getHeight()) {
-          int width = image.getWidth() * height / image.getHeight();
+          int width = Math.max(1, image.getWidth() * height / image.getHeight());
+          // Halve the image while it's more than twice the requested size, a single
+          // bilinear step sampling too few pixels to downscale that much smoothly
+          BufferedImage reducedImage = image;
+          int reducedWidth = image.getWidth();
+          int reducedHeight = image.getHeight();
+          while (reducedWidth > width * 2 || reducedHeight > height * 2) {
+            reducedWidth = Math.max(width, reducedWidth / 2);
+            reducedHeight = Math.max(height, reducedHeight / 2);
+            reducedImage = getScaledImage(reducedImage, reducedWidth, reducedHeight);
+          }
           // Create a scaled image not bound to original image to let the original image being garbage collected
-          BufferedImage scaledImage = new BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB);
-          Graphics g = scaledImage.getGraphics();
-          g.drawImage(image.getScaledInstance(width, height, Image.SCALE_SMOOTH), 0, 0, null);
-          g.dispose();
-          return new ImageIcon(scaledImage);
+          return new ImageIcon(getScaledImage(reducedImage, width, height));
         } else {
           return new ImageIcon(image);
         }
@@ -223,6 +230,23 @@ public class IconManager {
       // Too bad, we'll use errorIcon
     }
     return errorIcon;
+  }
+
+  /**
+   * Returns a new image of the given size in which <code>image</code> was drawn scaled.
+   * @param image  the image to scale
+   * @param width  the width of the returned image
+   * @param height the height of the returned image
+   */
+  private static BufferedImage getScaledImage(BufferedImage image, int width, int height) {
+    BufferedImage scaledImage = new BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB);
+    Graphics2D g2D = (Graphics2D)scaledImage.getGraphics();
+    g2D.setRenderingHint(RenderingHints.KEY_INTERPOLATION,
+        RenderingHints.VALUE_INTERPOLATION_BILINEAR);
+    g2D.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
+    g2D.drawImage(image, 0, 0, width, height, null);
+    g2D.dispose();
+    return scaledImage;
   }
 
   /**
