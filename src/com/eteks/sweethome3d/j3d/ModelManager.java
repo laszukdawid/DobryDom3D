@@ -224,6 +224,10 @@ public class ModelManager {
   private Map<Content, List<ModelObserver>> loadingModelObservers;
   // Map storing the bounds of transformed model nodes
   private Map<Content, Map<Transform3D, BoundingBox>> transformedModelNodeBounds;
+  // Lock guarding loadedModelNodes and transformedModelNodeBounds
+  private final Object              cacheLock = new Object();
+  // Lock serializing the clones of model nodes
+  private final Object              cloneLock = new Object();
   // Executor used to load models
   private ExecutorService           modelsLoader;
   // List of additional loader classes
@@ -296,7 +300,7 @@ public class ModelManager {
       this.modelsLoader.shutdownNow();
       this.modelsLoader = null;
     }
-    synchronized (this.loadedModelNodes) {
+    synchronized (this.cacheLock) {
       this.loadedModelNodes.clear();
     }
     this.loadingModelObservers.clear();
@@ -422,10 +426,14 @@ public class ModelManager {
                  && node instanceof BranchGroup
                  && node.getUserData() instanceof Content) {
         // Check if it's the node of a model
-        modelBounds = this.transformedModelNodeBounds.get(node.getUserData());
+        synchronized (this.cacheLock) {
+          modelBounds = this.transformedModelNodeBounds.get(node.getUserData());
+        }
         if (modelBounds != null) {
           // Retrieve the bounds that may have been previously computed for the requested transformation
-          transformationModelBounds = modelBounds.get(parentTransformation);
+          synchronized (modelBounds) {
+            transformationModelBounds = modelBounds.get(parentTransformation);
+          }
         }
       }
 
@@ -448,7 +456,9 @@ public class ModelManager {
 
         if (modelBounds != null) {
           // Store the computed bounds of the model
-          modelBounds.put(parentTransformation, transformationModelBounds = combinedBounds);
+          synchronized (modelBounds) {
+            modelBounds.put(parentTransformation, transformationModelBounds = combinedBounds);
+          }
         }
       }
 
@@ -746,7 +756,7 @@ public class ModelManager {
                         boolean synchronous,
                         ModelObserver modelObserver) {
     BranchGroup modelRoot;
-    synchronized (this.loadedModelNodes) {
+    synchronized (this.cacheLock) {
       modelRoot = this.loadedModelNodes.get(content);
     }
     if (modelRoot != null) {
@@ -755,7 +765,7 @@ public class ModelManager {
     } else if (synchronous) {
       try {
         modelRoot = loadModel(content);
-        synchronized (this.loadedModelNodes) {
+        synchronized (this.cacheLock) {
           // Store in cache model node for future copies
           this.loadedModelNodes.put(content, (BranchGroup)modelRoot);
           this.transformedModelNodeBounds.put(content, new WeakHashMap<Transform3D, BoundingBox>());
@@ -786,7 +796,7 @@ public class ModelManager {
           public void run() {
             try {
               final BranchGroup loadedModel = loadModel(content);
-              synchronized (loadedModelNodes) {
+              synchronized (cacheLock) {
                 // Update loaded models cache and notify registered observers
                 loadedModelNodes.put(content, loadedModel);
                 transformedModelNodeBounds.put(content, new WeakHashMap<Transform3D, BoundingBox>());
@@ -826,7 +836,7 @@ public class ModelManager {
    */
   public Node cloneNode(Node node) {
     // Clone node in a synchronized block because cloneNodeComponent is not thread safe
-    synchronized (this.loadedModelNodes) {
+    synchronized (this.cloneLock) {
       return cloneNode(node, new HashMap<SharedGroup, SharedGroup>());
     }
   }
@@ -1474,7 +1484,10 @@ public class ModelManager {
             // Check shape color is white
             Material material = appearance.getMaterial();
             if (material == null) {
-              appearance.setMaterial((Material)DEFAULT_MATERIAL.cloneNodeComponent(true));
+              // DEFAULT_MATERIAL is shared by all the loader threads
+              synchronized (this.cloneLock) {
+                appearance.setMaterial((Material)DEFAULT_MATERIAL.cloneNodeComponent(true));
+              }
             } else {
               Color3f color = new Color3f();
               DEFAULT_MATERIAL.getDiffuseColor(color);

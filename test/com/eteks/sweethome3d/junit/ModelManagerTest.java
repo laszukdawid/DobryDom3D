@@ -20,7 +20,11 @@
 package com.eteks.sweethome3d.junit;
 
 import java.io.IOException;
+import java.lang.reflect.Field;
 import java.util.Enumeration;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 
 import javax.media.j3d.BranchGroup;
 import javax.media.j3d.Group;
@@ -50,6 +54,47 @@ public class ModelManagerTest extends TestCase {
     assertTrue("Model shouldn't be empty", getShapesCount(model) > 0);
   }
   
+  /**
+   * Tests that a model may be cloned while an other thread holds the lock guarding
+   * the caches of loaded models.
+   */
+  public void testCloneNodeDoesntNeedCacheLock() throws Exception {
+    final ModelManager modelManager = ModelManager.getInstance();
+    final BranchGroup model = modelManager.loadModel(
+        new URLContent(ModelManagerTest.class.getResource("resources/test.obj")));
+    Field cacheLockField = ModelManager.class.getDeclaredField("cacheLock");
+    cacheLockField.setAccessible(true);
+    Object cacheLock = cacheLockField.get(modelManager);
+
+    final AtomicReference<Node> clonedModel = new AtomicReference<Node>();
+    final AtomicReference<Throwable> cloneError = new AtomicReference<Throwable>();
+    final CountDownLatch clonedModelReady = new CountDownLatch(1);
+    Thread cloningThread = new Thread(new Runnable() {
+        public void run() {
+          try {
+            clonedModel.set(modelManager.cloneNode(model));
+          } catch (Throwable ex) {
+            cloneError.set(ex);
+          } finally {
+            clonedModelReady.countDown();
+          }
+        }
+      });
+    cloningThread.setDaemon(true);
+    boolean cloneCompleted;
+    synchronized (cacheLock) {
+      cloningThread.start();
+      cloneCompleted = clonedModelReady.await(20, TimeUnit.SECONDS);
+    }
+    assertTrue("Clone didn't complete while the cache lock was held", cloneCompleted);
+    cloningThread.join(20000);
+    if (cloneError.get() != null) {
+      throw new AssertionError("Clone failed: " + cloneError.get());
+    }
+    assertEquals("Cloned model should contain as many shapes as the model",
+        getShapesCount(model), getShapesCount(clonedModel.get()));
+  }
+
   private int getShapesCount(Node node) {
     if (node instanceof Group) {
       int shapesCount = 0;
