@@ -30,14 +30,17 @@ import java.awt.Font;
 import java.awt.Frame;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
+import java.awt.GraphicsConfiguration;
 import java.awt.GraphicsDevice;
 import java.awt.GraphicsEnvironment;
 import java.awt.GridBagLayout;
+import java.awt.HeadlessException;
 import java.awt.Image;
 import java.awt.Insets;
 import java.awt.KeyboardFocusManager;
 import java.awt.MouseInfo;
 import java.awt.Point;
+import java.awt.PointerInfo;
 import java.awt.Rectangle;
 import java.awt.Stroke;
 import java.awt.Toolkit;
@@ -97,6 +100,8 @@ import javax.swing.JSeparator;
 import javax.swing.JToggleButton;
 import javax.swing.JToolTip;
 import javax.swing.JViewport;
+import javax.swing.Popup;
+import javax.swing.PopupFactory;
 import javax.swing.RootPaneContainer;
 import javax.swing.SwingUtilities;
 import javax.swing.Timer;
@@ -850,6 +855,101 @@ public class SwingTools {
       }
     }
     return false;
+  }
+
+  private static boolean toolTipPositionWorkaroundInstalled;
+
+  /**
+   * Installs a popup factory that repositions tool tips displaced by phantom screen insets
+   * reported by the JDK on multi-monitor X11 desktops. Unlike the JMenu popup regression
+   * described in <code>test/jbs/JDK_ISSUE_DRAFT.md</code>, the displacement of tool tips by
+   * <code>ToolTipManager</code> isn't a JDK 22 regression: it occurs on all JDK versions as
+   * soon as a monitor reports a left or right inset that doesn't really reserve any area on
+   * it. In that case every tool tip displayed on this monitor is snapped to the usable area
+   * edge, far from the mouse pointer. This workaround replaces the shared
+   * <code>PopupFactory</code> to restore the position of tool tips computed from the pointer.
+   */
+  public static void installToolTipPositionWorkaround() {
+    if (!toolTipPositionWorkaroundInstalled) {
+      final PopupFactory defaultPopupFactory = PopupFactory.getSharedInstance();
+      try {
+        PopupFactory.setSharedInstance(new PopupFactory() {
+            @Override
+            public Popup getPopup(Component owner, Component contents, int x, int y) {
+              if (contents instanceof JToolTip) {
+                Point correctedLocation = getCorrectedToolTipLocation(owner, contents, x, y);
+                if (correctedLocation != null) {
+                  x = correctedLocation.x;
+                  y = correctedLocation.y;
+                }
+              }
+              return defaultPopupFactory.getPopup(owner, contents, x, y);
+            }
+          });
+        toolTipPositionWorkaroundInstalled = true;
+      } catch (SecurityException ex) {
+        // Too bad, we can't replace the shared popup factory
+      }
+    }
+  }
+
+  /**
+   * Returns the location where the given tool tip should be displayed instead of the given
+   * location, or <code>null</code> if the given location doesn't need to be corrected.
+   * <p>The JDK's <code>ToolTipManager</code> clamps tool tips inside the screen bounds reduced
+   * by the screen insets reported by <code>Toolkit.getScreenInsets</code>. When a monitor
+   * reports a phantom left or right inset on a multi-monitor X11 desktop (see
+   * <code>test/jbs/JDK_ISSUE_DRAFT.md</code> for the root cause), every tool tip displayed on
+   * this monitor is snapped to the usable area edge, far from the mouse pointer. This method
+   * detects that displacement and restores the location computed from the pointer. It only
+   * corrects a tool tip that was actually snapped to an inset edge while the pointer lies
+   * beyond that edge, so tool tips on screens with genuine insets (taskbar, dock) are left
+   * untouched.
+   */
+  private static Point getCorrectedToolTipLocation(Component owner, Component contents, int x, int y) {
+    try {
+      PointerInfo pointerInfo = MouseInfo.getPointerInfo();
+      if (pointerInfo == null) {
+        return null;
+      }
+      Point pointer = pointerInfo.getLocation();
+      GraphicsConfiguration gc = pointerInfo.getDevice().getDefaultConfiguration();
+      Rectangle bounds = gc.getBounds();
+      Insets screenInsets = Toolkit.getDefaultToolkit().getScreenInsets(gc);
+      // Recompute the bounds the JDK clamps tool tips into, the same way ToolTipManager does
+      int sBoundsX = bounds.x + screenInsets.left;
+      int sBoundsY = bounds.y + screenInsets.top;
+      int sBoundsWidth = bounds.width - screenInsets.left - screenInsets.right;
+      int sBoundsHeight = bounds.height - screenInsets.top - screenInsets.bottom;
+      Dimension size = contents.getPreferredSize();
+      // Detect a tool tip that was snapped to a usable area edge while the pointer is beyond it
+      boolean snappedToLeftEdge = x == sBoundsX && pointer.x < sBoundsX;
+      boolean snappedToRightEdge = x == sBoundsX + Math.max(0, sBoundsWidth - size.width)
+          && pointer.x > sBoundsX + sBoundsWidth;
+      boolean snappedToTopEdge = y == sBoundsY && pointer.y < sBoundsY;
+      boolean snappedToBottomEdge = y == sBoundsY + Math.max(0, sBoundsHeight - size.height)
+          && pointer.y > sBoundsY + sBoundsHeight;
+      if (!snappedToLeftEdge && !snappedToRightEdge && !snappedToTopEdge && !snappedToBottomEdge) {
+        return null;
+      }
+      int correctedX = x;
+      int correctedY = y;
+      if (snappedToLeftEdge || snappedToRightEdge) {
+        boolean leftToRight = owner == null || owner.getComponentOrientation().isLeftToRight();
+        correctedX = leftToRight
+            ? Math.max(bounds.x, Math.min(pointer.x, bounds.x + bounds.width - size.width))
+            : Math.max(bounds.x, Math.min(pointer.x - size.width, bounds.x + bounds.width - size.width));
+      }
+      if (snappedToTopEdge || snappedToBottomEdge) {
+        correctedY = Math.max(bounds.y, Math.min(pointer.y + 20, bounds.y + bounds.height - size.height));
+      }
+      if (correctedX == x && correctedY == y) {
+        return null;
+      }
+      return new Point(correctedX, correctedY);
+    } catch (HeadlessException ex) {
+      return null;
+    }
   }
 
   /**
