@@ -29,8 +29,9 @@ The original source documentation remains available in [`README.TXT`](README.TXT
 
 ## Building
 
-The project requires JDK 25 and Apache Ant 1.9.8 or newer. Build the standalone
-application with:
+The project requires JDK 21 (LTS) and Apache Ant 1.9.8 or newer. The JDK is
+pinned to 21; see [JDK version pin](#jdk-version-pin) for why. Build the
+standalone application with:
 
 ```sh
 ant clean application
@@ -60,7 +61,7 @@ Build a self-contained application image for the current platform with:
 ant clean packageAppImage
 ```
 
-The image contains a runtime linked from the JDK 25 running Ant. Packaging is
+The image contains a runtime linked from the JDK 21 running Ant. Packaging is
 host-native and supports Windows x64, Linux x64, and macOS x64 or arm64. The
 32-bit Windows and Linux packages and the old cross-platform portable archive
 are no longer supported.
@@ -103,6 +104,40 @@ task test:virtual-x-server
 `task test` delegates to `task test:virtual-x-server`, which runs the complete
 suite in Xvfb without opening windows on the desktop. `task test:headless` runs
 the stable non-GUI suite used by CI.
+
+## JDK Version Pin
+
+The build is pinned to **JDK 21 (LTS)**. This is deliberate and enforced across
+`build.xml` (`java.release=21`), `Taskfile.yml`
+(`JAVA_VERSION=temurin-21.0.6+7.0.LTS`), CI (`actions/setup-java`, version 21),
+and Eclipse metadata.
+
+**Why 21 and not newer:** JDK 22+ regresses the placement of top-level menu
+dropdowns on ultra-wide and multi-monitor X11/XWayland desktops. On this fork's
+development setup (an ultra-wide monitor next to a laptop with a left dock),
+clicking `File`, `Edit`, or `Plan` renders every popup at the same
+`x = screenInsets.left` — hundreds of pixels right of the menu title — because:
+
+- JDK 22 added a "keep the popup on the correct screen" clamp to
+  `JMenu.getPopupMenuOrigin()` (comment cites `JDK-6415065`). The clamp compares
+  an inset-shifted `position.x` against the raw `screenBounds.x`, so a large left
+  screen inset snaps every top-level menu popup to the inset edge.
+- Mutter/XWayland exposes a single global `_NET_WORKAREA`; when a panel or dock
+  reserves space on one monitor, adjacent monitors can report a large
+  `getScreenInsets().left` even though nothing is actually docked there.
+
+Bisecting across asdf JDK builds confirmed the boundary: JDK 21 renders popups
+under their menu, while JDK 22, 23, 24, 25, and 26 snap them to the inset edge.
+There is no clean application workaround — the displacement happens inside
+`getPopupMenuOrigin()`, before `adjustPopupLocationToFitScreen`, so the documented
+`-Djavax.swing.adjustPopupLocationToFit=false` does not help. Moving to a newer
+JDK is tracked in [issue #24](https://github.com/laszukdawid/SweetHome3D/issues/24);
+a self-contained reproducer and a ready-to-file upstream report live under
+[`test/jbs/`](test/jbs/).
+
+**Note on `libtest/jdepend-2.10.jar`:** it is rebuilt from the upstream JDepend
+2.10 source with `--release 11` so it remains readable when compiling with the
+pinned JDK 21 while still parsing modern class files.
 
 ## Fork Status
 

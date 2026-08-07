@@ -20,11 +20,11 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v4
 
-      - name: Set up Java 25
+      - name: Set up Java 21
         uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: "25"
+          java-version: "21"
 
       - name: Install build and test tools
         run: |
@@ -34,27 +34,27 @@ jobs:
       - name: Test and build
         run: xvfb-run -a -s "-screen 0 1920x1080x24 -ac +extension GLX +render -noreset" ant -noinput ci
 
-      - name: Build Java 25 Linux archive
+      - name: Build Java 21 Linux archive
         run: ant -noinput linux64Installer
 
       - name: Upload test reports
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: junit-reports-java-25
+          name: junit-reports-java-21
           path: build/test-reports/
           if-no-files-found: warn
 
       - name: Upload application JAR
         uses: actions/upload-artifact@v4
         with:
-          name: SweetHome3D-java-25
+          name: SweetHome3D-java-21
           path: build/SweetHome3D.jar
           if-no-files-found: error
 
       - name: Upload Linux archive
         uses: actions/upload-artifact@v4
         with:
-          name: SweetHome3D-linux-x64-java-25
+          name: SweetHome3D-linux-x64-java-21
           path: install/SweetHome3D-*-linux-x64.tgz
           if-no-files-found: error
