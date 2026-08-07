@@ -279,6 +279,10 @@ public class HomePane extends JRootPane implements HomeView {
       JPopupMenu.setDefaultLightWeightPopupEnabled(false);
       ToolTipManager.sharedInstance().setLightWeightPopupEnabled(false);
     }
+    // Work around the JDK snapping tool tips to a phantom screen inset edge reported on
+    // multi-monitor X11 desktops: unlike JMenu popups (see test/jbs/JDK_ISSUE_DRAFT.md),
+    // ToolTipManager clamps tool tips to the inset-reduced screen bounds on all JDK versions
+    SwingTools.installToolTipPositionWorkaround();
 
     createActions(home, preferences, controller);
     createMenuActions(preferences, controller);
