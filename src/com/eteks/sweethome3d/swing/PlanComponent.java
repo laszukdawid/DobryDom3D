@@ -321,8 +321,10 @@ public class PlanComponent extends JComponent implements PlanView, Scrollable, P
   private Color                             wallsPatternBackgroundCache;
   private Color                             wallsPatternForegroundCache;
   private Map<Collection<Wall>, Area>       wallAreasCache;
+  private Map<Wall, Area>                   wallAreaCache = new IdentityHashMap<>();
   private Map<HomeDoorOrWindow, Area>       doorOrWindowWallThicknessAreasCache;
   private Map<HomeTexture, BufferedImage>   floorTextureImagesCache;
+  private boolean                           deferredRevalidateScheduled;
   private Map<HomePieceOfFurniture, HomePieceOfFurnitureTopViewIconKey> furnitureTopViewIconKeys;
   private Map<HomePieceOfFurnitureTopViewIconKey, PieceOfFurnitureTopViewIcon> furnitureTopViewIconsCache;
 
@@ -782,7 +784,7 @@ public class PlanComponent extends JComponent implements PlanView, Scrollable, P
                 invalidFurnitureTopViewIcons.add((HomePieceOfFurniture)ev.getSource());
               }
             }
-            revalidate();
+            revalidateOrDefer(controller);
           } else if (furnitureTopViewIconKeys != null
                       && (HomePieceOfFurniture.Property.PLAN_ICON.name().equals(ev.getPropertyName())
                           || HomePieceOfFurniture.Property.COLOR.name().equals(ev.getPropertyName())
@@ -815,10 +817,10 @@ public class PlanComponent extends JComponent implements PlanView, Scrollable, P
                          || HomeDoorOrWindow.Property.WALL_WIDTH.name().equals(ev.getPropertyName())
                          || HomeDoorOrWindow.Property.WALL_LEFT.name().equals(ev.getPropertyName())
                          || HomeDoorOrWindow.Property.CUT_OUT_SHAPE.name().equals(ev.getPropertyName()))
-                     && doorOrWindowWallThicknessAreasCache.remove(ev.getSource()) != null) {
-            revalidate();
+                      && doorOrWindowWallThicknessAreasCache.remove(ev.getSource()) != null) {
+            revalidateOrDefer(controller);
           } else {
-            revalidate();
+            revalidateOrDefer(controller);
           }
         }
       };
@@ -849,7 +851,7 @@ public class PlanComponent extends JComponent implements PlanView, Scrollable, P
             }
           }
           sortedLevelFurniture = null;
-          revalidate();
+          revalidateOrDefer(controller);
         }
       });
 
@@ -866,13 +868,17 @@ public class PlanComponent extends JComponent implements PlanView, Scrollable, P
               || Wall.Property.THICKNESS.name().equals(propertyName)
               || Wall.Property.ARC_EXTENT.name().equals(propertyName)
               || Wall.Property.PATTERN.name().equals(propertyName)) {
+            if (propertyName != null
+                && !Wall.Property.PATTERN.name().equals(propertyName)) {
+              wallAreaCache.remove((Wall) ev.getSource());
+            }
             if (home.isAllLevelsSelection()) {
               otherLevelsWallAreaCache = null;
               otherLevelsWallsCache = null;
             }
             wallAreasCache = null;
             doorOrWindowWallThicknessAreasCache = null;
-            revalidate();
+            revalidateOrDefer(controller);
           } else if (Wall.Property.LEVEL.name().equals(propertyName)
               || Wall.Property.HEIGHT.name().equals(propertyName)
               || Wall.Property.HEIGHT_AT_END.name().equals(propertyName)) {
@@ -892,12 +898,13 @@ public class PlanComponent extends JComponent implements PlanView, Scrollable, P
             ev.getItem().addPropertyChangeListener(wallChangeListener);
           } else if (ev.getType() == CollectionEvent.Type.DELETE) {
             ev.getItem().removePropertyChangeListener(wallChangeListener);
+            wallAreaCache.remove(ev.getItem());
           }
           otherLevelsWallAreaCache = null;
           otherLevelsWallsCache = null;
           wallAreasCache = null;
           doorOrWindowWallThicknessAreasCache = null;
-          revalidate();
+          revalidateOrDefer(controller);
         }
       });
 
@@ -921,7 +928,7 @@ public class PlanComponent extends JComponent implements PlanView, Scrollable, P
             sortedLevelRooms = null;
             otherLevelsRoomAreaCache = null;
             otherLevelsRoomsCache = null;
-            revalidate();
+            revalidateOrDefer(controller);
           } else if (preferences.isRoomFloorColoredOrTextured()
                      && (Room.Property.FLOOR_COLOR.name().equals(propertyName)
                          || Room.Property.FLOOR_TEXTURE.name().equals(propertyName)
@@ -943,7 +950,7 @@ public class PlanComponent extends JComponent implements PlanView, Scrollable, P
           sortedLevelRooms = null;
           otherLevelsRoomAreaCache = null;
           otherLevelsRoomsCache = null;
-          revalidate();
+          revalidateOrDefer(controller);
         }
       });
 
@@ -951,12 +958,12 @@ public class PlanComponent extends JComponent implements PlanView, Scrollable, P
      final PropertyChangeListener changeListener = new PropertyChangeListener() {
          public void propertyChange(PropertyChangeEvent ev) {
            String propertyName = ev.getPropertyName();
-           if (Polyline.Property.COLOR.name().equals(propertyName)
-               || Polyline.Property.DASH_STYLE.name().equals(propertyName)) {
-             repaint();
-           } else {
-             revalidate();
-           }
+            if (Polyline.Property.COLOR.name().equals(propertyName)
+                || Polyline.Property.DASH_STYLE.name().equals(propertyName)) {
+              repaint();
+            } else {
+              revalidateOrDefer(controller);
+            }
          }
        };
      for (Polyline polyline : home.getPolylines()) {
@@ -969,7 +976,7 @@ public class PlanComponent extends JComponent implements PlanView, Scrollable, P
           } else if (ev.getType() == CollectionEvent.Type.DELETE) {
             ev.getItem().removePropertyChangeListener(changeListener);
           }
-          revalidate();
+          revalidateOrDefer(controller);
         }
       });
 
@@ -987,7 +994,7 @@ public class PlanComponent extends JComponent implements PlanView, Scrollable, P
               || DimensionLine.Property.END_MARK_SIZE.name().equals(propertyName)
               || DimensionLine.Property.PITCH.name().equals(propertyName)
               || DimensionLine.Property.LENGTH_STYLE.name().equals(propertyName)) {
-            revalidate();
+            revalidateOrDefer(controller);
           } else if (DimensionLine.Property.COLOR.name().equals(propertyName)) {
             repaint();
           }
@@ -1003,14 +1010,14 @@ public class PlanComponent extends JComponent implements PlanView, Scrollable, P
           } else if (ev.getType() == CollectionEvent.Type.DELETE) {
             ev.getItem().removePropertyChangeListener(dimensionLineChangeListener);
           }
-          revalidate();
+          revalidateOrDefer(controller);
         }
       });
 
     // Add listener to update plan when labels change
     final PropertyChangeListener labelChangeListener = new PropertyChangeListener() {
         public void propertyChange(PropertyChangeEvent ev) {
-          revalidate();
+          revalidateOrDefer(controller);
         }
       };
     for (Label label : home.getLabels()) {
@@ -1023,7 +1030,7 @@ public class PlanComponent extends JComponent implements PlanView, Scrollable, P
           } else if (ev.getType() == CollectionEvent.Type.DELETE) {
             ev.getItem().removePropertyChangeListener(labelChangeListener);
           }
-          revalidate();
+          revalidateOrDefer(controller);
         }
       });
 
@@ -1033,7 +1040,7 @@ public class PlanComponent extends JComponent implements PlanView, Scrollable, P
           String propertyName = ev.getPropertyName();
           if (Level.Property.BACKGROUND_IMAGE.name().equals(propertyName)) {
             backgroundImageCache = null;
-            revalidate();
+            revalidateOrDefer(controller);
           } else if (Level.Property.ELEVATION.name().equals(propertyName)
                      || Level.Property.ELEVATION_INDEX.name().equals(propertyName)
                      || Level.Property.VIEWABLE.name().equals(propertyName)) {
@@ -1053,13 +1060,13 @@ public class PlanComponent extends JComponent implements PlanView, Scrollable, P
           } else if (ev.getType() == CollectionEvent.Type.DELETE) {
             level.removePropertyChangeListener(levelChangeListener);
           }
-          revalidate();
+          revalidateOrDefer(controller);
         }
       });
 
     home.addPropertyChangeListener(Home.Property.CAMERA, new PropertyChangeListener() {
         public void propertyChange(PropertyChangeEvent ev) {
-          revalidate();
+          revalidateOrDefer(controller);
         }
       });
     home.getObserverCamera().addPropertyChangeListener(new PropertyChangeListener() {
@@ -1072,7 +1079,7 @@ public class PlanComponent extends JComponent implements PlanView, Scrollable, P
               || ObserverCamera.Property.WIDTH.name().equals(propertyName)
               || ObserverCamera.Property.DEPTH.name().equals(propertyName)
               || ObserverCamera.Property.HEIGHT.name().equals(propertyName)) {
-            revalidate();
+            revalidateOrDefer(controller);
           }
         }
       });
@@ -1084,7 +1091,7 @@ public class PlanComponent extends JComponent implements PlanView, Scrollable, P
               || Compass.Property.NORTH_DIRECTION.name().equals(propertyName)
               || Compass.Property.DIAMETER.name().equals(propertyName)
               || Compass.Property.VISIBLE.name().equals(propertyName)) {
-            revalidate();
+            revalidateOrDefer(controller);
           }
         }
       });
@@ -1210,6 +1217,45 @@ public class PlanComponent extends JComponent implements PlanView, Scrollable, P
     if (this.verticalRuler != null) {
       this.verticalRuler.revalidate();
       this.verticalRuler.repaint();
+    }
+  }
+
+  /**
+   * Revalidates this component immediately, or defers the revalidation until
+   * the end of the current drag modification when the controller reports
+   * a drag is in progress. In the deferred path only visual <code>repaint</code>
+   * calls are issued (this component and its rulers); the heavier
+   * {@link #revalidate()} pass that propagates up to the scroll pane and
+   * overrides <code>planBoundsCacheValid</code> is fired once when the
+   * modification state returns to <code>false</code>.
+   */
+  private void revalidateOrDefer(PlanController controller) {
+    if (controller != null && controller.isModificationState()) {
+      if (!this.deferredRevalidateScheduled) {
+        this.deferredRevalidateScheduled = true;
+        final PropertyChangeListener deferredRevalidateListener = new PropertyChangeListener() {
+            public void propertyChange(PropertyChangeEvent ev) {
+              PlanComponent.this.deferredRevalidateScheduled = false;
+              controller.removePropertyChangeListener(
+                  PlanController.Property.MODIFICATION_STATE, this);
+              // Single full revalidate (this override also revalidates+repaints rulers).
+              PlanComponent.this.revalidate();
+            }
+          };
+        controller.addPropertyChangeListener(
+            PlanController.Property.MODIFICATION_STATE, deferredRevalidateListener);
+      }
+      // Visual-only update during the drag — no layout pass, no plan-bounds-cache invalidation.
+      repaint();
+      if (this.horizontalRuler != null) {
+        this.horizontalRuler.repaint();
+      }
+      if (this.verticalRuler != null) {
+        this.verticalRuler.repaint();
+      }
+    } else {
+      // Outside a drag, behave exactly as before.
+      revalidate();
     }
   }
 
@@ -3920,6 +3966,23 @@ public class PlanComponent extends JComponent implements PlanView, Scrollable, P
   }
 
   /**
+   * Returns the memoized {@link Area} matching the plan-view shape of the given
+   * wall. Computing the area is the expensive wrapping of
+   * {@link ShapeTools#getShape(float[][], boolean, java.awt.Shape)} with
+   * {@code new Area(...)}; subsequent reads for the same wall instance return
+   * the cached instance until the wall's geometry changes (at which point the
+   * caller removes the stale entry, see {@link #wallAreaCache}).
+   */
+  private Area getWallArea(Wall wall) {
+    Area area = this.wallAreaCache.get(wall);
+    if (area == null) {
+      area = new Area(ShapeTools.getShape(wall.getPoints(), true, null));
+      this.wallAreaCache.put(wall, area);
+    }
+    return area;
+  }
+
+  /**
    * Returns areas matching the union of home wall shapes sorted by pattern.
    */
   private Map<Collection<Wall>, Area> getWallAreasAtLevel(Level level) {
@@ -3989,7 +4052,11 @@ public class PlanComponent extends JComponent implements PlanView, Scrollable, P
   private Area getItemsArea(Collection<? extends Selectable> items) {
     Area itemsArea = new Area();
     for (Selectable item : items) {
-      itemsArea.add(new Area(ShapeTools.getShape(item.getPoints(), true, null)));
+      if (item instanceof Wall) {
+        itemsArea.add(getWallArea((Wall) item));
+      } else {
+        itemsArea.add(new Area(ShapeTools.getShape(item.getPoints(), true, null)));
+      }
     }
     return itemsArea;
   }
