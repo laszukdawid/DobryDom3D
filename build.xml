@@ -979,7 +979,7 @@
       <arg value="--add-modules"/>
       <arg value="java.se,jdk.crypto.ec,jdk.localedata,jdk.unsupported,jdk.unsupported.desktop"/>
       <arg value="--java-options"/>
-      <arg value="-Xmx2g"/>
+      <arg value="-XX:MaxRAMPercentage=50"/>
       <arg value="--java-options"/>
       <arg value="-Djava.library.path=$APPDIR/natives"/>
       <arg value="--java-options"/>
@@ -1071,7 +1071,7 @@
       <arg value="--add-modules"/>
       <arg value="java.se,jdk.crypto.ec,jdk.localedata,jdk.unsupported,jdk.unsupported.desktop"/>
       <arg value="--java-options"/>
-      <arg value="-Xmx2g"/>
+      <arg value="-XX:MaxRAMPercentage=50"/>
       <arg value="--java-options"/>
       <arg value="-Djava.library.path=$APPDIR/natives"/>
       <arg value="--java-options"/>
@@ -1168,7 +1168,7 @@
       <arg value="--add-modules"/>
       <arg value="java.se,jdk.crypto.ec,jdk.localedata,jdk.unsupported,jdk.unsupported.desktop"/>
       <arg value="--java-options"/>
-      <arg value="-Xmx2g"/>
+      <arg value="-XX:MaxRAMPercentage=50"/>
       <arg value="--java-options"/>
       <arg value="-Djava.library.path=$APPDIR/natives"/>
       <arg value="--java-options"/>
@@ -1239,7 +1239,7 @@
       <arg value="--add-modules"/>
       <arg value="java.se,jdk.crypto.ec,jdk.localedata,jdk.unsupported,jdk.unsupported.desktop"/>
       <arg value="--java-options"/>
-      <arg value="-Xmx2g"/>
+      <arg value="-XX:MaxRAMPercentage=50"/>
       <arg value="--java-options"/>
       <arg value="-Djava.library.path=$APPDIR/natives"/>
       <arg value="--java-options"/>
