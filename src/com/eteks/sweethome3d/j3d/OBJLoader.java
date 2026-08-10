@@ -35,6 +35,7 @@ import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLConnection;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.ConcurrentModificationException;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -1004,6 +1005,9 @@ public class OBJLoader extends LoaderBase implements Loader {
   private String                  currentMaterial;
   private boolean                 currentSmooth;
   private Map<String, Appearance> appearances;
+  private IndexBuffer             elementVertexIndices;
+  private IndexBuffer             elementTextureCoordinateIndices;
+  private IndexBuffer             elementNormalIndices;
 
 
   /**
@@ -1111,6 +1115,9 @@ public class OBJLoader extends LoaderBase implements Loader {
     this.groups.put("default", this.currentGroup);
     this.currentMaterial = "default";
     this.appearances = new HashMap<String, Appearance>(DEFAULT_APPEARANCES);
+    this.elementVertexIndices = new IndexBuffer();
+    this.elementTextureCoordinateIndices = new IndexBuffer();
+    this.elementNormalIndices = new IndexBuffer();
 
     StreamTokenizer tokenizer = createTokenizer(reader);
     while (tokenizer.nextToken() != StreamTokenizer.TT_EOF) {
@@ -1134,6 +1141,9 @@ public class OBJLoader extends LoaderBase implements Loader {
       this.normals = null;
       this.groups = null;
       this.appearances = null;
+      this.elementVertexIndices = null;
+      this.elementTextureCoordinateIndices = null;
+      this.elementNormalIndices = null;
     }
   }
 
@@ -1326,8 +1336,10 @@ public class OBJLoader extends LoaderBase implements Loader {
       tokenizer.ordinaryChar('/');
       // Read line l v       v       v       ...
       //        or l v/vt    v/vt    v/vt    ...
-      List<Integer> vertexIndices = new ArrayList<Integer>(2);
-      List<Integer> textureCoordinateIndices = new ArrayList<Integer>(2);
+      IndexBuffer vertexIndices = this.elementVertexIndices;
+      IndexBuffer textureCoordinateIndices = this.elementTextureCoordinateIndices;
+      vertexIndices.clear();
+      textureCoordinateIndices.clear();
       boolean first = true;
       while (true) {
         if (first) {
@@ -1376,9 +1388,12 @@ public class OBJLoader extends LoaderBase implements Loader {
       //        or f v//vn   v//vn   v//vn   ...
       //        or f v/vt    v/vt    v/vt    ...
       //        or f v/vt/vn v/vt/vn v/vt/vn ...
-      List<Integer> vertexIndices = new ArrayList<Integer>(4);
-      List<Integer> textureCoordinateIndices = new ArrayList<Integer>(4);
-      List<Integer> normalIndices = new ArrayList<Integer>(4);
+      IndexBuffer vertexIndices = this.elementVertexIndices;
+      IndexBuffer textureCoordinateIndices = this.elementTextureCoordinateIndices;
+      IndexBuffer normalIndices = this.elementNormalIndices;
+      vertexIndices.clear();
+      textureCoordinateIndices.clear();
+      normalIndices.clear();
       boolean first = true;
       while (true) {
         if (first) {
@@ -1868,6 +1883,34 @@ public class OBJLoader extends LoaderBase implements Loader {
   }
 
   /**
+   * A growable list of indices, reused from one parsed element to the next
+   * to avoid boxing the indices of every face.
+   */
+  private static class IndexBuffer {
+    private int [] indices = new int [4];
+    private int    count;
+
+    public void add(int index) {
+      if (this.count >= this.indices.length) {
+        this.indices = Arrays.copyOf(this.indices, this.indices.length * 2);
+      }
+      this.indices [this.count++] = index;
+    }
+
+    public int size() {
+      return this.count;
+    }
+
+    public void clear() {
+      this.count = 0;
+    }
+
+    public int [] toArray() {
+      return Arrays.copyOf(this.indices, this.count);
+    }
+  }
+
+  /**
    * The coordinates indices of a geometry.
    */
   private static abstract class Geometry {
@@ -1875,18 +1918,12 @@ public class OBJLoader extends LoaderBase implements Loader {
     private int [] textureCoordinateIndices;
     private String material;
 
-    public Geometry(List<Integer> vertexIndices,
-                    List<Integer> textureCoordinateIndices,
-                    String        material) {
-      this.vertexIndices = new int [vertexIndices.size()];
-      for (int i = 0; i < this.vertexIndices.length; i++) {
-        this.vertexIndices [i] = vertexIndices.get(i);
-      }
+    public Geometry(IndexBuffer vertexIndices,
+                    IndexBuffer textureCoordinateIndices,
+                    String      material) {
+      this.vertexIndices = vertexIndices.toArray();
       if (textureCoordinateIndices.size() != 0) {
-        this.textureCoordinateIndices = new int [textureCoordinateIndices.size()];
-        for (int i = 0; i < this.textureCoordinateIndices.length; i++) {
-          this.textureCoordinateIndices [i] = textureCoordinateIndices.get(i);
-        }
+        this.textureCoordinateIndices = textureCoordinateIndices.toArray();
       }
       this.material = material;
     }
@@ -1913,9 +1950,9 @@ public class OBJLoader extends LoaderBase implements Loader {
    * The coordinates indices of a line.
    */
   private static class Line extends Geometry {
-    public Line(List<Integer> vertexIndices,
-                List<Integer> textureCoordinateIndices,
-                String        material) {
+    public Line(IndexBuffer vertexIndices,
+                IndexBuffer textureCoordinateIndices,
+                String      material) {
       super(vertexIndices, textureCoordinateIndices, material);
     }
   }
@@ -1927,18 +1964,15 @@ public class OBJLoader extends LoaderBase implements Loader {
     private int []  normalIndices;
     private boolean smooth;
 
-    public Face(List<Integer> vertexIndices,
-                List<Integer> textureCoordinateIndices,
-                List<Integer> normalIndices,
-                boolean       smooth,
-                String        material) {
+    public Face(IndexBuffer vertexIndices,
+                IndexBuffer textureCoordinateIndices,
+                IndexBuffer normalIndices,
+                boolean     smooth,
+                String      material) {
       super(vertexIndices, textureCoordinateIndices, material);
       this.smooth = smooth;
       if (normalIndices.size() != 0) {
-        this.normalIndices = new int [normalIndices.size()];
-        for (int i = 0; i < this.normalIndices.length; i++) {
-          this.normalIndices [i] = normalIndices.get(i);
-        }
+        this.normalIndices = normalIndices.toArray();
       }
     }
 
