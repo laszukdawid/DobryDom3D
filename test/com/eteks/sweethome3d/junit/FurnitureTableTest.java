@@ -20,8 +20,13 @@
 package com.eteks.sweethome3d.junit;
 
 import java.awt.Component;
+import java.awt.image.BufferedImage;
+import java.awt.print.PageFormat;
+import java.awt.print.Printable;
+import java.awt.print.PrinterException;
 import java.text.Collator;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
@@ -34,6 +39,7 @@ import javax.swing.JScrollPane;
 import javax.swing.JTable;
 import javax.swing.table.TableCellRenderer;
 import javax.swing.table.TableColumn;
+import javax.swing.table.TableColumnModel;
 import javax.swing.table.TableModel;
 
 import com.eteks.sweethome3d.io.DefaultUserPreferences;
@@ -45,6 +51,7 @@ import com.eteks.sweethome3d.model.HomePieceOfFurniture;
 import com.eteks.sweethome3d.model.LengthUnit;
 import com.eteks.sweethome3d.model.UserPreferences;
 import com.eteks.sweethome3d.swing.FurnitureTable;
+import com.eteks.sweethome3d.swing.IconManager;
 import com.eteks.sweethome3d.swing.SwingTools;
 import com.eteks.sweethome3d.swing.SwingViewFactory;
 import com.eteks.sweethome3d.viewcontroller.FurnitureController;
@@ -248,6 +255,124 @@ public class FurnitureTableTest extends TestCase {
     assertEquals("Home furniture count and row count different",
         home.getFurniture().size(), table.getRowCount());
     assertFurnitureIsSortedByName(table, true);
+  }
+
+  /**
+   * Tests that printing a table measures its columns once for the whole job, and that the reused
+   * widths render each page exactly like a table that measured that page from scratch.
+   */
+  public void testFurnitureTablePrintedColumnsWidth() throws PrinterException {
+    // 1. Create a home that contains furniture matching catalog furniture
+    UserPreferences preferences = new DefaultUserPreferences();
+    List<HomePieceOfFurniture> homeFurniture =
+      createHomeFurnitureFromCatalog(preferences.getFurnitureCatalog());
+    Home home = new Home(homeFurniture);
+    assertTrue("Home furniture is empty", homeFurniture.size() > 0);
+
+    FurnitureTable table = createSizedFurnitureTable(home, preferences);
+    // Load piece icons synchronously, otherwise their width depends on when their background
+    // loading completes and no two measurements are comparable
+    loadPieceIcons(table, home);
+    final int [] measurementCount = countCellMeasurements(table);
+
+    // 2. Print all the pages of the table, setting and restoring a furniture filter around each
+    // page the way HomePrintableComponent does
+    final FurnitureView.FurnitureFilter filter = new FurnitureView.FurnitureFilter() {
+        public boolean include(Home home, HomePieceOfFurniture piece) {
+          return !piece.isDoorOrWindow();
+        }
+      };
+    PageFormat pageFormat = new PageFormat();
+    List<BufferedImage> pages = new ArrayList<BufferedImage>();
+    int measurementCountAfterFirstPage = 0;
+    for (int page = 0; ; page++) {
+      BufferedImage pageImage = printPage(table, filter, pageFormat, page);
+      if (page == 0) {
+        measurementCountAfterFirstPage = measurementCount [0];
+      }
+      if (pageImage == null) {
+        break;
+      }
+      pages.add(pageImage);
+    }
+    assertTrue("Printed furniture doesn't span multiple pages", pages.size() >= 2);
+    assertTrue("No cell measured to size the columns of the first page",
+        measurementCountAfterFirstPage > 0);
+    assertEquals("Cells measured again after the first page",
+        measurementCountAfterFirstPage, measurementCount [0]);
+
+    // 3. Check each page is printed exactly like a table that never printed a previous page
+    for (int page = 0; page < pages.size(); page++) {
+      FurnitureTable freshTable = createSizedFurnitureTable(home, preferences);
+      BufferedImage freshPageImage = printPage(freshTable, filter, pageFormat, page);
+      assertNotNull("Missing page " + page, freshPageImage);
+      assertTrue("Page " + page + " printed with different column widths",
+          Arrays.equals(getPixels(pages.get(page)), getPixels(freshPageImage)));
+    }
+
+    // 4. Check a change in a piece of furniture makes the columns be measured again
+    int measurementCountBeforeChange = measurementCount [0];
+    home.getFurniture().get(0).setName("A piece renamed with a much longer name than before");
+    printPage(table, filter, pageFormat, 0);
+    assertTrue("Columns not measured again after a piece of furniture changed",
+        measurementCount [0] > measurementCountBeforeChange);
+  }
+
+  /**
+   * Returns a table sized as if it was displayed, which <code>JTable</code> printing requires.
+   */
+  private FurnitureTable createSizedFurnitureTable(Home home, UserPreferences preferences) {
+    FurnitureTable table = new FurnitureTable(home, preferences);
+    table.setSize(table.getPreferredSize());
+    return table;
+  }
+
+  /**
+   * Prints the given page of <code>table</code> filtered by <code>filter</code>, and returns the
+   * printed image or <code>null</code> if the page doesn't exist.
+   */
+  private BufferedImage printPage(FurnitureTable table, FurnitureView.FurnitureFilter filter,
+                                  PageFormat pageFormat, int page) throws PrinterException {
+    BufferedImage pageImage = new BufferedImage((int)pageFormat.getWidth(),
+        (int)pageFormat.getHeight(), BufferedImage.TYPE_INT_RGB);
+    table.setFurnitureFilter(filter);
+    int pageExists = table.print(pageImage.getGraphics(), pageFormat, page);
+    table.setFurnitureFilter(null);
+    return pageExists == Printable.PAGE_EXISTS  ? pageImage  : null;
+  }
+
+  /**
+   * Replaces the cell renderers of <code>table</code> by renderers counting the calls made to
+   * measure a column width, which the table performs with a row index of -1.
+   */
+  private int [] countCellMeasurements(FurnitureTable table) {
+    final int [] measurementCount = new int [1];
+    TableColumnModel columnModel = table.getColumnModel();
+    for (int columnIndex = 0, n = columnModel.getColumnCount(); columnIndex < n; columnIndex++) {
+      TableColumn column = columnModel.getColumn(columnIndex);
+      final TableCellRenderer cellRenderer = column.getCellRenderer();
+      column.setCellRenderer(new TableCellRenderer() {
+          public Component getTableCellRendererComponent(JTable table, Object value,
+                                 boolean isSelected, boolean hasFocus, int row, int column) {
+            if (row < 0) {
+              measurementCount [0]++;
+            }
+            return cellRenderer.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column);
+          }
+        });
+    }
+    return measurementCount;
+  }
+
+  private void loadPieceIcons(FurnitureTable table, Home home) {
+    int iconHeight = table.getRowHeight() - table.getRowMargin();
+    for (HomePieceOfFurniture piece : home.getFurniture()) {
+      IconManager.getInstance().getIcon(piece.getIcon(), iconHeight, null);
+    }
+  }
+
+  private int [] getPixels(BufferedImage image) {
+    return image.getRGB(0, 0, image.getWidth(), image.getHeight(), null, 0, image.getWidth());
   }
 
   public static void main(String [] args) {
