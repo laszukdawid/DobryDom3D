@@ -1471,6 +1471,7 @@ public class Max3DSLoader extends LoaderBase implements Loader {
   private static class ChunksInputStream extends FilterInputStream {
     private Stack<Chunk3DS> stack;
     private URL             baseUrl;
+    private byte []         ignoredBytesBuffer;
 
     public ChunksInputStream(InputStream in, URL baseUrl) {
       super(in);
@@ -1526,9 +1527,19 @@ public class Max3DSLoader extends LoaderBase implements Loader {
     public void readUntilChunkEnd() throws IOException {
       Chunk3DS chunk = this.stack.peek();
       long remainingLength = chunk.getLength() - chunk.getReadLength();
-      for (long length = remainingLength; length > 0; length--) {
-        if (this.in.read() < 0) {
-          throw new IncorrectFormatException("Chunk " + chunk.getID() + " too short");
+      if (remainingLength > 0) {
+        if (this.ignoredBytesBuffer == null) {
+          this.ignoredBytesBuffer = new byte [8192];
+        }
+        // Read in bulk rather than skip, because skip may seek past the end of a file
+        // without reporting the truncation this loop must detect
+        for (long length = remainingLength; length > 0; ) {
+          int readLength = this.in.read(this.ignoredBytesBuffer, 0,
+              (int)Math.min(this.ignoredBytesBuffer.length, length));
+          if (readLength <= 0) {
+            throw new IncorrectFormatException("Chunk " + chunk.getID() + " too short");
+          }
+          length -= readLength;
         }
       }
       chunk.incrementReadLength(remainingLength);
