@@ -151,6 +151,7 @@ public class FurnitureTable extends JTable implements FurnitureView, Printable {
   private Popup                  furnitureInformationPopup;
   private AWTEventListener       informationPopupRemovalListener;
   private final boolean          reorderingEnabled;
+  private volatile PrintedColumnWidths printedColumnWidths;
 
   /**
    * Creates a table that displays furniture of <code>home</code>.
@@ -428,32 +429,166 @@ public class FurnitureTable extends JTable implements FurnitureView, Printable {
       }
     }
 
-    int intercellWidth = getIntercellSpacing().width + additionalSpacing;
+    if (preferredColumnWidths == null) {
+      preferredColumnWidths = computeTableColumnsWidth(getIntercellSpacing().width + additionalSpacing);
+    }
+    setTableColumnsWidth(preferredColumnWidths);
+  }
+
+  /**
+   * Returns the width of each column of this table measured from the content of its cells.
+   */
+  private int [] computeTableColumnsWidth(int intercellWidth) {
+    final TableColumnModel columnModel = getColumnModel();
     TableModel tableModel = getModel();
-    for (int columnIndex = 0, n = columnModel.getColumnCount(); columnIndex < n; columnIndex++) {
+    int [] preferredColumnWidths = new int [columnModel.getColumnCount()];
+    for (int columnIndex = 0; columnIndex < preferredColumnWidths.length; columnIndex++) {
       TableColumn column = columnModel.getColumn(columnIndex);
       int modelColumnIndex = convertColumnIndexToModel(columnIndex);
-      int preferredWidth;
-      if (preferredColumnWidths == null) {
-        preferredWidth = column.getHeaderRenderer().getTableCellRendererComponent(
-            this, column.getHeaderValue(), false, false, -1, columnIndex).getPreferredSize().width;
-        int rowCount = tableModel.getRowCount();
-        if (rowCount > 0) {
-          for (int rowIndex = 0; rowIndex < rowCount; rowIndex++) {
-            preferredWidth = Math.max(preferredWidth,
-                column.getCellRenderer().getTableCellRendererComponent(
-                    this, tableModel.getValueAt(rowIndex, modelColumnIndex), false, false, -1, columnIndex).
-                        getPreferredSize().width);
-          }
-        } else {
-          preferredWidth = Math.max(preferredWidth, column.getPreferredWidth());
+      int preferredWidth = column.getHeaderRenderer().getTableCellRendererComponent(
+          this, column.getHeaderValue(), false, false, -1, columnIndex).getPreferredSize().width;
+      int rowCount = tableModel.getRowCount();
+      if (rowCount > 0) {
+        for (int rowIndex = 0; rowIndex < rowCount; rowIndex++) {
+          preferredWidth = Math.max(preferredWidth,
+              column.getCellRenderer().getTableCellRendererComponent(
+                  this, tableModel.getValueAt(rowIndex, modelColumnIndex), false, false, -1, columnIndex).
+                      getPreferredSize().width);
         }
-        preferredWidth += intercellWidth;
       } else {
-        preferredWidth = preferredColumnWidths [columnIndex];
+        preferredWidth = Math.max(preferredWidth, column.getPreferredWidth());
       }
-      column.setPreferredWidth(preferredWidth);
-      column.setWidth(preferredWidth);
+      preferredColumnWidths [columnIndex] = preferredWidth + intercellWidth;
+    }
+    return preferredColumnWidths;
+  }
+
+  /**
+   * Sets the width of each column of this table.
+   */
+  private void setTableColumnsWidth(int [] preferredColumnWidths) {
+    final TableColumnModel columnModel = getColumnModel();
+    for (int columnIndex = 0, n = columnModel.getColumnCount(); columnIndex < n; columnIndex++) {
+      TableColumn column = columnModel.getColumn(columnIndex);
+      column.setPreferredWidth(preferredColumnWidths [columnIndex]);
+      column.setWidth(preferredColumnWidths [columnIndex]);
+    }
+  }
+
+  /**
+   * Updates the width of the columns used to print this table, measuring cells only when
+   * something that influences their preferred width changed since the previous printed page.
+   * As {@link Printable#print} is called once per page (and more than once per page while the
+   * printing system probes the page count), measuring at each call costs one full pass over
+   * every cell of every column per page.
+   */
+  private void updatePrintedTableColumnsWidth(TableColumnModel screenColumnModel, int additionalSpacing) {
+    int intercellWidth = getIntercellSpacing().width + additionalSpacing;
+    PrintedColumnWidths printedColumnWidths = this.printedColumnWidths;
+    if (printedColumnWidths == null
+        || !printedColumnWidths.matches(this, screenColumnModel, intercellWidth)) {
+      printedColumnWidths = new PrintedColumnWidths(this, screenColumnModel, intercellWidth,
+          computeTableColumnsWidth(intercellWidth));
+      this.printedColumnWidths = printedColumnWidths;
+    }
+    setTableColumnsWidth(printedColumnWidths.getWidths());
+  }
+
+  /**
+   * Discards the column widths kept from a previous printed page.
+   */
+  private void invalidatePrintedColumnWidths() {
+    this.printedColumnWidths = null;
+  }
+
+  /**
+   * The width of the columns of a printed page, with a snapshot of everything the measurement
+   * of that width depends on. Immutable, so that it may be published through a volatile field.
+   */
+  private static class PrintedColumnWidths {
+    private final Object []            columnIdentifiers;
+    private final Object []            headerValues;
+    private final TableCellRenderer [] cellRenderers;
+    private final TableCellRenderer [] headerRenderers;
+    private final Object []            rows;
+    private final int                  intercellWidth;
+    private final Font                 font;
+    private final int                  rowHeight;
+    private final int                  rowMargin;
+    private final int []               widths;
+
+    public PrintedColumnWidths(FurnitureTable table, TableColumnModel screenColumnModel,
+                               int intercellWidth, int [] widths) {
+      int columnCount = screenColumnModel.getColumnCount();
+      this.columnIdentifiers = new Object [columnCount];
+      this.headerValues = new Object [columnCount];
+      this.cellRenderers = new TableCellRenderer [columnCount];
+      this.headerRenderers = new TableCellRenderer [columnCount];
+      for (int columnIndex = 0; columnIndex < columnCount; columnIndex++) {
+        TableColumn column = screenColumnModel.getColumn(columnIndex);
+        this.columnIdentifiers [columnIndex] = column.getIdentifier();
+        this.headerValues [columnIndex] = column.getHeaderValue();
+        this.cellRenderers [columnIndex] = column.getCellRenderer();
+        this.headerRenderers [columnIndex] = column.getHeaderRenderer();
+      }
+      this.rows = getRows(table);
+      this.intercellWidth = intercellWidth;
+      this.font = table.getFont();
+      this.rowHeight = table.getRowHeight();
+      this.rowMargin = table.getRowMargin();
+      this.widths = widths;
+    }
+
+    /**
+     * Returns the values displayed by the rows of <code>table</code>. The furniture table model
+     * returns the piece of furniture of a row whatever the requested column.
+     */
+    private static Object [] getRows(FurnitureTable table) {
+      TableModel tableModel = table.getModel();
+      Object [] rows = new Object [tableModel.getRowCount()];
+      for (int rowIndex = 0; rowIndex < rows.length; rowIndex++) {
+        rows [rowIndex] = tableModel.getValueAt(rowIndex, 0);
+      }
+      return rows;
+    }
+
+    /**
+     * Returns <code>true</code> if these widths were measured from the same columns, the same
+     * rows and the same renderers as the ones <code>table</code> would use now. Values are
+     * compared by reference: a replaced renderer or a re-created column must miss, and comparing
+     * equal but distinct instances would only cost an extra measurement.
+     */
+    public boolean matches(FurnitureTable table, TableColumnModel screenColumnModel, int intercellWidth) {
+      if (this.intercellWidth != intercellWidth
+          || this.font != table.getFont()
+          || this.rowHeight != table.getRowHeight()
+          || this.rowMargin != table.getRowMargin()
+          || this.columnIdentifiers.length != screenColumnModel.getColumnCount()) {
+        return false;
+      }
+      for (int columnIndex = 0; columnIndex < this.columnIdentifiers.length; columnIndex++) {
+        TableColumn column = screenColumnModel.getColumn(columnIndex);
+        if (this.columnIdentifiers [columnIndex] != column.getIdentifier()
+            || this.headerValues [columnIndex] != column.getHeaderValue()
+            || this.cellRenderers [columnIndex] != column.getCellRenderer()
+            || this.headerRenderers [columnIndex] != column.getHeaderRenderer()) {
+          return false;
+        }
+      }
+      Object [] rows = getRows(table);
+      if (this.rows.length != rows.length) {
+        return false;
+      }
+      for (int rowIndex = 0; rowIndex < rows.length; rowIndex++) {
+        if (this.rows [rowIndex] != rows [rowIndex]) {
+          return false;
+        }
+      }
+      return true;
+    }
+
+    public int [] getWidths() {
+      return this.widths;
     }
   }
 
@@ -667,6 +802,8 @@ public class FurnitureTable extends JTable implements FurnitureView, Printable {
         ((UserPreferences)ev.getSource()).removePropertyChangeListener(
             UserPreferences.Property.valueOf(ev.getPropertyName()), this);
       } else {
+        // Cell renderers read preferences when they run, so measured widths may change
+        furnitureTable.invalidatePrintedColumnWidths();
         furnitureTable.repaint();
         furnitureTable.getTableHeader().repaint();
       }
@@ -697,6 +834,8 @@ public class FurnitureTable extends JTable implements FurnitureView, Printable {
     final PropertyChangeListener changeListener =
       new PropertyChangeListener () {
         public void propertyChange(PropertyChangeEvent ev) {
+          // Rows keep their identity when a piece changes, so widths must be invalidated explicitly
+          invalidatePrintedColumnWidths();
           // As furniture properties values change may alter sort order and filter, update the whole table
           ((FurnitureTreeTableModel)getModel()).filterAndSortFurniture();
           // Update selected rows
@@ -714,6 +853,8 @@ public class FurnitureTable extends JTable implements FurnitureView, Printable {
     }
     home.addFurnitureListener(new CollectionListener<HomePieceOfFurniture>() {
       public void collectionChanged(CollectionEvent<HomePieceOfFurniture> ev) {
+          // Don't let deleted furniture be retained by the widths measured for a printed page
+          invalidatePrintedColumnWidths();
           HomePieceOfFurniture piece = ev.getItem();
           if (ev.getType() == CollectionEvent.Type.ADD) {
             piece.addPropertyChangeListener(changeListener);
@@ -941,9 +1082,9 @@ public class FurnitureTable extends JTable implements FurnitureView, Printable {
       setColumnModel(printableColumnModel);
       if (OperatingSystem.isWindows()) {
         // Add 3 pixels to columns to get a correct rendering
-        updateTableColumnsWidth(null, 3);
+        updatePrintedTableColumnsWidth(oldColumnModel, 3);
       } else {
-        updateTableColumnsWidth(null, 0);
+        updatePrintedTableColumnsWidth(oldColumnModel, 0);
       }
       setGridColor(gridColor);
       Printable printable = getPrintable(PrintMode.FIT_WIDTH, null, null);
