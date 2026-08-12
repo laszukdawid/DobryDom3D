@@ -136,6 +136,10 @@ import com.eteks.sweethome3d.viewcontroller.ViewFactory;
  * <li><code>com.eteks.sweethome3d.checkUpdates</code> should be set to <code>false</code>
  * if application and library updates shouldn't be checked in Sweet Home 3D.
  *
+ * <li><code>swing.defaultlaf</code> defines the Swing look and feel class used by
+ * Sweet Home 3D. It defaults to FlatLaf Light and can be set to another FlatLaf
+ * theme, such as <code>com.formdev.flatlaf.FlatDarkLaf</code>.</li>
+ *
  * <li><code>com.eteks.sweethome3d.resolutionScale</code> can be set to a decimal value different from 1 to enlarge
  * or reduce user interface elements with a given factor. For example, <code>1.2</code> will make them look 20% larger.
  *
@@ -167,6 +171,7 @@ public class SweetHome3D extends HomeApplication {
   private static final String     PREFERENCES_FOLDER             = "com.eteks.sweethome3d.preferencesFolder";
   private static final String     APPLICATION_FOLDERS            = "com.eteks.sweethome3d.applicationFolders";
   private static final String     APPLICATION_PLUGINS_SUB_FOLDER = "plugins";
+  private static final String     DEFAULT_LOOK_AND_FEEL          = "com.formdev.flatlaf.FlatLightLaf";
 
   private HomeRecorder            homeRecorder;
   private HomeRecorder            compressedHomeRecorder;
@@ -585,8 +590,8 @@ public class SweetHome3D extends HomeApplication {
    */
   private void initLookAndFeel() {
     try {
-      // Apply current system look and feel if swing.defaultlaf isn't defined
-      UIManager.setLookAndFeel(System.getProperty("swing.defaultlaf", UIManager.getSystemLookAndFeelClassName()));
+      // Apply FlatLaf Light by default; allow users to select another look and feel
+      UIManager.setLookAndFeel(System.getProperty("swing.defaultlaf", DEFAULT_LOOK_AND_FEEL));
       // Change default titled borders under Mac OS X 10.5
       if (OperatingSystem.isMacOSXLeopardOrSuperior()) {
         UIManager.put("TitledBorder.border", UIManager.getBorder("TitledBorder.aquaVariant"));
@@ -624,7 +629,15 @@ public class SweetHome3D extends HomeApplication {
       }
       SwingTools.updateSwingResourceLanguage(getUserPreferences());
     } catch (Exception ex) {
-      // Too bad keep current look and feel
+      // Keep the application usable if FlatLaf isn't available in a custom build
+      if (System.getProperty("swing.defaultlaf") == null) {
+        try {
+          UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
+          SwingTools.updateSwingResourceLanguage(getUserPreferences());
+        } catch (Exception fallbackException) {
+          // Too bad, keep the current look and feel
+        }
+      }
     }
   }
 

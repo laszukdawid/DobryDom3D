@@ -915,6 +915,7 @@
         <include name="THIRDPARTY-LICENSE-BATIK.TXT"/>
         <include name="THIRDPARTY-LICENSE-JEKSPARSER.TXT"/>
         <include name="THIRDPARTY-LICENSE-ITEXT.TXT"/>
+        <include name="THIRDPARTY-LICENSE-FLATLAF.TXT"/>
         <include name="THIRDPARTY-LICENSE-VECTORGRAPHICS.TXT"/>
         <include name="THIRDPARTY-LICENSE-SUNFLOW.TXT"/>
         <include name="THIRDPARTY-LICENSE-YAFARAY.TXT"/>
@@ -989,6 +990,7 @@
         <include name="THIRDPARTY-LICENSE-BATIK.TXT"/>
         <include name="THIRDPARTY-LICENSE-JEKSPARSER.TXT"/>
         <include name="THIRDPARTY-LICENSE-ITEXT.TXT"/>
+        <include name="THIRDPARTY-LICENSE-FLATLAF.TXT"/>
         <include name="THIRDPARTY-LICENSE-VECTORGRAPHICS.TXT"/>
         <include name="THIRDPARTY-LICENSE-SUNFLOW.TXT"/>
         <include name="THIRDPARTY-LICENSE-YAFARAY.TXT"/>
@@ -1093,6 +1095,7 @@
         <include name="THIRDPARTY-LICENSE-BATIK.TXT"/>
         <include name="THIRDPARTY-LICENSE-JEKSPARSER.TXT"/>
         <include name="THIRDPARTY-LICENSE-ITEXT.TXT"/>
+        <include name="THIRDPARTY-LICENSE-FLATLAF.TXT"/>
         <include name="THIRDPARTY-LICENSE-VECTORGRAPHICS.TXT"/>
         <include name="THIRDPARTY-LICENSE-SUNFLOW.TXT"/>
         <include name="THIRDPARTY-LICENSE-YAFARAY.TXT"/>
@@ -1368,6 +1371,7 @@
         <include name="THIRDPARTY-LICENSE-BATIK.TXT"/>
         <include name="THIRDPARTY-LICENSE-JEKSPARSER.TXT"/>
         <include name="THIRDPARTY-LICENSE-ITEXT.TXT"/>
+        <include name="THIRDPARTY-LICENSE-FLATLAF.TXT"/>
         <include name="THIRDPARTY-LICENSE-VECTORGRAPHICS.TXT"/>
         <include name="THIRDPARTY-LICENSE-SUNFLOW.TXT"/>
         <include name="THIRDPARTY-LICENSE-YAFARAY.TXT"/>

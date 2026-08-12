@@ -53,6 +53,7 @@ public class SweetHome3DBootstrap {
         InvocationTargetException, NoSuchMethodException, ClassNotFoundException {
     Class<?> sweetHome3DBootstrapClass = SweetHome3DBootstrap.class;
     List<String> extensionJarsAndDlls = new ArrayList<String>(Arrays.asList(new String [] {
+        "flatlaf.jar",
         "batik-svgpathparser-1.7.jar", // Jars included in Sweet Home 3D executable jar file
         "jeksparser-calculator.jar",
         "iText-2.1.7.jar",
@@ -227,7 +228,8 @@ public class SweetHome3DBootstrap {
         "jmpapps.util",
         "org.sunflow",
         "org.apache.batik",
-        "com.eteks.parser"};
+        "com.eteks.parser",
+        "com.formdev.flatlaf"};
     String applicationClassName = "com.eteks.sweethome3d.SweetHome3D";
     File cacheFolder = new File(System.getProperty("java.io.tmpdir"));
     String cachedFilesPrefix = applicationClassName + "-cache-";
@@ -303,6 +305,8 @@ public class SweetHome3DBootstrap {
     Method applicationClassMain =
         applicationClass.getMethod("main", Array.newInstance(String.class, 0).getClass());
     // Call application class main method with reflection
+    // SwingUtilities uses the context class loader to load a configured look and feel.
+    Thread.currentThread().setContextClassLoader(java3DClassLoader);
     applicationClassMain.invoke(null, new Object [] {args});
   }
 

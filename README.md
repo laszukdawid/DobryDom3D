@@ -53,6 +53,23 @@ ant ci
 
 The default Ant target builds an executable JAR under `install/`.
 
+### FlatLaf
+
+The standalone application includes FlatLaf and uses the FlatLaf Light theme by
+default. Select another FlatLaf theme with the existing `swing.defaultlaf`
+system property, for example:
+
+```sh
+JAVA_HOME=/home/dawid/.asdf/installs/java/temurin-21.0.6+7.0.LTS
+"$JAVA_HOME/bin/java" \
+  -Dswing.defaultlaf=com.formdev.flatlaf.FlatDarkLaf \
+  -jar install/SweetHome3D-7.5.jar
+```
+
+The core theme classes include `FlatLightLaf`, `FlatDarkLaf`, `FlatIntelliJLaf`,
+and `FlatDarculaLaf`. The FlatLaf dependency is stored in `lib/flatlaf.jar` and
+is included automatically in executable JARs and platform packages.
+
 ### Platform Packages
 
 Build a self-contained application image for the current platform with:

@@ -1,0 +1,16 @@
+The following additional provisions apply to flatlaf.jar third party software
+included as part of this product.
+
+FlatLaf is a cross-platform look and feel for Java Swing applications.
+
+FlatLaf 3.7.2 is available at:
+https://github.com/JFormDesigner/FlatLaf
+
+FlatLaf is distributed under the Apache License, Version 2.0. The complete
+license text is available at:
+https://www.apache.org/licenses/LICENSE-2.0
+
+The Apache License, Version 2.0 permits use, reproduction, and distribution
+subject to its terms. The license text included in
+THIRDPARTY-LICENSE-BATIK.TXT is also included in this distribution as the
+complete Apache License, Version 2.0 text.
