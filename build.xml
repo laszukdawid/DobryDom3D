@@ -36,7 +36,10 @@
   <!-- Current version of Sweet Home 3D -->
   <property name="version" value="7.5"/>
   <property name="java.release" value="21"/>
-  <property environment="env"/>
+  <!-- Do not import the process environment as Ant properties. Forked JUnit
+       XML formatters serialize the complete Ant property set. Build tools
+       inherit their process environment normally, and sensitive values are
+       passed explicitly only to the task that needs them. -->
   <!-- Pinned test JARs, downloaded with checksum verification by the fetch-junit
        target into a cache directory. Override junit.jar and hamcrest.jar on the
        command line to use local copies. -->
@@ -254,7 +257,71 @@
     </javac>
   </target>
 
-  <target name="test" depends="compile-tests"
+  <target name="_testEnvironmentCredentialProbe">
+    <mkdir dir="build/credential-leak-check/reports"/>
+    <junit fork="true" haltonerror="true" haltonfailure="true"
+           printsummary="true" showoutput="true"
+           timeout="120000" tempdir="build/test-tmp">
+      <classpath>
+        <pathelement location="build/test-classes"/>
+        <pathelement location="build/SweetHome3D.jar"/>
+        <pathelement location="src"/>
+        <pathelement location="test"/>
+        <path refid="test.dependencies"/>
+      </classpath>
+      <sysproperty key="java.awt.headless" value="true"/>
+      <formatter type="plain" usefile="false"/>
+      <formatter type="xml"/>
+      <test name="com.eteks.sweethome3d.junit.ArchitectureTest"
+            todir="build/credential-leak-check/reports"/>
+    </junit>
+  </target>
+
+  <target name="_checkTestCredentialIsolation" depends="compile-tests">
+    <delete dir="build/credential-leak-check"/>
+    <mkdir dir="build/credential-leak-check"/>
+    <java jar="${ant.home}/lib/ant-launcher.jar" fork="true" failonerror="true"
+          output="build/credential-leak-check/console.out"
+          error="build/credential-leak-check/console.err">
+      <env key="SH3D_TEST_CREDENTIAL"
+           value="SH3D_ENV_CREDENTIAL_SENTINEL_7F4C1D9A"/>
+      <arg value="-noinput"/>
+      <arg value="-f"/>
+      <arg file="${basedir}/build.xml"/>
+      <arg value="_testEnvironmentCredentialProbe"/>
+    </java>
+    <resourcecount property="credential.leak.match.count">
+      <fileset dir="build/credential-leak-check">
+        <contains text="SH3D_ENV_CREDENTIAL_SENTINEL_7F4C1D9A"/>
+      </fileset>
+    </resourcecount>
+    <fail message="JUnit reports or console output exposed a process environment credential">
+      <condition>
+        <not>
+          <equals arg1="${credential.leak.match.count}" arg2="0"/>
+        </not>
+      </condition>
+    </fail>
+    <delete dir="build/credential-leak-check"/>
+  </target>
+
+  <target name="_checkTestReportProperties">
+    <resourcecount property="test.report.environment.property.count">
+      <fileset dir="build/test-reports" erroronmissingdir="false">
+        <include name="TEST-*.xml"/>
+        <contains text="property name=&quot;env."/>
+      </fileset>
+    </resourcecount>
+    <fail message="JUnit reports contain process environment properties and must not be published">
+      <condition>
+        <not>
+          <equals arg1="${test.report.environment.property.count}" arg2="0"/>
+        </not>
+      </condition>
+    </fail>
+  </target>
+
+  <target name="test" depends="compile-tests,_checkTestCredentialIsolation"
           description="Builds the application and runs headless unit tests">
     <junit fork="true" forkmode="perTest"
            haltonerror="true" haltonfailure="true"
@@ -291,9 +358,10 @@
         </fileset>
       </batchtest>
     </junit>
+    <antcall target="_checkTestReportProperties"/>
   </target>
 
-  <target name="test-all" depends="compile-tests"
+  <target name="test-all" depends="compile-tests,_checkTestCredentialIsolation"
           description="Builds the application and runs all unit and GUI tests">
     <junit fork="true" forkmode="perTest"
            haltonerror="false" haltonfailure="false"
@@ -325,10 +393,11 @@
         <fileset dir="test" includes="${test.includes}"/>
       </batchtest>
     </junit>
+    <antcall target="_checkTestReportProperties"/>
     <fail if="all.tests.failed" message="One or more tests failed; see build/test-reports"/>
   </target>
 
-  <target name="test-yafaray" depends="compile-tests"
+  <target name="test-yafaray" depends="compile-tests,_checkTestCredentialIsolation"
           description="Runs the YafaRay native lifecycle test with finalization disabled">
     <junit fork="true" haltonerror="true" haltonfailure="true"
            printsummary="true" showoutput="true"
@@ -350,6 +419,7 @@
       <test name="com.eteks.sweethome3d.junit.YafarayRendererTest"
             todir="build/test-reports"/>
     </junit>
+    <antcall target="_checkTestReportProperties"/>
   </target>
 
   <target name="ci" depends="clean,test,test-yafaray,application"

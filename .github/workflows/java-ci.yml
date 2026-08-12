@@ -37,8 +37,27 @@ jobs:
       - name: Build Java 21 Linux archive
         run: ant -noinput linux64Installer
 
-      - name: Upload test reports
+      - name: Verify test reports contain no environment properties
+        id: report-safety
         if: always()
+        run: |
+          if [ -d build/test-reports ]; then
+            set +e
+            leaked_reports="$(rg -l --glob 'TEST-*.xml' 'property name="env\.' build/test-reports)"
+            scan_status=$?
+            set -e
+            if [ "$scan_status" -gt 1 ]; then
+              echo "::error::Unable to scan JUnit reports for environment properties"
+              exit "$scan_status"
+            elif [ "$scan_status" -eq 0 ]; then
+              echo "::error::Refusing to publish JUnit reports containing process environment properties"
+              printf '%s\n' "$leaked_reports"
+              exit 1
+            fi
+          fi
+
+      - name: Upload test reports
+        if: always() && steps.report-safety.outcome == 'success'
         uses: actions/upload-artifact@v4
         with:
           name: junit-reports-java-21
