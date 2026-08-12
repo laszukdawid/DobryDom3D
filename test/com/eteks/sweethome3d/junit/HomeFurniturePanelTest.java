@@ -108,6 +108,7 @@ public class HomeFurniturePanelTest extends ComponentTestFixture {
     assertEquals("Wrong X", new Float(piece1.getX()), xSpinner.getValue());
     assertNull("Wrong Y", ySpinner.getValue());
     // Edit values
+    tester.actionFocus(nameTextField);
     tester.waitForIdle();
     assertTrue("Name text field doesn't have focus", nameTextField.hasFocus());
     // Check text field is selected when it gains focus
@@ -122,7 +123,9 @@ public class HomeFurniturePanelTest extends ComponentTestFixture {
     JFormattedTextField ySpinnerTextField = ((DefaultEditor)ySpinner.getEditor()).getTextField();
     assertTrue("Y field doesn't have focus", ySpinnerTextField.hasFocus());
     // Test if numbers greater than 10000 are correctly handled
-    tester.actionKeyString("10020");
+    int previousEventMode = abbot.tester.Robot.getEventMode();
+    abbot.tester.Robot.setEventMode(abbot.tester.Robot.EM_AWT);
+    tester.actionKeyString(ySpinnerTextField, "10020");
     tester.actionKeyStroke(KeyEvent.VK_TAB);
     tester.waitForIdle();
     assertFalse("Y field still has focus", ySpinnerTextField.hasFocus());
@@ -151,6 +154,7 @@ public class HomeFurniturePanelTest extends ComponentTestFixture {
     doClickOnOkInDialog(furnitureDialog, tester);
     assertEquals("Wrong Y", new Float(12345f), piece1.getY());
     assertEquals("Wrong Y", new Float(12345f), piece2.getY());
+    abbot.tester.Robot.setEventMode(previousEventMode);
   }
   
   /**

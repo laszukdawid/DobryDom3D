@@ -80,14 +80,14 @@ public class PlanComponentWithFurnitureTest extends ComponentTestFixture {
         frame.homeController.getPlanController().getView();
     // Click at (30, 30), (220, 30), (270, 80), (270, 170), (30, 170)
     // then double click at (30, 30) with no magnetism
-    tester.actionKeyPress(TestUtilities.getMagnetismToggleKey());
+    TestUtilities.pressMagnetismToggleKey(tester);
     tester.actionClick(planComponent, 30, 30);
     tester.actionClick(planComponent, 220, 30);
     tester.actionClick(planComponent, 270, 80);
     tester.actionClick(planComponent, 270, 170);
     tester.actionClick(planComponent, 30, 170);
     tester.actionClick(planComponent, 30, 30, InputEvent.BUTTON1_MASK, 2);
-    tester.actionKeyRelease(TestUtilities.getMagnetismToggleKey());
+    TestUtilities.releaseMagnetismToggleKey(tester);
     // Check 5 walls were added to home plan
     assertEquals("Wrong walls count", 5, frame.home.getWalls().size());
 
@@ -137,7 +137,7 @@ public class PlanComponentWithFurnitureTest extends ComponentTestFixture {
         new Point(119 + widthPixel / 2 - depthPixel / 2 - 1,
                   120 + depthPixel / 2 + widthPixel / 2)));
     tester.actionMouseRelease();
-    // Check piece angle is 3 * PI / 2 (=-90°)
+    // Check piece angle is 3 * PI / 2 (=-90 degrees)
     assertLocationAndOrientationEqualPiece(
         pieceX, pieceY, (float)Math.PI * 3 / 2, piece);
 
@@ -148,17 +148,17 @@ public class PlanComponentWithFurnitureTest extends ComponentTestFixture {
     // Drag mouse to the previous position plus 1 pixel along x axis
     tester.actionMouseMove(planComponent, new ComponentLocation(
         new Point(120, 120)));
-    // Check piece angle is 0°
+    // Check piece angle is 0 degrees
     assertLocationAndOrientationEqualPiece(pieceX, pieceY, 0, piece);
     // Toggle magnetism
-    tester.actionKeyPress(TestUtilities.getMagnetismToggleKey());
-    // Check piece angle is different from 0°
+    TestUtilities.pressMagnetismToggleKey(tester);
+    // Check piece angle is different from 0 degrees
     assertFalse("Piece orientation shouldn't be magnetized",
         Math.abs(piece.getAngle()) < 1E-10);
-    tester.actionKeyRelease(TestUtilities.getMagnetismToggleKey());
+    TestUtilities.releaseMagnetismToggleKey(tester);
     tester.actionKeyStroke(planComponent, KeyEvent.VK_ESCAPE);
     tester.actionMouseRelease();
-    // Check piece angle is 3 * PI / 2 (=-90°)
+    // Check piece angle is 3 * PI / 2 (=-90 degrees)
     assertLocationAndOrientationEqualPiece(
         pieceX, pieceY, (float)Math.PI * 3 / 2, piece);
 
@@ -237,12 +237,12 @@ public class PlanComponentWithFurnitureTest extends ComponentTestFixture {
     Thread.sleep(1000); // Wait 1s to avoid double click
     tester.actionMousePress(planComponent, new ComponentLocation(new Point(
         pieceXPixel + depthPixel / 2 + 1, pieceYPixel - widthPixel / 2)));
-    tester.actionKeyPress(TestUtilities.getMagnetismToggleKey());
+    TestUtilities.pressMagnetismToggleKey(tester);
     tester.actionMouseMove(planComponent, new ComponentLocation(new Point(
         pieceXPixel + depthPixel / 2 + 5, pieceYPixel - widthPixel / 2 + 4)));
     tester.actionMouseRelease();
-    tester.actionKeyRelease(TestUtilities.getMagnetismToggleKey());
-    // Check piece width and depth were resized (caution : piece angle is oriented at 90°)
+    TestUtilities.releaseMagnetismToggleKey(tester);
+    // Check piece width and depth were resized (caution: piece angle is oriented at 90 degrees)
     assertDimensionEqualPiece(pieceWidth - 4 / planComponent.getScale(),
         pieceDepth + 4 / planComponent.getScale(), pieceHeight, piece);
 
@@ -342,11 +342,11 @@ public class PlanComponentWithFurnitureTest extends ComponentTestFixture {
     assertTrue("Incorrect length 182 " + firstDimensionLineLength,
         Math.abs(182 - firstDimensionLineLength) < 1E-4);
     // Toggle magnetism
-    tester.actionKeyPress(TestUtilities.getMagnetismToggleKey());
+    TestUtilities.pressMagnetismToggleKey(tester);
     // Check its coordinates with no magnetism
     assertEqualsDimensionLine(520, 122, 600, 298, 0, firstDimensionLine);
     // Release magnetism key and mouse button
-    tester.actionKeyRelease(TestUtilities.getMagnetismToggleKey());
+    TestUtilities.releaseMagnetismToggleKey(tester);
     tester.actionMouseRelease();
     assertEqualsDimensionLine(520, 122, 567.105f, 297.7985f, 0, firstDimensionLine);
 
@@ -398,9 +398,12 @@ public class PlanComponentWithFurnitureTest extends ComponentTestFixture {
     pieceX = selectedPiece.getX();
     pieceY = selectedPiece.getY();
     // Start items duplication
-    tester.actionKeyPress(OperatingSystem.isMacOSX() ? KeyEvent.VK_ALT : KeyEvent.VK_CONTROL);
+    int duplicationModifier = OperatingSystem.isMacOSX()
+        ? InputEvent.ALT_MASK : InputEvent.CTRL_MASK;
+    tester.actionSetModifiers(duplicationModifier, true);
     tester.actionMousePress(planComponent, new ComponentLocation(new Point(50, 170)));
     tester.actionMouseMove(planComponent, new ComponentLocation(new Point(51, 170)));
+    tester.waitForIdle();
     // Check selection changed
     assertFalse("Selection didn't change", selectedItems.equals(frame.home.getSelectedItems()));
     assertEquals("Selection doesn't contain 4 items", 4, frame.home.getSelectedItems().size());
@@ -418,14 +421,14 @@ public class PlanComponentWithFurnitureTest extends ComponentTestFixture {
     assertLocationAndOrientationEqualPiece(pieceX, pieceY, selectedPiece.getAngle(), selectedPiece);
 
     // 21. Release Alt key
-    tester.actionKeyRelease(OperatingSystem.isMacOSX() ? KeyEvent.VK_ALT : KeyEvent.VK_CONTROL);
+    tester.actionSetModifiers(duplicationModifier, false);
     // Check original items replaced duplicated items
     assertTrue("Original items not selected", selectedItems.equals(frame.home.getSelectedItems()));
     assertLocationAndOrientationEqualPiece(pieceX + 20 / planComponent.getScale(),
         pieceY + 30 / planComponent.getScale(), selectedPiece.getAngle(), selectedPiece);
     assertFalse("Duplicated piece still in home", frame.home.getFurniture().contains(movedPiece));
     // Press Alt key again
-    tester.actionKeyPress(OperatingSystem.isMacOSX() ? KeyEvent.VK_ALT : KeyEvent.VK_CONTROL);
+    tester.actionSetModifiers(duplicationModifier, true);
     // Check the duplicated piece moved and the original piece moved back to its original location
     movedPiece = Home.getFurnitureSubList(frame.home.getSelectedItems()).get(0);
     assertLocationAndOrientationEqualPiece(pieceX + 20 / planComponent.getScale(),
@@ -445,7 +448,7 @@ public class PlanComponentWithFurnitureTest extends ComponentTestFixture {
     tester.actionMousePress(planComponent, new ComponentLocation(new Point(50, 170)));
     tester.actionMouseMove(planComponent, new ComponentLocation(new Point(50, 190)));
     tester.actionMouseRelease();
-    tester.actionKeyRelease(OperatingSystem.isMacOSX() ? KeyEvent.VK_ALT : KeyEvent.VK_CONTROL);
+    tester.actionSetModifiers(duplicationModifier, false);
     // Check the duplicated piece moved and the original piece didn't move
     List<Selectable> movedItems = frame.home.getSelectedItems();
     assertEquals("Selection doesn't contain 4 items", 4, movedItems.size());

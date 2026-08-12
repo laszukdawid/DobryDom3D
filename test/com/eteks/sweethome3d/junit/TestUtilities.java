@@ -29,6 +29,7 @@ import com.eteks.sweethome3d.tools.OperatingSystem;
 import abbot.finder.BasicFinder;
 import abbot.finder.ComponentSearchException;
 import abbot.finder.Matcher;
+import abbot.tester.JComponentTester;
 
 /**
  * Gathers tools used by tests.
@@ -75,9 +76,31 @@ public final class TestUtilities {
   }
 
   /**
-   * Returns the key used to toggle magnetism.
+   * Presses the platform shortcut that temporarily toggles magnetism.
    */
-  public static int getMagnetismToggleKey() {
-    return OperatingSystem.isWindows() ? KeyEvent.VK_ALT : KeyEvent.VK_META;
+  public static void pressMagnetismToggleKey(JComponentTester tester) {
+    if (OperatingSystem.isWindows()) {
+      tester.actionKeyPress(KeyEvent.VK_ALT);
+    } else if (OperatingSystem.isMacOSX()) {
+      tester.actionKeyPress(KeyEvent.VK_META);
+    } else {
+      // Pressing Shift first would activate alignment before the full chord is held.
+      tester.actionKeyPress(KeyEvent.VK_ALT);
+      tester.actionKeyPress(KeyEvent.VK_SHIFT);
+    }
+  }
+
+  /**
+   * Releases the platform shortcut that temporarily toggles magnetism.
+   */
+  public static void releaseMagnetismToggleKey(JComponentTester tester) {
+    if (OperatingSystem.isWindows()) {
+      tester.actionKeyRelease(KeyEvent.VK_ALT);
+    } else if (OperatingSystem.isMacOSX()) {
+      tester.actionKeyRelease(KeyEvent.VK_META);
+    } else {
+      tester.actionKeyRelease(KeyEvent.VK_SHIFT);
+      tester.actionKeyRelease(KeyEvent.VK_ALT);
+    }
   }
 }

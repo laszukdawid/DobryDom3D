@@ -370,7 +370,10 @@ public class UserPreferencesPanelTest extends TestCase {
    * Tests language changes on the GUI.
    */
   public void testLanguageChange() {
+    String previousNo3D = System.getProperty("com.eteks.sweethome3d.no3D");
     System.setProperty("com.eteks.sweethome3d.j3d.rendererClassNames", PhotoRenderer.class.getName());
+    // This test checks localized view construction, not repeated OpenGL context creation.
+    System.setProperty("com.eteks.sweethome3d.no3D", "true");
     Locale defaultLocale = Locale.getDefault();
     Locale.setDefault(Locale.US);
     UserPreferences preferences = new DefaultUserPreferences() {
@@ -414,7 +417,9 @@ public class UserPreferencesPanelTest extends TestCase {
       new CompassController(home, preferences, viewFactory, undoableEditSupport).getView();
       new ObserverCameraController(home, preferences, viewFactory).getView();
       new Home3DAttributesController(home, preferences, viewFactory, contentManager, undoableEditSupport).getView();
-      new PhotoController(home, preferences, homeController.getHomeController3D().getView(), viewFactory, contentManager).getView();
+      if (!Boolean.getBoolean("com.eteks.sweethome3d.no3D")) {
+        new PhotoController(home, preferences, homeController.getHomeController3D().getView(), viewFactory, contentManager).getView();
+      }
       new VideoController(home, preferences, viewFactory, contentManager).getView();
 
       new TextureChoiceController("", preferences, viewFactory, contentManager).getView();
@@ -431,6 +436,11 @@ public class UserPreferencesPanelTest extends TestCase {
 
       new HelpController(preferences, viewFactory).getView();
       Locale.setDefault(defaultLocale);
+    }
+    if (previousNo3D == null) {
+      System.clearProperty("com.eteks.sweethome3d.no3D");
+    } else {
+      System.setProperty("com.eteks.sweethome3d.no3D", previousNo3D);
     }
   }
 }

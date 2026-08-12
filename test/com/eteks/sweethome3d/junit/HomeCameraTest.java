@@ -113,10 +113,10 @@ public class HomeCameraTest extends ComponentTestFixture {
     // 2. Create one wall between points (50, 50) and (150, 50) at a bigger scale
     runAction(controller, HomePane.ActionType.CREATE_WALLS, tester);
     runAction(controller, HomePane.ActionType.ZOOM_IN, tester);
-    tester.actionKeyPress(TestUtilities.getMagnetismToggleKey());
+    TestUtilities.pressMagnetismToggleKey(tester);
     tester.actionClick(planComponent, 50, 50);
     tester.actionClick(planComponent, 150, 50, InputEvent.BUTTON1_MASK, 2);
-    tester.actionKeyRelease(TestUtilities.getMagnetismToggleKey());
+    TestUtilities.releaseMagnetismToggleKey(tester);
     // Check wall length is 100 * plan scale
     Wall wall = home.getWalls().iterator().next();
     assertTrue("Incorrect wall length " + 100 / planComponent.getScale() 
@@ -132,37 +132,33 @@ public class HomeCameraTest extends ComponentTestFixture {
     tester.actionKeyStroke(KeyEvent.VK_TAB);
     // Check 3D view has focus
     assertTrue("3D component doesn't have the focus", component3D.isFocusOwner());
-    // Add 1° to camera pitch
+    // Add 1 degree to camera pitch
     tester.actionKeyStroke(KeyEvent.VK_PAGE_UP);
     // Check camera location and angles
     assertCoordinatesAndAnglesEqualCameraLocationAndAngles(xWallMiddle, 1052.5009f, 1098.4805f, 
         (float)Math.PI, (float)Math.PI / 4 - (float)Math.PI / 120, home.getCamera());
     
-    // 4. Remove 1° from camera yaw 
+    // 4. Remove 1 degree from camera yaw
     tester.actionKeyStroke(KeyEvent.VK_LEFT);
     // Check camera location and angles
     assertCoordinatesAndAnglesEqualCameraLocationAndAngles(147.02121f, 1051.095f, 1098.4805f, 
         (float)Math.PI - (float)Math.PI / 60, (float)Math.PI / 4 - (float)Math.PI / 120, home.getCamera());
-    // Add 10° to camera yaw 
-    tester.actionKeyPress(KeyEvent.VK_SHIFT);
-    tester.actionKeyStroke(KeyEvent.VK_RIGHT);
-    tester.actionKeyRelease(KeyEvent.VK_SHIFT);
+    // Pan camera right on the ground plane
+    tester.actionKeyStroke(component3D, KeyEvent.VK_RIGHT, InputEvent.SHIFT_MASK);
     // Check camera location and angles
-    assertCoordinatesAndAnglesEqualCameraLocationAndAngles(-119.94972f, 1030.084f, 1098.4805f, 
-        (float)Math.PI - (float)Math.PI / 60 + (float)Math.PI / 12, (float)Math.PI / 4 - (float)Math.PI / 120, home.getCamera());
+    assertCoordinatesAndAnglesEqualCameraLocationAndAngles(157.0075f, 1050.5716f, 1098.4805f,
+        (float)Math.PI - (float)Math.PI / 60, (float)Math.PI / 4 - (float)Math.PI / 120, home.getCamera());
     
-    // 5. Move camera 10cm forward
-    tester.actionKeyPress(KeyEvent.VK_SHIFT);
-    tester.actionKeyStroke(KeyEvent.VK_UP);
-    tester.actionKeyRelease(KeyEvent.VK_SHIFT);
+    // 5. Move camera forward on the ground plane
+    tester.actionKeyStroke(component3D, KeyEvent.VK_UP, InputEvent.SHIFT_MASK);
     // Check camera location and angles
-    assertCoordinatesAndAnglesEqualCameraLocationAndAngles(-95.4424f, 914.7864f, 986.62274f, 
-        (float)Math.PI - (float)Math.PI / 60 + (float)Math.PI / 12, (float)Math.PI / 4 - (float)Math.PI / 120, home.getCamera());
+    assertCoordinatesAndAnglesEqualCameraLocationAndAngles(155.3066f, 1018.1162f, 1098.4805f,
+        (float)Math.PI - (float)Math.PI / 60, (float)Math.PI / 4 - (float)Math.PI / 120, home.getCamera());
     // Move camera 1 backward 
     tester.actionKeyStroke(KeyEvent.VK_DOWN);
     // Check camera location and angles
-    assertCoordinatesAndAnglesEqualCameraLocationAndAngles(-100.3438f, 937.8459f, 1008.99426f, 
-        (float)Math.PI - (float)Math.PI / 60 + (float)Math.PI / 12, (float)Math.PI / 4 - (float)Math.PI / 120, home.getCamera());
+    assertCoordinatesAndAnglesEqualCameraLocationAndAngles(156.54039f, 1041.6586f, 1120.8518f,
+        (float)Math.PI - (float)Math.PI / 60, (float)Math.PI / 4 - (float)Math.PI / 120, home.getCamera());
     
     // 6. View from observer
     runAction(controller, HomePane.ActionType.VIEW_FROM_OBSERVER, tester);
@@ -214,11 +210,16 @@ public class HomeCameraTest extends ComponentTestFixture {
     float [][] cameraPoints = observerCamera.getPoints();
     int xYawIndicator = (int)(((40 + (cameraPoints[0][0] + cameraPoints[3][0]) / 2)) * planComponent.getScale());
     int yYawIndicator = (int)(((40 + (cameraPoints[0][1] + cameraPoints[3][1]) / 2)) * planComponent.getScale());
+    int previousEventMode = abbot.tester.Robot.getEventMode();
+    abbot.tester.Robot.setEventMode(abbot.tester.Robot.EM_AWT);
     tester.actionMousePress(planComponent, new ComponentLocation(
         new Point(xYawIndicator, yYawIndicator - 1)));
+    tester.waitForIdle();
     tester.actionMouseMove(planComponent, new ComponentLocation(
         new Point(xYawIndicator + 2, yYawIndicator + 1)));
+    tester.waitForIdle();
     tester.actionMouseRelease();
+    abbot.tester.Robot.setEventMode(previousEventMode);
     // Check camera yaw angle changed
     assertCoordinatesAndAnglesEqualCameraLocationAndAngles(100 + 1 / planComponent.getScale(), 
         100 + 1 / planComponent.getScale(), 170, 
@@ -228,11 +229,16 @@ public class HomeCameraTest extends ComponentTestFixture {
     cameraPoints = observerCamera.getPoints();
     int xPitchIndicator = (int)(((40 + (cameraPoints[1][0] + cameraPoints[2][0]) / 2)) * planComponent.getScale());
     int yPitchIndicator = (int)(((40 + (cameraPoints[1][1] + cameraPoints[2][1]) / 2)) * planComponent.getScale());
+    previousEventMode = abbot.tester.Robot.getEventMode();
+    abbot.tester.Robot.setEventMode(abbot.tester.Robot.EM_AWT);
     tester.actionMousePress(planComponent, new ComponentLocation(
         new Point(xPitchIndicator - 1, yPitchIndicator + 1)));
+    tester.waitForIdle();
     tester.actionMouseMove(planComponent, new ComponentLocation(
         new Point(xPitchIndicator + 1, yPitchIndicator + 3)));
+    tester.waitForIdle();
     tester.actionMouseRelease();
+    abbot.tester.Robot.setEventMode(previousEventMode);
     // Check camera pitch angle changed
     assertCoordinatesAndAnglesEqualCameraLocationAndAngles(100 + 1 / planComponent.getScale(), 
         100 + 1 / planComponent.getScale(), 170, 

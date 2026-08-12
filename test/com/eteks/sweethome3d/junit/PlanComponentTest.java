@@ -86,7 +86,9 @@ public class PlanComponentTest extends ComponentTestFixture {
 
     // 2. Use WALL_CREATION mode
     JComponentTester tester = new JComponentTester();
-    tester.actionClick(frame.modeButton);
+    int previousEventMode = abbot.tester.Robot.getEventMode();
+    abbot.tester.Robot.setEventMode(abbot.tester.Robot.EM_AWT);
+    clickModeButton(frame, planComponent, tester);
     assertEquals("Current mode isn't " + PlanController.Mode.WALL_CREATION,
         PlanController.Mode.WALL_CREATION, frame.planController.getMode());
     // Click at (30, 30), (270, 31), (269, 170), then double click at (30, 171)
@@ -114,9 +116,9 @@ public class PlanComponentTest extends ComponentTestFixture {
 
     // 3. Click at (30, 170), then double click at (50, 50) without magnetism
     tester.actionClick(planComponent, 30, 170);
-    tester.actionKeyPress(TestUtilities.getMagnetismToggleKey());
+    TestUtilities.pressMagnetismToggleKey(tester);
     tester.actionClick(planComponent, 50, 50, InputEvent.BUTTON1_MASK, 2);
-    tester.actionKeyRelease(TestUtilities.getMagnetismToggleKey());
+    TestUtilities.releaseMagnetismToggleKey(tester);
     // Check a forth wall was created at (20, 300), (60, 60) coordinates
     Wall wall4 = orderedWalls.get(orderedWalls.size() - 1);
     assertCoordinatesEqualWallPoints(20, 300, 60, 60, wall4);
@@ -124,7 +126,7 @@ public class PlanComponentTest extends ComponentTestFixture {
     assertWallsAreJoined(wall3, wall4, null);
 
     // 4. Use SELECTION mode
-    tester.actionClick(frame.modeButton);
+    clickModeButton(frame, planComponent, tester);
     // Check current mode is SELECTION
     assertEquals("Current mode isn't " + PlanController.Mode.SELECTION,
         PlanController.Mode.SELECTION, frame.planController.getMode());
@@ -136,7 +138,7 @@ public class PlanComponentTest extends ComponentTestFixture {
     assertHomeContains(frame.home, wall1, wall2, wall3);
 
     // 5. Use WALL_CREATION mode
-    tester.actionClick(frame.modeButton);
+    clickModeButton(frame, planComponent, tester);
     //  Click at (31, 29), then double click at (30, 170)
     tester.actionClick(planComponent, 31, 29);
     tester.actionClick(planComponent, 30, 170, InputEvent.BUTTON1_MASK, 2);
@@ -147,7 +149,7 @@ public class PlanComponentTest extends ComponentTestFixture {
     assertWallsAreJoined(wall1, wall4, wall3);
 
     // 6. Use SELECTION mode
-    tester.actionClick(frame.modeButton);
+    clickModeButton(frame, planComponent, tester);
     // Drag and drop cursor from (200, 100) to (300, 180)
     tester.actionMousePress(planComponent,
         new ComponentLocation(new Point(200, 100)));
@@ -243,10 +245,10 @@ public class PlanComponentTest extends ComponentTestFixture {
         new ComponentLocation(new Point(30, 30)));
     tester.actionMouseMove(planComponent,
         new ComponentLocation(new Point(50, 50)));
-    tester.actionKeyPress(TestUtilities.getMagnetismToggleKey());
+    TestUtilities.pressMagnetismToggleKey(tester);
     tester.waitForIdle();
     tester.actionMouseRelease();
-    tester.actionKeyRelease(TestUtilities.getMagnetismToggleKey());
+    TestUtilities.releaseMagnetismToggleKey(tester);
     // Check wall start point moved to (60, 60)
     assertCoordinatesEqualWallPoints(60, 60, 504, 20, wall1);
     assertCoordinatesEqualWallPoints(60, 60, 24, 300, wall4);
@@ -276,6 +278,7 @@ public class PlanComponentTest extends ComponentTestFixture {
     assertTrue("Split wall not present in home", frame.home.getWalls().contains(wall1));
     assertFalse("Wall still present in home", frame.home.getWalls().contains(wall5));
     assertFalse("Wall still present in home", frame.home.getWalls().contains(wall6));
+    abbot.tester.Robot.setEventMode(previousEventMode);
   }
 
   public void testPlanComponentWithKeyboard() throws InterruptedException {
@@ -299,10 +302,16 @@ public class PlanComponentTest extends ComponentTestFixture {
     frame.planController.setMode(PlanController.Mode.WALL_CREATION);
     assertEquals("Current mode isn't " + PlanController.Mode.WALL_CREATION,
         PlanController.Mode.WALL_CREATION, frame.planController.getMode());
-    planComponent.requestFocus();
     JComponentTester tester = new JComponentTester();
+    tester.invokeAndWait(new Runnable() {
+      public void run() {
+        planComponent.requestFocusInWindow();
+      }
+    });
     tester.waitForIdle();
     assertTrue("Plan component doesn't have focus", planComponent.hasFocus());
+    int previousEventMode = abbot.tester.Robot.getEventMode();
+    abbot.tester.Robot.setEventMode(abbot.tester.Robot.EM_AWT);
     tester.actionKeyStroke(KeyEvent.VK_ENTER);
     // Enter the coordinates of the start point
     tester.actionKeyString("10");
@@ -315,7 +324,7 @@ public class PlanComponentTest extends ComponentTestFixture {
     // Create a wall with same length
     Thread.sleep(500);
     tester.actionKeyStroke(KeyEvent.VK_ENTER);
-    // Create a wall with same length, an angle at 270° and a thickness of 7,55 cm
+    // Create a wall with same length, an angle at 270 degrees and a thickness of 7,55 cm
     tester.actionKeyStroke(KeyEvent.VK_DOWN);
     tester.actionKeyStroke(KeyEvent.VK_HOME);
     tester.actionKeyString("27");
@@ -358,13 +367,13 @@ public class PlanComponentTest extends ComponentTestFixture {
     // Take control with mouse
     tester.actionMouseMove(planComponent,
         new ComponentLocation(new Point(200, 200)));
-    tester.actionKeyPress(TestUtilities.getMagnetismToggleKey());
+    TestUtilities.pressMagnetismToggleKey(tester);
     Wall wall7 = orderedWalls.get(7);
     assertCoordinatesEqualWallPoints(wall7.getXStart(), wall7.getYStart(),
         planComponent.convertXPixelToModel(200),
         planComponent.convertYPixelToModel(200), wall7);
     tester.waitForIdle();
-    tester.actionKeyRelease(TestUtilities.getMagnetismToggleKey());
+    TestUtilities.releaseMagnetismToggleKey(tester);
     // Take control again with keyboard and close the walls square
     tester.actionKeyStroke(KeyEvent.VK_ENTER);
     tester.actionKeyString("100");
@@ -408,6 +417,7 @@ public class PlanComponentTest extends ComponentTestFixture {
         Math.abs(418.579 - dimensionLine.getYEnd()) < 1E-3);
     assertTrue("Incorrect offset " + 50 + " " + dimensionLine.getYEnd(),
         Math.abs(50 - dimensionLine.getOffset()) < 1E-10);
+    abbot.tester.Robot.setEventMode(previousEventMode);
   }
 
   /**
@@ -456,6 +466,16 @@ public class PlanComponentTest extends ComponentTestFixture {
     for (Wall wall : walls) {
       assertTrue("Wall not selected", selectedItems.contains(wall));
     }
+  }
+
+  private void clickModeButton(final PlanTestFrame frame, final JComponent planComponent,
+                               JComponentTester tester) {
+    tester.invokeAndWait(new Runnable() {
+        public void run() {
+          frame.modeButton.doClick();
+        }
+      });
+    tester.waitForIdle();
   }
 
   public static void main(String [] args) {

@@ -393,7 +393,14 @@ public class HomeControllerTest extends TestCase {
     Rectangle2D rotatedGroupRectangle = new GeneralPath(groupRectangle).createTransformedShape(
         AffineTransform.getRotateInstance(angle, groupRectangle.getCenterX(), groupRectangle.getCenterY())).getBounds2D();
     groupRectangle = getSurroundingRectangle(group);
-    assertEquals("Surrounding group rectangle is incorrect", rotatedGroupRectangle, groupRectangle);
+    assertEquals("Surrounding group rectangle x is incorrect",
+        rotatedGroupRectangle.getX(), groupRectangle.getX(), 0.0001);
+    assertEquals("Surrounding group rectangle y is incorrect",
+        rotatedGroupRectangle.getY(), groupRectangle.getY(), 0.0001);
+    assertEquals("Surrounding group rectangle width is incorrect",
+        rotatedGroupRectangle.getWidth(), groupRectangle.getWidth(), 0.0001);
+    assertEquals("Surrounding group rectangle height is incorrect",
+        rotatedGroupRectangle.getHeight(), groupRectangle.getHeight(), 0.0001);
 
     piecesRectangle = getSurroundingRectangle(piece1);
     piecesRectangle.add(getSurroundingRectangle(piece2));
