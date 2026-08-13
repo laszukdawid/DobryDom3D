@@ -308,6 +308,7 @@ public class PlanComponent extends JComponent implements PlanView, Scrollable, P
   private Map<TextStyle, Font>              fonts;
   private Map<TextStyle, FontMetrics>       fontsMetrics;
 
+  private Rectangle                         modifiedItemsPixelBounds;
   private Rectangle2D                       planBoundsCache;
   private boolean                           planBoundsCacheValid = false;
   private Rectangle2D                       invalidPlanBounds;
@@ -370,6 +371,15 @@ public class PlanComponent extends JComponent implements PlanView, Scrollable, P
   private static final Stroke      INDICATOR_STROKE = new BasicStroke(1.5f);
   private static final Stroke      POINT_STROKE = new BasicStroke(2f);
 
+  /**
+   * Room added around the bounds of the items to repaint, to cover the outline, the indicators
+   * and the strokes painted around an item, none of which fit inside its own points. Indicators
+   * are drawn at a fixed size whatever the zoom, the largest of them reaching 13 and shifted by
+   * at most 10 before being drawn, so 40 leaves a comfortable margin. It is expressed in the
+   * units indicators are drawn in, which the resolution scale stretches, hence
+   * {@link #getRepaintPixelMargin()}.
+   */
+  private static final int         REPAINT_PIXEL_MARGIN = 40;
   private static final float       SQUARE_CAP_OUTSET_RATIO = (float)Math.sqrt(2);
   private static final float       WALL_STROKE_WIDTH = 1.5f;
   private static final float       BORDER_STROKE_WIDTH = 1f;
@@ -1098,7 +1108,22 @@ public class PlanComponent extends JComponent implements PlanView, Scrollable, P
       });
     home.addSelectionListener(new SelectionListener () {
         public void selectionChanged(SelectionEvent ev) {
-          repaint();
+          List<? extends Object> oldSelectedItems = ev.getOldSelectedItems();
+          if (oldSelectedItems == null) {
+            // Without the previous selection there's no telling which outline to erase
+            repaint();
+          } else {
+            // A selection change only alters the outline and the indicators painted
+            // around the items it lets go of and the ones it takes
+            List<Selectable> changedItems = new ArrayList<Selectable>();
+            for (Object item : oldSelectedItems) {
+              changedItems.add((Selectable)item);
+            }
+            for (Object item : ev.getSelectedItems()) {
+              changedItems.add((Selectable)item);
+            }
+            repaintItems(changedItems);
+          }
         }
       });
     home.addPropertyChangeListener(Home.Property.BACKGROUND_IMAGE,
@@ -1237,6 +1262,8 @@ public class PlanComponent extends JComponent implements PlanView, Scrollable, P
         final PropertyChangeListener deferredRevalidateListener = new PropertyChangeListener() {
             public void propertyChange(PropertyChangeEvent ev) {
               PlanComponent.this.deferredRevalidateScheduled = false;
+              // The next modification starts over from an unknown place
+              PlanComponent.this.modifiedItemsPixelBounds = null;
               controller.removePropertyChangeListener(
                   PlanController.Property.MODIFICATION_STATE, this);
               // Single full revalidate (this override also revalidates+repaints rulers).
@@ -1247,7 +1274,7 @@ public class PlanComponent extends JComponent implements PlanView, Scrollable, P
             PlanController.Property.MODIFICATION_STATE, deferredRevalidateListener);
       }
       // Visual-only update during the drag — no layout pass, no plan-bounds-cache invalidation.
-      repaint();
+      repaintModifiedItems();
       if (this.horizontalRuler != null) {
         this.horizontalRuler.repaint();
       }
@@ -1257,6 +1284,172 @@ public class PlanComponent extends JComponent implements PlanView, Scrollable, P
     } else {
       // Outside a drag, behave exactly as before.
       revalidate();
+    }
+  }
+
+  /**
+   * Repaints the items being modified, both where they were left at the previous change and
+   * where they are now. The very first change of a modification is repainted whole, because
+   * the items may already have moved away from a place this component doesn't know anymore.
+   */
+  private void repaintModifiedItems() {
+    Rectangle pixelBounds = getModifiedItemsPixelBounds();
+    if (pixelBounds == null
+        || this.modifiedItemsPixelBounds == null) {
+      this.modifiedItemsPixelBounds = pixelBounds;
+      repaint();
+    } else {
+      Rectangle repaintedBounds = pixelBounds.union(this.modifiedItemsPixelBounds);
+      this.modifiedItemsPixelBounds = pixelBounds;
+      repaint(repaintedBounds.x, repaintedBounds.y, repaintedBounds.width, repaintedBounds.height);
+    }
+  }
+
+  /**
+   * Returns the region covered by the items being modified and by the feedback drawn along them,
+   * or <code>null</code> if some feedback spreads past the items it belongs to, like the lines
+   * drawn to show an alignment.
+   */
+  private Rectangle getModifiedItemsPixelBounds() {
+    if (this.rectangleFeedback != null
+        || this.alignedObjectFeedback != null
+        || this.locationFeeback != null
+        || this.centerAngleFeedback != null) {
+      return null;
+    }
+    List<Selectable> items = new ArrayList<Selectable>(this.home.getSelectedItems());
+    if (isPaintingSpreadingToOtherItems(items)) {
+      return null;
+    }
+    if (this.dimensionLinesFeedback != null) {
+      items.addAll(this.dimensionLinesFeedback);
+    }
+    if (this.draggedItemsFeedback != null) {
+      items.addAll(this.draggedItemsFeedback);
+    }
+    return getItemsPixelBounds(items);
+  }
+
+  /**
+   * Returns <code>true</code> if moving the given items also changes the way other items are
+   * painted. A wall is shaped by the walls it joins, and a door or a window cuts out the wall it
+   * crosses; those other items are repainted without ever reporting a change of their own, so
+   * there is no working out the region they cover from the modified items alone.
+   */
+  private boolean isPaintingSpreadingToOtherItems(Collection<? extends Selectable> items) {
+    for (Selectable item : items) {
+      if (item instanceof Wall
+          || item instanceof HomeDoorOrWindow) {
+        return true;
+      } else if (item instanceof HomeFurnitureGroup) {
+        for (HomePieceOfFurniture piece : ((HomeFurnitureGroup)item).getAllFurniture()) {
+          if (piece instanceof HomeDoorOrWindow) {
+            return true;
+          }
+        }
+      }
+    }
+    return false;
+  }
+
+  /**
+   * Repaints the sole region covered by <code>items</code>, or the whole component if their
+   * bounds can't be worked out. Repainting nothing at all when <code>items</code> is empty is
+   * deliberate: an empty set of changed items leaves the plan as it was.
+   */
+  private void repaintItems(Collection<? extends Selectable> items) {
+    if (items.isEmpty()) {
+      return;
+    }
+    Rectangle pixelBounds = getItemsPixelBounds(items);
+    if (pixelBounds == null) {
+      repaint();
+    } else {
+      repaint(pixelBounds.x, pixelBounds.y, pixelBounds.width, pixelBounds.height);
+    }
+  }
+
+  /**
+   * Returns the room to leave around the bounds of the items to repaint. Indicators are drawn
+   * through a graphics scaled back by the plan scale, which leaves them stretched by the
+   * resolution scale, so the room they need grows with it.
+   */
+  private int getRepaintPixelMargin() {
+    return Math.round(REPAINT_PIXEL_MARGIN * this.resolutionScale);
+  }
+
+  /**
+   * Returns how far past its own bounds a polyline is painted. Outlines and indicators keep the
+   * same size on screen whatever the zoom, so a margin in pixels covers them, but the bounds of
+   * a polyline are those of its bare path: the thickness it is stroked with and the arrows sized
+   * after that thickness are lengths of the plan, and they grow on screen as the plan is zoomed
+   * in. Half a thickness lies on each side of the path, an arrow is pushed out by half a
+   * thickness more and drawn at a scale of two times the thickness raised to 0.66.
+   */
+  private float getPolylinePaintedMargin(Polyline polyline) {
+    float thickness = Math.abs(polyline.getThickness());
+    float margin = thickness;
+    if (isArrowPainted(polyline.getStartArrowStyle())
+        || isArrowPainted(polyline.getEndArrowStyle())) {
+      margin += 10 * (float)Math.pow(thickness, 0.66);
+    }
+    return margin;
+  }
+
+  /**
+   * Returns <code>true</code> if <code>arrowStyle</code> draws something.
+   */
+  private static boolean isArrowPainted(Polyline.ArrowStyle arrowStyle) {
+    return arrowStyle != null
+        && arrowStyle != Polyline.ArrowStyle.NONE;
+  }
+
+  /**
+   * Returns the region of this component covered by <code>items</code>, grown by the room the
+   * outline, the indicators and the strokes painted around an item need, or <code>null</code>
+   * if <code>items</code> is empty.
+   */
+  private Rectangle getItemsPixelBounds(Collection<? extends Selectable> items) {
+    if (items.isEmpty()) {
+      return null;
+    }
+    List<Selectable> paintedItems = new ArrayList<Selectable>(items);
+    List<HomePieceOfFurniture> homeFurniture = this.home.getFurniture();
+    float modelMargin = 0;
+    for (Selectable item : items) {
+      if (item instanceof HomePieceOfFurniture) {
+        // A piece selected inside a group is painted with a halo covering the whole group
+        HomePieceOfFurniture group = getPieceOfFurnitureInHomeFurniture(
+            (HomePieceOfFurniture)item, homeFurniture);
+        if (group != item) {
+          paintedItems.add(group);
+        }
+      } else if (item instanceof Polyline) {
+        modelMargin = Math.max(modelMargin, getPolylinePaintedMargin((Polyline)item));
+      }
+    }
+    Graphics2D g = (Graphics2D)getGraphics();
+    try {
+      if (g != null) {
+        setRenderingHints(g);
+      }
+      Rectangle2D itemsBounds = getItemsBounds(g, paintedItems);
+      if (itemsBounds == null) {
+        return null;
+      }
+      if (modelMargin > 0) {
+        itemsBounds = new Rectangle2D.Double(
+            itemsBounds.getX() - modelMargin, itemsBounds.getY() - modelMargin,
+            itemsBounds.getWidth() + 2 * modelMargin, itemsBounds.getHeight() + 2 * modelMargin);
+      }
+      Rectangle pixelBounds = getShapePixelBounds(itemsBounds);
+      int margin = getRepaintPixelMargin();
+      pixelBounds.grow(margin, margin);
+      return pixelBounds;
+    } finally {
+      if (g != null) {
+        g.dispose();
+      }
     }
   }
 
@@ -6387,8 +6580,12 @@ public class PlanComponent extends JComponent implements PlanView, Scrollable, P
    * should be visible or not.
    */
   public void setResizeIndicatorVisible(boolean resizeIndicatorVisible) {
+    if (this.resizeIndicatorVisible == resizeIndicatorVisible) {
+      return;
+    }
     this.resizeIndicatorVisible = resizeIndicatorVisible;
-    repaint();
+    // Indicators are only ever drawn around the selected items
+    repaintItems(this.home.getSelectedItems());
   }
 
   /**
@@ -6430,8 +6627,21 @@ public class PlanComponent extends JComponent implements PlanView, Scrollable, P
    * Sets the given dimension lines to be drawn as feedback.
    */
   public void setDimensionLinesFeedback(List<DimensionLine> dimensionLines) {
+    List<DimensionLine> oldDimensionLines = this.dimensionLinesFeedback;
+    if (oldDimensionLines == null && dimensionLines == null) {
+      // Nothing was drawn as feedback and nothing will be. This happens at every mouse move
+      // of a piece of furniture dragged away from any wall.
+      return;
+    }
     this.dimensionLinesFeedback = dimensionLines;
-    repaint();
+    List<Selectable> changedItems = new ArrayList<Selectable>();
+    if (oldDimensionLines != null) {
+      changedItems.addAll(oldDimensionLines);
+    }
+    if (dimensionLines != null) {
+      changedItems.addAll(dimensionLines);
+    }
+    repaintItems(changedItems);
   }
 
   /**
@@ -6439,6 +6649,12 @@ public class PlanComponent extends JComponent implements PlanView, Scrollable, P
    */
   public void deleteFeedback() {
     deleteToolTipFeedback();
+    boolean feedbackPainted = this.rectangleFeedback != null
+        || this.alignedObjectFeedback != null
+        || this.locationFeeback != null
+        || this.centerAngleFeedback != null
+        || this.draggedItemsFeedback != null
+        || this.dimensionLinesFeedback != null;
     this.rectangleFeedback = null;
 
     this.alignedObjectClass = null;
@@ -6452,7 +6668,9 @@ public class PlanComponent extends JComponent implements PlanView, Scrollable, P
     this.draggedItemsFeedback = null;
 
     this.dimensionLinesFeedback = null;
-    repaint();
+    if (feedbackPainted) {
+      repaint();
+    }
   }
 
   /**
