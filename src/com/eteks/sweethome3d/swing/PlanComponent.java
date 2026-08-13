@@ -3327,6 +3327,19 @@ public class PlanComponent extends JComponent implements PlanView, Scrollable, P
   }
 
   /**
+   * Returns <code>true</code> if <code>item</code> belongs to <code>selectedItems</code>.
+   * Painting asks this of every item it draws, so when the list handed over is the selection of
+   * the home, the question goes to {@link Home#isItemSelected}, which answers it without walking
+   * through the whole selection. Painting a plan where everything is selected would otherwise
+   * cost the number of items times the number of selected ones.
+   */
+  private boolean isItemSelected(List<? extends Selectable> selectedItems, Selectable item) {
+    return selectedItems == this.home.getSelectedItems()
+        ? this.home.isItemSelected(item)
+        : selectedItems.contains(item);
+  }
+
+  /**
    * Returns the color used to draw selection outlines.
    */
   protected Color getSelectionColor() {
@@ -3517,7 +3530,7 @@ public class PlanComponent extends JComponent implements PlanView, Scrollable, P
     float roomMargin = getStrokeOutsetMargin(roomStroke);
     Rectangle2D clipBounds = getPaintedClipBounds(g2D);
     for (Room room : this.sortedLevelRooms) {
-      boolean selectedRoom = selectedItems.contains(room);
+      boolean selectedRoom = isItemSelected(selectedItems, room);
       // In clipboard paint mode, paint room only if it is selected
       if (paintMode != PaintMode.CLIPBOARD
           || selectedRoom) {
@@ -3687,7 +3700,7 @@ public class PlanComponent extends JComponent implements PlanView, Scrollable, P
     g2D.setPaint(foregroundColor);
     Font previousFont = g2D.getFont();
     for (Room room : this.sortedLevelRooms) {
-      boolean selectedRoom = selectedItems.contains(room);
+      boolean selectedRoom = isItemSelected(selectedItems, room);
       // In clipboard paint mode, paint room only if it is selected
       if (paintMode != PaintMode.CLIPBOARD
           || selectedRoom) {
@@ -4409,7 +4422,7 @@ public class PlanComponent extends JComponent implements PlanView, Scrollable, P
       // Draw furniture
       for (HomePieceOfFurniture piece : furniture) {
         if (piece.isVisible()) {
-          boolean selectedPiece = selectedItems.contains(piece);
+          boolean selectedPiece = isItemSelected(selectedItems, piece);
           if (piece instanceof HomeFurnitureGroup) {
             List<HomePieceOfFurniture> groupFurniture = ((HomeFurnitureGroup)piece).getFurniture();
             List<Selectable> emptyList = Collections.emptyList();
@@ -4670,7 +4683,7 @@ public class PlanComponent extends JComponent implements PlanView, Scrollable, P
     // Draw furniture name
     for (HomePieceOfFurniture piece : furniture) {
       if (piece.isVisible()) {
-        boolean selectedPiece = selectedItems.contains(piece);
+        boolean selectedPiece = isItemSelected(selectedItems, piece);
         if (piece instanceof HomeFurnitureGroup) {
           List<HomePieceOfFurniture> groupFurniture = ((HomeFurnitureGroup)piece).getFurniture();
           List<Selectable> emptyList = Collections.emptyList();
@@ -5026,7 +5039,7 @@ public class PlanComponent extends JComponent implements PlanView, Scrollable, P
     // Draw polylines
     for (Polyline polyline : polylines) {
       if (isViewableAtLevel(polyline, level)) {
-        boolean selected = selectedItems.contains(polyline);
+        boolean selected = isItemSelected(selectedItems, polyline);
         if (paintMode != PaintMode.CLIPBOARD
             || selected) {
           g2D.setPaint(new Color(polyline.getColor()));
@@ -5165,7 +5178,7 @@ public class PlanComponent extends JComponent implements PlanView, Scrollable, P
         boolean horizontalDimensionLine = dimensionLine.getElevationStart() == dimensionLine.getElevationEnd();
         if (paintMode == PaintMode.PAINT
             && this.selectedItemsOutlinePainted
-            && selectedItems.contains(dimensionLine)) {
+            && isItemSelected(selectedItems, dimensionLine)) {
           // Draw selection border
           g2D.setPaint(selectionOutlinePaint);
           g2D.setStroke(selectionOutlineStroke);
@@ -5386,7 +5399,7 @@ public class PlanComponent extends JComponent implements PlanView, Scrollable, P
     // Draw labels
     for (Label label : labels) {
       if (isViewableAtLevel(label, level)) {
-        boolean selectedLabel = selectedItems.contains(label);
+        boolean selectedLabel = isItemSelected(selectedItems, label);
         // In clipboard paint mode, paint label only if it is selected
         if (paintMode != PaintMode.CLIPBOARD || selectedLabel) {
           String labelText = label.getText();
@@ -5458,7 +5471,7 @@ public class PlanComponent extends JComponent implements PlanView, Scrollable, P
     Compass compass = this.home.getCompass();
     if (compass.isVisible()
         && (paintMode != PaintMode.CLIPBOARD
-            || selectedItems.contains(compass))) {
+            || isItemSelected(selectedItems, compass))) {
       AffineTransform previousTransform = g2D.getTransform();
       g2D.translate(compass.getX(), compass.getY());
       g2D.rotate(compass.getNorthDirection());
@@ -5977,7 +5990,7 @@ public class PlanComponent extends JComponent implements PlanView, Scrollable, P
       g2D.setStroke(stroke);
       g2D.draw(scaledCameraBody);
 
-      if (selectedItems.contains(camera)
+      if (isItemSelected(selectedItems, camera)
           && this.selectedItemsOutlinePainted) {
         g2D.setPaint(selectionOutlinePaint);
         g2D.setStroke(selectionOutlineStroke);

@@ -348,6 +348,7 @@
           <include name="**/OperatingSystemTest.java"/>
           <include name="**/ArchitectureTest.java"/>
           <include name="**/HomeTest.java"/>
+          <include name="**/HomeSelectionTest.java"/>
           <include name="**/HomeController3DTest.java"/>
           <include name="**/HomeFileRecorderTest.java"/>
           <include name="**/IconManagerTest.java"/>
