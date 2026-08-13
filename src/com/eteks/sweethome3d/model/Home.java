@@ -31,8 +31,10 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * The home managed by the application with its furniture and walls.
@@ -78,6 +80,8 @@ public class Home implements Serializable, Cloneable {
   private List<HomePieceOfFurniture>                  furniture;
   private transient CollectionChangeSupport<HomePieceOfFurniture> furnitureChangeSupport;
   private transient List<Selectable>                  selectedItems;
+  private transient List<Selectable>                  unmodifiableSelectedItems;
+  private transient Set<Selectable>                   selectedItemsSet;
   private transient List<SelectionListener>           selectionListeners;
   private transient boolean                           allLevelsSelection;
   private List<Level>                                 levels;
@@ -393,7 +397,7 @@ public class Home implements Serializable, Cloneable {
 
   private void init(boolean newHome) {
     // Initialize transient lists
-    this.selectedItems = new ArrayList<Selectable>();
+    setSelectedItemsList(new ArrayList<Selectable>());
     initListenersSupport(this);
 
     if (this.furnitureVisibleProperties == null) {
@@ -913,7 +917,7 @@ public class Home implements Serializable, Cloneable {
    * Returns an unmodifiable list of the selected items in home.
    */
   public List<Selectable> getSelectedItems() {
-    return Collections.unmodifiableList(this.selectedItems);
+    return this.unmodifiableSelectedItems;
   }
 
 
@@ -923,7 +927,7 @@ public class Home implements Serializable, Cloneable {
    * @since 7.2
    */
   public boolean isItemSelected(Selectable item) {
-    return this.selectedItems.contains(item);
+    return this.selectedItemsSet.contains(item);
   }
 
   /**
@@ -931,9 +935,9 @@ public class Home implements Serializable, Cloneable {
    * @param selectedItems the list of selected items
    */
   public void setSelectedItems(List<? extends Selectable> selectedItems) {
-    List<Selectable> oldSelectedItems = Collections.unmodifiableList(this.selectedItems);
+    List<Selectable> oldSelectedItems = this.unmodifiableSelectedItems;
     // Make a copy of the list to avoid conflicts in the list returned by getSelectedItems
-    this.selectedItems = new ArrayList<Selectable>(selectedItems);
+    setSelectedItemsList(new ArrayList<Selectable>(selectedItems));
     if (!this.selectionListeners.isEmpty()) {
       SelectionEvent selectionEvent = new SelectionEvent(this, oldSelectedItems, getSelectedItems());
       // Work on a copy of selectionListeners to ensure a listener
@@ -944,6 +948,22 @@ public class Home implements Serializable, Cloneable {
         listener.selectionChanged(selectionEvent);
       }
     }
+  }
+
+  /**
+   * Stores the selected items along with the view on them handed to callers and the set used to
+   * tell whether an item is selected. Keeping that set spares a search through the whole
+   * selection every time an item is painted, which the plan does for each item it draws.
+   * <p>The set holds its items by identity rather than by equality, because a selection is about
+   * which objects are selected and because selected items are moved and resized while they stay
+   * selected: a set keyed on anything an item can change would lose track of it mid drag.
+   */
+  private void setSelectedItemsList(List<Selectable> selectedItems) {
+    this.selectedItems = selectedItems;
+    this.unmodifiableSelectedItems = Collections.unmodifiableList(selectedItems);
+    this.selectedItemsSet = Collections.newSetFromMap(
+        new IdentityHashMap<Selectable, Boolean>(Math.max(1, selectedItems.size())));
+    this.selectedItemsSet.addAll(selectedItems);
   }
 
   /**
@@ -2098,6 +2118,9 @@ public class Home implements Serializable, Cloneable {
     } else {
       destination.camera = destination.topCamera;
     }
+    // The selected items were filled in piece by piece above, so the view on them and the set
+    // used to tell whether an item is selected are built once they are all in
+    destination.setSelectedItemsList(destination.selectedItems);
     destination.storedCameras = new ArrayList<Camera>(source.storedCameras.size());
     for (Camera camera : source.storedCameras) {
       destination.storedCameras.add(camera.clone());
