@@ -68,6 +68,7 @@ public class Wall extends HomeObject implements Selectable, Elevatable {
   private Level               level;
 
   private transient Shape      shapeCache;
+  private transient Shape      shapeIncludingBaseboardsCache;
   private transient float []   arcCircleCenterCache;
   private transient float [][] pointsCache;
   private transient float [][] pointsIncludingBaseboardsCache;
@@ -745,17 +746,25 @@ public class Wall extends HomeObject implements Selectable, Elevatable {
    * Clears the points cache of this wall and of the walls attached to it.
    */
   private void clearPointsCache() {
-    this.shapeCache = null;
-    this.pointsCache = null;
-    this.pointsIncludingBaseboardsCache = null;
+    clearShapeAndPointsCache();
     if (this.wallAtStart != null ) {
-      this.wallAtStart.pointsCache = null;
-      this.wallAtStart.pointsIncludingBaseboardsCache = null;
+      // The points of a joined wall are computed against this wall, so they change with it,
+      // and so does the shape built from them
+      this.wallAtStart.clearShapeAndPointsCache();
     }
     if (this.wallAtEnd != null) {
-      this.wallAtEnd.pointsCache = null;
-      this.wallAtEnd.pointsIncludingBaseboardsCache = null;
+      this.wallAtEnd.clearShapeAndPointsCache();
     }
+  }
+
+  /**
+   * Clears the points cache of this wall and the shapes built from it.
+   */
+  private void clearShapeAndPointsCache() {
+    this.shapeCache = null;
+    this.shapeIncludingBaseboardsCache = null;
+    this.pointsCache = null;
+    this.pointsIncludingBaseboardsCache = null;
   }
 
   /**
@@ -1167,17 +1176,35 @@ public class Wall extends HomeObject implements Selectable, Elevatable {
    * Returns the shape matching this wall.
    */
   private Shape getShape(boolean includeBaseboards) {
-    if (this.shapeCache == null) {
-      float [][] wallPoints = getPoints(includeBaseboards);
-      GeneralPath wallPath = new GeneralPath();
-      wallPath.moveTo(wallPoints [0][0], wallPoints [0][1]);
-      for (int i = 1; i < wallPoints.length; i++) {
-        wallPath.lineTo(wallPoints [i][0], wallPoints [i][1]);
+    // Choose the cache with the same condition getPoints uses to choose its points cache,
+    // so that a shape is never answered under the variant it wasn't built from, and pass
+    // includeBaseboards on unchanged so that overridden getPoints methods still see it
+    if (includeBaseboards
+        && (this.leftSideBaseboard != null
+            || this.rightSideBaseboard != null)) {
+      if (this.shapeIncludingBaseboardsCache == null) {
+        this.shapeIncludingBaseboardsCache = createShape(getPoints(includeBaseboards));
       }
-      wallPath.closePath();
-      this.shapeCache = wallPath;
+      return this.shapeIncludingBaseboardsCache;
+    } else {
+      if (this.shapeCache == null) {
+        this.shapeCache = createShape(getPoints(includeBaseboards));
+      }
+      return this.shapeCache;
     }
-    return this.shapeCache;
+  }
+
+  /**
+   * Returns the closed path joining the given <code>points</code>.
+   */
+  private Shape createShape(float [][] points) {
+    GeneralPath wallPath = new GeneralPath();
+    wallPath.moveTo(points [0][0], points [0][1]);
+    for (int i = 1; i < points.length; i++) {
+      wallPath.lineTo(points [i][0], points [i][1]);
+    }
+    wallPath.closePath();
+    return wallPath;
   }
 
   /**
@@ -1248,6 +1275,7 @@ public class Wall extends HomeObject implements Selectable, Elevatable {
     clone.wallAtEnd = null;
     clone.level = null;
     clone.shapeCache = null;
+    clone.shapeIncludingBaseboardsCache = null;
     clone.pointsCache = null;
     clone.pointsIncludingBaseboardsCache = null;
     return clone;
