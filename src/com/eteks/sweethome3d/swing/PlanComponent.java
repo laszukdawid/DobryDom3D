@@ -327,6 +327,7 @@ public class PlanComponent extends JComponent implements PlanView, Scrollable, P
   private Map<HomeTexture, BufferedImage>   floorTextureImagesCache;
   private boolean                           deferredRevalidateScheduled;
   private Map<HomePieceOfFurniture, HomePieceOfFurnitureTopViewIconKey> furnitureTopViewIconKeys;
+  private Map<HomePieceOfFurnitureTopViewIconKey, WeakReference<HomePieceOfFurnitureTopViewIconKey>> furnitureTopViewIconCanonicalKeys;
   private Map<HomePieceOfFurnitureTopViewIconKey, PieceOfFurnitureTopViewIcon> furnitureTopViewIconsCache;
 
   private static ExecutorService            backgroundImageLoader;
@@ -1198,11 +1199,13 @@ public class PlanComponent extends JComponent implements PlanView, Scrollable, P
                 && !preferences.isFurnitureViewedFromTop()) {
               planComponent.furnitureTopViewIconKeys = null;
               planComponent.furnitureTopViewIconsCache = null;
+              planComponent.furnitureTopViewIconCanonicalKeys = null;
             }
             break;
           case FURNITURE_MODEL_ICON_SIZE :
             planComponent.furnitureTopViewIconKeys = null;
             planComponent.furnitureTopViewIconsCache = null;
+            planComponent.furnitureTopViewIconCanonicalKeys = null;
             break;
           default:
             break;
@@ -4859,6 +4862,44 @@ public class PlanComponent extends JComponent implements PlanView, Scrollable, P
   }
 
   /**
+   * Returns the key equal to <code>searchedKey</code> which <code>furnitureTopViewIconsCache</code>
+   * is keyed by, so that the entry stays reachable as long as a piece uses it. It's read from
+   * <code>furnitureTopViewIconCanonicalKeys</code>, which remembers each of those keys in constant
+   * time, and searched among the keys of the cache itself when it isn't there.
+   */
+  private HomePieceOfFurnitureTopViewIconKey getKeyOfCachedTopViewIcon(
+                                                 HomePieceOfFurnitureTopViewIconKey searchedKey) {
+    WeakReference<HomePieceOfFurnitureTopViewIconKey> keyReference =
+        this.furnitureTopViewIconCanonicalKeys.get(searchedKey);
+    HomePieceOfFurnitureTopViewIconKey key = keyReference != null
+        ? keyReference.get()
+        : null;
+    if (key == null) {
+      for (HomePieceOfFurnitureTopViewIconKey cachedKey : this.furnitureTopViewIconsCache.keySet()) {
+        if (cachedKey.equals(searchedKey)) {
+          key = cachedKey;
+          break;
+        }
+      }
+      if (key == null) {
+        key = searchedKey;
+      }
+      rememberTopViewIconKey(key);
+    }
+    return key;
+  }
+
+  /**
+   * Remembers <code>key</code> as the instance to reuse for the keys equal to it. Both the entry
+   * and its value refer to it weakly, so this doesn't keep an icon in
+   * <code>furnitureTopViewIconsCache</code> any longer than the pieces which use it do.
+   */
+  private void rememberTopViewIconKey(HomePieceOfFurnitureTopViewIconKey key) {
+    this.furnitureTopViewIconCanonicalKeys.put(key,
+        new WeakReference<HomePieceOfFurnitureTopViewIconKey>(key));
+  }
+
+  /**
    * Paints <code>piece</code> top icon with <code>g2D</code>.
    */
   private void paintPieceOfFurnitureTop(Graphics2D g2D, HomePieceOfFurniture piece,
@@ -4869,13 +4910,16 @@ public class PlanComponent extends JComponent implements PlanView, Scrollable, P
     if (this.furnitureTopViewIconKeys == null) {
       this.furnitureTopViewIconKeys = new WeakHashMap<HomePieceOfFurniture, HomePieceOfFurnitureTopViewIconKey>();
       this.furnitureTopViewIconsCache = new WeakHashMap<HomePieceOfFurnitureTopViewIconKey, PieceOfFurnitureTopViewIcon>();
+      this.furnitureTopViewIconCanonicalKeys =
+          new WeakHashMap<HomePieceOfFurnitureTopViewIconKey, WeakReference<HomePieceOfFurnitureTopViewIconKey>>();
     }
     HomePieceOfFurnitureTopViewIconKey topViewIconKey = this.furnitureTopViewIconKeys.get(piece);
     PieceOfFurnitureTopViewIcon icon;
     if (topViewIconKey == null) {
       topViewIconKey = new HomePieceOfFurnitureTopViewIconKey(piece.clone());
       icon = this.furnitureTopViewIconsCache.get(topViewIconKey);
-      if (icon == null
+      boolean missingIcon = icon == null;
+      if (missingIcon
           || icon.isWaitIcon()
              && paintMode != PaintMode.PAINT) {
         PlanComponent waitingComponent = paintMode == PaintMode.PAINT ? this : null;
@@ -4886,16 +4930,15 @@ public class PlanComponent extends JComponent implements PlanView, Scrollable, P
           icon = new PieceOfFurnitureModelIcon(piece, this.object3dFactory, waitingComponent, this.preferences.getFurnitureModelIconSize());
         }
         this.furnitureTopViewIconsCache.put(topViewIconKey, icon);
+        if (missingIcon) {
+          // The cache held no equal key, so this one is the key of the entry just added
+          rememberTopViewIconKey(topViewIconKey);
+        }
       } else {
         // As furnitureTopViewIconKeys and furnitureTopViewIconsCache are both WeakHashMap instances,
         // use the HomePieceOfFurnitureTopViewIconKey instance that already exists in furnitureTopViewIconsCache
         // to avoid the deletion of the entry containing the new sibling when a piece is garbage collected
-        for (HomePieceOfFurnitureTopViewIconKey key : furnitureTopViewIconsCache.keySet()) {
-          if (key.equals(topViewIconKey)) {
-            topViewIconKey = key;
-            break;
-          }
-        }
+        topViewIconKey = getKeyOfCachedTopViewIcon(topViewIconKey);
       }
       this.furnitureTopViewIconKeys.put(piece, topViewIconKey);
     } else {
