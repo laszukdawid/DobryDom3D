@@ -353,6 +353,7 @@
           <include name="**/IconManagerTest.java"/>
           <include name="**/CatalogTreeTest.java"/>
           <include name="**/FurnitureTableTest.java"/>
+          <include name="**/PlanComponentCullingTest.java"/>
           <include name="**/WallPanelTest.java"/>
           <include name="**/YafarayRendererTest.java"/>
         </fileset>

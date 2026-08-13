@@ -43,7 +43,7 @@ jobs:
         run: |
           if [ -d build/test-reports ]; then
             set +e
-            leaked_reports="$(rg -l --glob 'TEST-*.xml' 'property name="env\.' build/test-reports)"
+            leaked_reports="$(grep -rl --include='TEST-*.xml' 'property name="env\.' build/test-reports)"
             scan_status=$?
             set -e
             if [ "$scan_status" -gt 1 ]; then
