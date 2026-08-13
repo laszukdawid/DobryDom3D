@@ -370,6 +370,7 @@ public class PlanComponent extends JComponent implements PlanView, Scrollable, P
   private static final Stroke      INDICATOR_STROKE = new BasicStroke(1.5f);
   private static final Stroke      POINT_STROKE = new BasicStroke(2f);
 
+  private static final float       SQUARE_CAP_OUTSET_RATIO = (float)Math.sqrt(2);
   private static final float       WALL_STROKE_WIDTH = 1.5f;
   private static final float       BORDER_STROKE_WIDTH = 1f;
   private static final float       ALIGNMENT_LINE_OFFSET = 25f;
@@ -3174,6 +3175,118 @@ public class PlanComponent extends JComponent implements PlanView, Scrollable, P
   }
 
   /**
+   * Returns the bounds of the clip of <code>g2D</code>, expressed in the plan coordinates system,
+   * or <code>null</code> if <code>g2D</code> isn't clipped. Painting methods use it to skip the
+   * items lying outside of the repainted region.
+   */
+  private Rectangle2D getPaintedClipBounds(Graphics2D g2D) {
+    Shape clip = g2D.getClip();
+    return clip != null
+        ? clip.getBounds2D()
+        : null;
+  }
+
+  /**
+   * Returns <code>true</code> unless the bounding box of <code>points</code> grown by
+   * <code>margin</code> lies entirely outside of <code>clipBounds</code>, or if
+   * <code>clipBounds</code> is <code>null</code>. <code>margin</code> must cover everything an
+   * item paints outside of its own points, like the width of the stroke used to draw it.
+   * <p>The test is written as the negation of "provably outside" so that an item is still
+   * painted when its coordinates can't be compared: nothing forbids a home read from a file to
+   * hold a NaN coordinate, and every comparison against a NaN is false, which would otherwise
+   * read as "outside" and drop the item.
+   */
+  private static boolean intersectsClipBounds(Rectangle2D clipBounds, float [][] points, float margin) {
+    if (clipBounds == null) {
+      return true;
+    }
+    float minX = points [0][0];
+    float maxX = minX;
+    float minY = points [0][1];
+    float maxY = minY;
+    for (int i = 1; i < points.length; i++) {
+      minX = Math.min(minX, points [i][0]);
+      maxX = Math.max(maxX, points [i][0]);
+      minY = Math.min(minY, points [i][1]);
+      maxY = Math.max(maxY, points [i][1]);
+    }
+    return !(maxX + margin < clipBounds.getMinX())
+        && !(minX - margin > clipBounds.getMaxX())
+        && !(maxY + margin < clipBounds.getMinY())
+        && !(minY - margin > clipBounds.getMaxY());
+  }
+
+  /**
+   * Returns how far outside of the shape it draws the given stroke may paint. A miter joined
+   * stroke, which is what <code>new BasicStroke(width)</code> builds, sticks out of an acute
+   * vertex by up to half of its miter limit times its width, far more than the half width a
+   * round or a bevel join would add. A square cap reaches half of the diagonal of the width
+   * past the end of an open path, which only matters for the strokes with a miter limit
+   * smaller than the square root of two.
+   */
+  private static float getStrokeOutsetMargin(BasicStroke stroke) {
+    return stroke.getLineWidth() * Math.max(SQUARE_CAP_OUTSET_RATIO, stroke.getMiterLimit()) / 2;
+  }
+
+  /**
+   * Returns the largest thickness among the walls of this home.
+   */
+  private float getMaxWallThickness() {
+    float maxWallThickness = 0;
+    for (Wall wall : this.home.getWalls()) {
+      maxWallThickness = Math.max(maxWallThickness, wall.getThickness());
+    }
+    return maxWallThickness;
+  }
+
+  /**
+   * Returns the distance from the center of <code>doorOrWindow</code> to the farthest point it
+   * paints, its sashes and the cut out drawn in the thickness of the walls included.
+   * The sash and wall part values of a door or a window are meant to be ratios of its size, but
+   * neither {@link Sash} nor the readers building them enforce it, so they are used as they are
+   * rather than assumed to be smaller than 1. As the returned distance is measured from the
+   * center of the piece, it holds whatever the angle of the piece.
+   */
+  private float getDoorOrWindowPaintedRadius(HomeDoorOrWindow doorOrWindow, float maxWallThickness) {
+    float width = doorOrWindow.getWidth();
+    float depth = doorOrWindow.getDepth();
+    float x = doorOrWindow.getX();
+    float y = doorOrWindow.getY();
+    double radius = 0;
+    // getDoorOrWindowSashShape draws a disc of a sash.getWidth() * width radius, centered at
+    // (width * (xAxis - 1/2), depth * (yAxis - 1/2)) from the center of the piece
+    for (Sash sash : doorOrWindow.getSashes()) {
+      radius = Math.max(radius,
+          Math.hypot(width * (sash.getXAxis() - 0.5f), depth * (sash.getYAxis() - 0.5f))
+              + Math.abs(sash.getWidth()) * width);
+    }
+    // The wall part of the piece drawn by getDoorOrWindowWallPartShape
+    Rectangle2D wallPartRectangle = getDoorOrWindowRectangle(doorOrWindow, true);
+    radius = Math.max(radius, getFarthestCornerDistance(
+        wallPartRectangle.getMinX() - x, wallPartRectangle.getMaxX() - x,
+        wallPartRectangle.getMinY() - y, wallPartRectangle.getMaxY() - y));
+    if (doorOrWindow.isWallCutOutOnBothSides()) {
+      // paintDoorOrWindowWallThicknessArea grows the rectangle of the piece with the thickness
+      // of the walls it crosses, before intersecting it with them
+      Rectangle2D rectangle = getDoorOrWindowRectangle(doorOrWindow, false);
+      double minY = rectangle.getMinY() - 2 * maxWallThickness;
+      radius = Math.max(radius, getFarthestCornerDistance(
+          rectangle.getMinX() - x, rectangle.getMaxX() - x,
+          minY - y, minY + rectangle.getWidth() + 4 * maxWallThickness - y));
+    }
+    return (float)radius;
+  }
+
+  /**
+   * Returns the distance from the origin to the farthest corner of the rectangle
+   * delimited by the given sides.
+   */
+  private static double getFarthestCornerDistance(double minX, double maxX, double minY, double maxY) {
+    return Math.hypot(Math.max(Math.abs(minX), Math.abs(maxX)),
+        Math.max(Math.abs(minY), Math.abs(maxY)));
+  }
+
+  /**
    * Paints rooms.
    */
   private void paintRooms(Graphics2D g2D, List<Selectable> selectedItems, Level level, float planScale,
@@ -3206,12 +3319,20 @@ public class PlanComponent extends JComponent implements PlanView, Scrollable, P
         ? Color.WHITE
         : Color.GRAY;
     // Draw rooms area
-    g2D.setStroke(new BasicStroke(getStrokeWidth(Room.class, paintMode) / planScale));
+    BasicStroke roomStroke = new BasicStroke(getStrokeWidth(Room.class, paintMode) / planScale);
+    g2D.setStroke(roomStroke);
+    float roomMargin = getStrokeOutsetMargin(roomStroke);
+    Rectangle2D clipBounds = getPaintedClipBounds(g2D);
     for (Room room : this.sortedLevelRooms) {
       boolean selectedRoom = selectedItems.contains(room);
       // In clipboard paint mode, paint room only if it is selected
       if (paintMode != PaintMode.CLIPBOARD
           || selectedRoom) {
+        float [][] roomPoints = room.getPoints();
+        // Names and areas of rooms are painted apart by paintRoomsNameAndArea
+        if (!intersectsClipBounds(clipBounds, roomPoints, roomMargin)) {
+          continue;
+        }
         g2D.setPaint(defaultFillPaint);
         float textureAngle = 0;
         if (this.preferences.isRoomFloorColoredOrTextured()
@@ -3301,7 +3422,7 @@ public class PlanComponent extends JComponent implements PlanView, Scrollable, P
         AffineTransform rotation = textureAngle != 0
             ? AffineTransform.getRotateInstance(-textureAngle, 0, 0)
             : null;
-        Shape roomShape = ShapeTools.getShape(room.getPoints(), true, rotation);
+        Shape roomShape = ShapeTools.getShape(roomPoints, true, rotation);
         fillShape(g2D, roomShape, paintMode);
         g2D.setComposite(oldComposite);
 
@@ -4088,7 +4209,10 @@ public class PlanComponent extends JComponent implements PlanView, Scrollable, P
                               PaintMode paintMode, boolean paintIcon) {
     if (!furniture.isEmpty()) {
       BasicStroke pieceBorderStroke = new BasicStroke(getStrokeWidth(HomePieceOfFurniture.class, paintMode) / planScale);
+      float pieceMargin = getStrokeOutsetMargin(pieceBorderStroke);
       Boolean allFurnitureViewedFromTop = null;
+      Rectangle2D clipBounds = getPaintedClipBounds(g2D);
+      Float maxWallThickness = null;
       // Draw furniture
       for (HomePieceOfFurniture piece : furniture) {
         if (piece.isVisible()) {
@@ -4105,7 +4229,21 @@ public class PlanComponent extends JComponent implements PlanView, Scrollable, P
           } else if (paintMode != PaintMode.CLIPBOARD
                     || selectedPiece) {
             // In clipboard paint mode, paint piece only if it is selected
-            Shape pieceShape = ShapeTools.getShape(piece.getPoints(), true, null);
+            float [][] piecePoints = piece.getPoints();
+            float margin = pieceMargin;
+            if (piece instanceof HomeDoorOrWindow) {
+              if (maxWallThickness == null) {
+                maxWallThickness = getMaxWallThickness();
+              }
+              // Sashes and the part drawn in the thickness of the wall extend
+              // past the points of a door or a window
+              margin += getDoorOrWindowPaintedRadius((HomeDoorOrWindow)piece, maxWallThickness);
+            }
+            // Names are painted apart by paintFurnitureName
+            if (!intersectsClipBounds(clipBounds, piecePoints, margin)) {
+              continue;
+            }
+            Shape pieceShape = ShapeTools.getShape(piecePoints, true, null);
             Shape pieceShape2D;
             if (piece instanceof HomeDoorOrWindow) {
               HomeDoorOrWindow doorOrWindow = (HomeDoorOrWindow)piece;
