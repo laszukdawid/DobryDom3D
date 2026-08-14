@@ -357,6 +357,7 @@
           <include name="**/PlanComponentCullingTest.java"/>
           <include name="**/PlanComponentRepaintBoundsTest.java"/>
           <include name="**/PlanComponentTopViewIconTest.java"/>
+          <include name="**/WallShapeTest.java"/>
           <include name="**/WallPanelTest.java"/>
           <include name="**/YafarayRendererTest.java"/>
         </fileset>
