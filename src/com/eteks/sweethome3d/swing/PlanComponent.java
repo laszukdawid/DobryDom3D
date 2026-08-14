@@ -4706,7 +4706,10 @@ public class PlanComponent extends JComponent implements PlanView, Scrollable, P
                                                   Color backgroundColor, Color foregroundColor, PaintMode paintMode) {
     if (doorOrWindow.isWallCutOutOnBothSides()) {
       Area doorOrWindowWallArea = null;
-      if (this.doorOrWindowWallThicknessAreasCache != null) {
+      // The cache is only read and written for interactive painting: print and export may
+      // run on their own thread, and the map isn't made for concurrent access
+      if (paintMode == PaintMode.PAINT
+          && this.doorOrWindowWallThicknessAreasCache != null) {
         doorOrWindowWallArea = this.doorOrWindowWallThicknessAreasCache.get(doorOrWindow);
       }
 
@@ -4719,35 +4722,45 @@ public class PlanComponent extends JComponent implements PlanView, Scrollable, P
         GeneralPath doorOrWindowWallPartShape = new GeneralPath();
         doorOrWindowWallPartShape.append(it, false);
         Area doorOrWindowWallPartArea = new Area(doorOrWindowWallPartShape);
+        Rectangle2D doorOrWindowWallPartBounds = doorOrWindowWallPartShape.getBounds2D();
 
         doorOrWindowWallArea = new Area();
         for (Wall wall : home.getWalls()) {
           if (wall.isAtLevel(doorOrWindow.getLevel())
               && doorOrWindow.isParallelToWall(wall)) {
-            Shape wallShape = ShapeTools.getShape(wall.getPoints(), true, null);
-            Area wallArea = new Area(wallShape);
-            wallArea.intersect(doorOrWindowWallPartArea);
-            if (!wallArea.isEmpty()) {
-              Rectangle2D doorOrWindowExtendedRectangle = new Rectangle2D.Float(
-                  (float)doorOrWindowRectangle.getX(),
-                  (float)doorOrWindowRectangle.getY() - 2 * wall.getThickness(),
-                  (float)doorOrWindowRectangle.getWidth(),
-                  (float)doorOrWindowRectangle.getWidth() + 4 * wall.getThickness());
-              it = doorOrWindowExtendedRectangle.getPathIterator(rotation);
-              GeneralPath path = new GeneralPath();
-              path.append(it, false);
-              wallArea = new Area(wallShape);
-              wallArea.intersect(new Area(path));
-              doorOrWindowWallArea.add(wallArea);
+            float [][] wallPoints = wall.getPoints();
+            // Every area intersected below lies within the rectangle of the piece grown
+            // by its width and twice the thickness of the wall, so the costly area
+            // operations can be spared for the walls whose points can't reach that far
+            if (intersectsClipBounds(doorOrWindowWallPartBounds, wallPoints,
+                    2 * wall.getThickness() + (float)doorOrWindowRectangle.getWidth())) {
+              Shape wallShape = ShapeTools.getShape(wallPoints, true, null);
+              Area wallArea = new Area(wallShape);
+              wallArea.intersect(doorOrWindowWallPartArea);
+              if (!wallArea.isEmpty()) {
+                Rectangle2D doorOrWindowExtendedRectangle = new Rectangle2D.Float(
+                    (float)doorOrWindowRectangle.getX(),
+                    (float)doorOrWindowRectangle.getY() - 2 * wall.getThickness(),
+                    (float)doorOrWindowRectangle.getWidth(),
+                    (float)doorOrWindowRectangle.getWidth() + 4 * wall.getThickness());
+                it = doorOrWindowExtendedRectangle.getPathIterator(rotation);
+                GeneralPath path = new GeneralPath();
+                path.append(it, false);
+                wallArea = new Area(wallShape);
+                wallArea.intersect(new Area(path));
+                doorOrWindowWallArea.add(wallArea);
+              }
             }
           }
         }
       }
 
-      if (this.doorOrWindowWallThicknessAreasCache == null) {
-        this.doorOrWindowWallThicknessAreasCache = new WeakHashMap<HomeDoorOrWindow, Area>();
+      if (paintMode == PaintMode.PAINT) {
+        if (this.doorOrWindowWallThicknessAreasCache == null) {
+          this.doorOrWindowWallThicknessAreasCache = new WeakHashMap<HomeDoorOrWindow, Area>();
+        }
+        this.doorOrWindowWallThicknessAreasCache.put(doorOrWindow, doorOrWindowWallArea);
       }
-      this.doorOrWindowWallThicknessAreasCache.put(doorOrWindow, doorOrWindowWallArea);
 
       g2D.setPaint(backgroundColor);
       g2D.fill(doorOrWindowWallArea);

@@ -358,6 +358,7 @@
           <include name="**/FurnitureTableTest.java"/>
           <include name="**/PlanComponentCullingTest.java"/>
           <include name="**/PlanComponentGridPaintingTest.java"/>
+          <include name="**/PlanComponentWallCutOutTest.java"/>
           <include name="**/PlanComponentRepaintBoundsTest.java"/>
           <include name="**/PlanComponentTopViewIconTest.java"/>
           <include name="**/WallShapeTest.java"/>
