@@ -364,7 +364,8 @@ public class HomePieceOfFurniture extends HomeObject implements PieceOfFurniture
   private boolean                modelMirrored;
   private Level                  level;
 
-  private transient Shape shapeCache;
+  private transient Shape      shapeCache;
+  private transient float [][] pointsCache;
 
 
   /**
@@ -770,7 +771,7 @@ public class HomePieceOfFurniture extends HomeObject implements PieceOfFurniture
       if (depth != this.depth) {
         float oldDepth = this.depth;
         this.depth = depth;
-        this.shapeCache = null;
+        clearShapeCache();
         firePropertyChange(Property.DEPTH.name(), oldDepth, depth);
       }
     } else {
@@ -795,7 +796,7 @@ public class HomePieceOfFurniture extends HomeObject implements PieceOfFurniture
     if (depthInPlan != this.depthInPlan) {
       float oldDepth = this.depthInPlan;
       this.depthInPlan = depthInPlan;
-      this.shapeCache = null;
+      clearShapeCache();
       firePropertyChange(Property.DEPTH_IN_PLAN.name(), oldDepth, depthInPlan);
     }
   }
@@ -862,7 +863,7 @@ public class HomePieceOfFurniture extends HomeObject implements PieceOfFurniture
       if (width != this.width) {
         float oldWidth = this.width;
         this.width = width;
-        this.shapeCache = null;
+        clearShapeCache();
         firePropertyChange(Property.WIDTH.name(), oldWidth, width);
       }
     } else {
@@ -887,7 +888,7 @@ public class HomePieceOfFurniture extends HomeObject implements PieceOfFurniture
     if (widthInPlan != this.widthInPlan) {
       float oldWidth = this.widthInPlan;
       this.widthInPlan = widthInPlan;
-      this.shapeCache = null;
+      clearShapeCache();
       firePropertyChange(Property.WIDTH_IN_PLAN.name(), oldWidth, widthInPlan);
     }
   }
@@ -1333,7 +1334,7 @@ public class HomePieceOfFurniture extends HomeObject implements PieceOfFurniture
     if (x != this.x) {
       float oldX = this.x;
       this.x = x;
-      this.shapeCache = null;
+      clearShapeCache();
       firePropertyChange(Property.X.name(), oldX, x);
     }
   }
@@ -1353,7 +1354,7 @@ public class HomePieceOfFurniture extends HomeObject implements PieceOfFurniture
     if (y != this.y) {
       float oldY = this.y;
       this.y = y;
-      this.shapeCache = null;
+      clearShapeCache();
       firePropertyChange(Property.Y.name(), oldY, y);
     }
   }
@@ -1375,7 +1376,7 @@ public class HomePieceOfFurniture extends HomeObject implements PieceOfFurniture
     if (angle != this.angle) {
       float oldAngle = this.angle;
       this.angle = angle;
-      this.shapeCache = null;
+      clearShapeCache();
       firePropertyChange(Property.ANGLE.name(), oldAngle, angle);
     }
   }
@@ -1400,7 +1401,7 @@ public class HomePieceOfFurniture extends HomeObject implements PieceOfFurniture
       if (pitch != this.pitch) {
         float oldPitch = this.pitch;
         this.pitch = pitch;
-        this.shapeCache = null;
+        clearShapeCache();
         firePropertyChange(Property.PITCH.name(), oldPitch, pitch);
       }
     } else {
@@ -1428,7 +1429,7 @@ public class HomePieceOfFurniture extends HomeObject implements PieceOfFurniture
       if (roll != this.roll) {
         float oldRoll = this.roll;
         this.roll = roll;
-        this.shapeCache = null;
+        clearShapeCache();
         firePropertyChange(Property.ROLL.name(), oldRoll, roll);
       }
     } else {
@@ -1666,13 +1667,21 @@ public class HomePieceOfFurniture extends HomeObject implements PieceOfFurniture
    * @return an array of the 4 (x,y) coordinates of the piece corners.
    */
   public float [][] getPoints() {
-    float [][] piecePoints = new float[4][2];
-    PathIterator it = getShape().getPathIterator(null);
-    for (int i = 0; i < piecePoints.length; i++) {
-      it.currentSegment(piecePoints [i]);
-      it.next();
+    if (this.pointsCache == null) {
+      float [][] piecePoints = new float[4][2];
+      PathIterator it = getShape().getPathIterator(null);
+      for (int i = 0; i < piecePoints.length; i++) {
+        it.currentSegment(piecePoints [i]);
+        it.next();
+      }
+      // Cache points
+      this.pointsCache = piecePoints;
     }
-    return piecePoints;
+    float [][] points = new float [this.pointsCache.length][];
+    for (int i = 0; i < points.length; i++) {
+      points [i] = this.pointsCache [i].clone();
+    }
+    return points;
   }
 
   /**
@@ -1821,6 +1830,15 @@ public class HomePieceOfFurniture extends HomeObject implements PieceOfFurniture
       this.shapeCache = pieceShape;
     }
     return this.shapeCache;
+  }
+
+  /**
+   * Clears the cached shape and points of this piece, once its location, its size
+   * or its angles changed.
+   */
+  private void clearShapeCache() {
+    this.shapeCache = null;
+    this.pointsCache = null;
   }
 
   /**
