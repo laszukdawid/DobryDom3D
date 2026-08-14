@@ -45,6 +45,7 @@ import com.eteks.sweethome3d.model.Label;
 import com.eteks.sweethome3d.model.Polyline;
 import com.eteks.sweethome3d.model.Room;
 import com.eteks.sweethome3d.model.Sash;
+import com.eteks.sweethome3d.model.TextStyle;
 import com.eteks.sweethome3d.model.UserPreferences;
 import com.eteks.sweethome3d.model.Wall;
 import com.eteks.sweethome3d.swing.PlanComponent;
@@ -194,11 +195,18 @@ public class PlanComponentCullingTest extends TestCase {
     home.addRoom(new Room(new float [][] {{30, 30}, {300, 30}, {300, 350}, {30, 350}}));
     Room secondRoom = new Room(new float [][] {{310, 30}, {550, 30}, {550, 350}, {310, 350}});
     secondRoom.setName("Room name");
+    secondRoom.setNameAngle((float)Math.PI / 6);
     secondRoom.setAreaVisible(true);
     home.addRoom(secondRoom);
 
     home.addPolyline(new Polyline(new float [][] {{60, 200}, {200, 260}, {280, 120}}));
     home.addLabel(new Label("A label", 420, 300));
+    // A rotated multiline label aligned on its right edge, whose painted block reaches
+    // well away from its anchor point, into tiles the anchor itself doesn't touch
+    Label rotatedLabel = new Label("A much longer rotated label\non two lines", 470, 90);
+    rotatedLabel.setAngle((float)Math.PI / 3);
+    rotatedLabel.setStyle(new TextStyle(null, 18, false, false, TextStyle.Alignment.RIGHT));
+    home.addLabel(rotatedLabel);
 
     // The default catalog is empty when the furniture library isn't deployed, so build
     // the catalog pieces this test needs from an image generated on the fly

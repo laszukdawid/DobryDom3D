@@ -3446,6 +3446,43 @@ public class PlanComponent extends JComponent implements PlanView, Scrollable, P
   }
 
   /**
+   * Returns <code>true</code> unless the block of text measured by <code>textWidth</code>,
+   * <code>lineCount</code> and <code>fontMetrics</code>, anchored at the baseline point
+   * (<code>x</code>, <code>y</code>) of its last line and rotated around it by
+   * <code>angle</code>, lies entirely outside of <code>clipBounds</code>. The corners of the
+   * block are grown by a whole line height, which covers the glyphs overshooting the ascent
+   * or the advance of their line as well as the stroke drawn around outlined text.
+   */
+  private static boolean textIntersectsClipBounds(Rectangle2D clipBounds,
+                                                  float textWidth, int lineCount,
+                                                  FontMetrics fontMetrics, TextStyle style,
+                                                  float x, float y, float angle) {
+    if (clipBounds == null) {
+      return true;
+    }
+    float minX;
+    if (style.getAlignment() == TextStyle.Alignment.LEFT) {
+      minX = 0;
+    } else if (style.getAlignment() == TextStyle.Alignment.RIGHT) {
+      minX = -textWidth;
+    } else { // CENTER
+      minX = -textWidth / 2;
+    }
+    float maxX = minX + textWidth;
+    float lineHeight = fontMetrics.getHeight();
+    float minY = -((lineCount - 1) * lineHeight + fontMetrics.getAscent());
+    float maxY = fontMetrics.getDescent();
+    float cos = (float)Math.cos(angle);
+    float sin = (float)Math.sin(angle);
+    float [][] corners = {
+        {x + minX * cos - minY * sin, y + minX * sin + minY * cos},
+        {x + maxX * cos - minY * sin, y + maxX * sin + minY * cos},
+        {x + maxX * cos - maxY * sin, y + maxX * sin + maxY * cos},
+        {x + minX * cos - maxY * sin, y + minX * sin + maxY * cos}};
+    return intersectsClipBounds(clipBounds, corners, lineHeight);
+  }
+
+  /**
    * Returns how far outside of the shape it draws the given stroke may paint. A miter joined
    * stroke, which is what <code>new BasicStroke(width)</code> builds, sticks out of an acute
    * vertex by up to half of its miter limit times its width, far more than the half width a
@@ -3763,9 +3800,6 @@ public class PlanComponent extends JComponent implements PlanView, Scrollable, P
                          String text, TextStyle style, Integer outlineColor,
                          float x, float y, float angle,
                          Font defaultFont) {
-    AffineTransform previousTransform = g2D.getTransform();
-    g2D.translate(x, y);
-    g2D.rotate(angle);
     if (style == null) {
       style = this.preferences.getDefaultTextStyle(selectableClass);
     }
@@ -3777,6 +3811,13 @@ public class PlanComponent extends JComponent implements PlanView, Scrollable, P
       lineWidths [i] = (float)fontMetrics.getStringBounds(lines [i], g2D).getWidth();
       textWidth = Math.max(lineWidths [i], textWidth);
     }
+    if (!textIntersectsClipBounds(getPaintedClipBounds(g2D), textWidth, lines.length,
+            fontMetrics, style, x, y, angle)) {
+      return;
+    }
+    AffineTransform previousTransform = g2D.getTransform();
+    g2D.translate(x, y);
+    g2D.rotate(angle);
     BasicStroke stroke = null;
     Font font;
     if (outlineColor != null) {
