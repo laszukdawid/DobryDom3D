@@ -1408,6 +1408,32 @@ public class PlanComponent extends JComponent implements PlanView, Scrollable, P
   }
 
   /**
+   * Returns how far outside of the box around its points a polyline may paint. On top of
+   * the margin its thickness and arrows need, a miter joined stroke sticks out of a sharp
+   * corner by up to half of its miter limit of 10 times its thickness, and a curved join
+   * bows out of the box by up to how far the control points of its curves lie from their
+   * ends, which is the span between the points neighboring each of them divided by the
+   * 3.625 constant a curved polyline path is built with.
+   */
+  private float getPolylineCullingMargin(Polyline polyline) {
+    float margin = getPolylinePaintedMargin(polyline);
+    if (polyline.getJoinStyle() == Polyline.JoinStyle.MITER) {
+      margin += Math.abs(polyline.getThickness()) * 10 / 2;
+    } else if (polyline.getJoinStyle() == Polyline.JoinStyle.CURVED) {
+      float [][] points = polyline.getPoints();
+      float maxNeighborSpan = 0;
+      for (int i = 0; i < points.length; i++) {
+        float [] previousPoint = points [(i + points.length - 1) % points.length];
+        float [] nextPoint = points [(i + 1) % points.length];
+        maxNeighborSpan = Math.max(maxNeighborSpan,
+            (float)Point2D.distance(previousPoint [0], previousPoint [1], nextPoint [0], nextPoint [1]));
+      }
+      margin += maxNeighborSpan / 3.625f;
+    }
+    return margin;
+  }
+
+  /**
    * Returns the region of this component covered by <code>items</code>, grown by the room the
    * outline, the indicators and the strokes painted around an item need, or <code>null</code>
    * if <code>items</code> is empty.
@@ -3483,6 +3509,42 @@ public class PlanComponent extends JComponent implements PlanView, Scrollable, P
   }
 
   /**
+   * Returns <code>true</code> unless <code>dimensionLine</code> paints entirely outside of
+   * <code>clipBounds</code>. The points of a dimension line already delimit the box between
+   * its base and its offset line, so the margin has to cover its end marks, the width of its
+   * strokes and the height of its length text; the length text can also reach past the ends
+   * of a line shorter than it, which is only checked when everything else lies outside.
+   */
+  private boolean intersectsDimensionLineClipBounds(Rectangle2D clipBounds,
+                                                    DimensionLine dimensionLine, Font defaultFont,
+                                                    float planScale, PaintMode paintMode,
+                                                    boolean feedback) {
+    if (clipBounds == null) {
+      return true;
+    }
+    TextStyle lengthStyle = dimensionLine.getLengthStyle();
+    if (lengthStyle == null) {
+      lengthStyle = this.preferences.getDefaultTextStyle(dimensionLine.getClass());
+    }
+    if (feedback && getFont() != null) {
+      lengthStyle = lengthStyle.deriveStyle(getFont().getSize() / planScale / this.resolutionScale);
+    }
+    FontMetrics lengthFontMetrics = getFontMetrics(defaultFont, lengthStyle);
+    float margin = dimensionLine.getEndMarkSize() / 2
+        + (getStrokeWidth(DimensionLine.class, paintMode) + 4) / planScale
+        + lengthFontMetrics.getHeight() + 2;
+    float [][] points = dimensionLine.getPoints();
+    if (intersectsClipBounds(clipBounds, points, margin)) {
+      return true;
+    }
+    float length = dimensionLine.getLength();
+    String lengthText = this.preferences.getLengthUnit().getFormat().format(length);
+    float textOverflow = (lengthFontMetrics.stringWidth(lengthText) - length) / 2;
+    return textOverflow > 0
+        && intersectsClipBounds(clipBounds, points, margin + textOverflow);
+  }
+
+  /**
    * Returns how far outside of the shape it draws the given stroke may paint. A miter joined
    * stroke, which is what <code>new BasicStroke(width)</code> builds, sticks out of an acute
    * vertex by up to half of its miter limit times its width, far more than the half width a
@@ -5142,12 +5204,20 @@ public class PlanComponent extends JComponent implements PlanView, Scrollable, P
                               Paint selectionOutlinePaint,
                               Paint indicatorPaint, float planScale,
                               Color foregroundColor, PaintMode paintMode) {
+    Rectangle2D clipBounds = getPaintedClipBounds(g2D);
     // Draw polylines
     for (Polyline polyline : polylines) {
       if (isViewableAtLevel(polyline, level)) {
         boolean selected = isItemSelected(selectedItems, polyline);
         if (paintMode != PaintMode.CLIPBOARD
             || selected) {
+          if (!selected
+              && !intersectsClipBounds(clipBounds, polyline.getPoints(),
+                      getPolylineCullingMargin(polyline))) {
+            // Skip a polyline painted entirely outside of the clip; a selected one keeps
+            // being painted for its outline and indicators
+            continue;
+          }
           g2D.setPaint(new Color(polyline.getColor()));
           float thickness = polyline.getThickness();
           g2D.setStroke(ShapeTools.getStroke(thickness, polyline.getCapStyle(), polyline.getJoinStyle(),
@@ -5261,11 +5331,20 @@ public class PlanComponent extends JComponent implements PlanView, Scrollable, P
         ? (DimensionLine)selectedItems.get(0)
         : null;
 
+    Rectangle2D clipBounds = getPaintedClipBounds(g2D);
     // Draw dimension lines
     // Change font size
     Font previousFont = g2D.getFont();
     for (DimensionLine dimensionLine : dimensionLines) {
       if (isViewableAtLevel(dimensionLine, level)) {
+        if (dimensionLine != selectedDimensionLineWithIndicators
+            && !isItemSelected(selectedItems, dimensionLine)
+            && !intersectsDimensionLineClipBounds(clipBounds, dimensionLine, previousFont,
+                    planScale, paintMode, feedback)) {
+          // Skip a dimension line painted entirely outside of the clip; a selected one
+          // keeps being painted for its outline and indicators
+          continue;
+        }
         Integer dimensionLineColor = dimensionLine.getColor();
         float markEndScale = dimensionLine.getEndMarkSize() / markEndWidth;
         BasicStroke dimensionLineStroke = new BasicStroke(getStrokeWidth(DimensionLine.class, paintMode) / markEndScale / planScale);

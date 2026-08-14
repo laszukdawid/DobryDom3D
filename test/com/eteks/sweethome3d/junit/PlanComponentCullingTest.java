@@ -38,6 +38,7 @@ import com.eteks.sweethome3d.io.DefaultUserPreferences;
 import com.eteks.sweethome3d.model.CatalogDoorOrWindow;
 import com.eteks.sweethome3d.model.CatalogPieceOfFurniture;
 import com.eteks.sweethome3d.model.Content;
+import com.eteks.sweethome3d.model.DimensionLine;
 import com.eteks.sweethome3d.model.Home;
 import com.eteks.sweethome3d.model.HomeDoorOrWindow;
 import com.eteks.sweethome3d.model.HomePieceOfFurniture;
@@ -200,7 +201,23 @@ public class PlanComponentCullingTest extends TestCase {
     home.addRoom(secondRoom);
 
     home.addPolyline(new Polyline(new float [][] {{60, 200}, {200, 260}, {280, 120}}));
+    // A thick polyline ending in a sharp spike, whose miter join reaches far past the
+    // spike, with arrows sized after its thickness
+    Polyline miterPolyline = new Polyline(new float [][] {{350, 250}, {520, 245}, {350, 240}});
+    miterPolyline.setThickness(6);
+    miterPolyline.setStartArrowStyle(Polyline.ArrowStyle.DELTA);
+    miterPolyline.setEndArrowStyle(Polyline.ArrowStyle.OPEN);
+    home.addPolyline(miterPolyline);
+    // A curved closed polyline, whose curves bow outside of the box around its points
+    Polyline curvedPolyline = new Polyline(new float [][] {{420, 60}, {520, 60}, {520, 130}, {420, 130}});
+    curvedPolyline.setJoinStyle(Polyline.JoinStyle.CURVED);
+    curvedPolyline.setClosedPath(true);
+    home.addPolyline(curvedPolyline);
     home.addLabel(new Label("A label", 420, 300));
+    // Dimension lines: one with an offset, and a short one whose length text is wider
+    // than the line itself and overflows its ends
+    home.addDimensionLine(new DimensionLine(40, 40, 40, 340, 25));
+    home.addDimensionLine(new DimensionLine(90, 330, 100, 330, -15));
     // A rotated multiline label aligned on its right edge, whose painted block reaches
     // well away from its anchor point, into tiles the anchor itself doesn't touch
     Label rotatedLabel = new Label("A much longer rotated label\non two lines", 470, 90);
