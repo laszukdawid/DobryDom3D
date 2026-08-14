@@ -28,8 +28,13 @@ import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.InterruptedIOException;
+import java.lang.reflect.Constructor;
+import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.CountDownLatch;
 
 import javax.imageio.ImageIO;
 
@@ -171,6 +176,101 @@ public class PlanComponentTopViewIconTest extends TestCase {
     assertNotNull("The other piece stopped being painted", otherPiece);
   }
 
+  /**
+   * The cache the icons live in is a weak map, so the key a piece is mapped to has to be the
+   * very instance that map is keyed by -- an equal sibling would let the entry be collected
+   * while the piece still needs it, and the piece would then paint nothing at all.
+   * <p>Printing a piece whose icon is still being loaded replaces the icon of the entry an
+   * equal piece already created. Replacing the value of a map entry doesn't replace its key,
+   * so that's where the piece and the cache may end up holding two different instances.
+   */
+  public void testEachPieceIsMappedToTheKeyItsIconIsCachedUnder() throws Exception {
+    Home home = new Home();
+    // Keep the icon of the first piece loading, so that it's still a wait icon when the
+    // second piece is painted and the printed paint replaces it
+    CountDownLatch iconLoaded = new CountDownLatch(1);
+    Content icon = createBlockingIconContent(Color.RED, iconLoaded);
+    try {
+      addPiece(home, createCatalogPiece("first", icon), 100, 150);
+      TestPlanComponent planComponent = createPlanComponent(home, createPreferences());
+      paintOnce(planComponent, true);
+
+      // A second identical piece, painted for the first time while printing
+      addPiece(home, createCatalogPiece("second", icon), 250, 150);
+      paintOnce(planComponent, false);
+
+      Map<?, ?> iconKeys = readField(planComponent, "furnitureTopViewIconKeys");
+      Map<?, ?> icons = readField(planComponent, "furnitureTopViewIconsCache");
+      assertEquals("Both pieces should be mapped to a top view icon key", 2, iconKeys.size());
+      assertEquals("Both pieces should share one cached icon", 1, icons.size());
+      Object cachedKey = icons.keySet().iterator().next();
+      for (Object key : iconKeys.values()) {
+        assertNotNull("A piece was mapped to a null key", key);
+        assertSame("A piece is mapped to an equal sibling of the key the cache is keyed by, "
+            + "so the icon may be dropped while the piece is still painted", cachedKey, key);
+      }
+    } finally {
+      iconLoaded.countDown();
+    }
+  }
+
+  /**
+   * The keys of that cache are used in hash maps, so they have to honour the equals/hashCode
+   * contract: equality has to be symmetric, and two equal keys have to share a hash code.
+   */
+  public void testIconKeysHonourTheEqualsContract() throws Exception {
+    Content planIcon = createIconContent(Color.RED);
+    Content model = createIconContent(Color.BLUE);
+
+    // A piece drawn from a plan icon and a piece rendered from the same model paint different
+    // things, so neither key may match the other -- in either direction
+    Object drawnKey = createIconKey(new HomePieceOfFurniture(
+        createCatalogPiece("drawn", planIcon, model)));
+    Object renderedKey = createIconKey(new HomePieceOfFurniture(
+        createCatalogPiece("rendered", null, model)));
+    assertFalse("A piece drawn from its plan icon matched a piece rendered from its model",
+        drawnKey.equals(renderedKey));
+    assertFalse("A piece rendered from its model matched a piece drawn from its plan icon",
+        renderedKey.equals(drawnKey));
+
+    // Data which doesn't change the plan icon of a piece doesn't change its key either,
+    // and so may not change its hash code
+    HomePieceOfFurniture dull = new HomePieceOfFurniture(
+        createCatalogPiece("dull", planIcon, model));
+    HomePieceOfFurniture shiny = new HomePieceOfFurniture(
+        createCatalogPiece("shiny", planIcon, model));
+    shiny.setShininess(0.5f);
+    assertEqualKeysShareAHashCode("shininess", createIconKey(dull), createIconKey(shiny));
+
+    HomePieceOfFurniture unrotated = new HomePieceOfFurniture(
+        createCatalogPiece("unrotated", planIcon, model));
+    HomePieceOfFurniture rotated = new HomePieceOfFurniture(createCatalogPiece("rotated",
+        planIcon, model, new float [][] {{0, 0, 1}, {0, 1, 0}, {-1, 0, 0}}));
+    assertEqualKeysShareAHashCode("model rotation",
+        createIconKey(unrotated), createIconKey(rotated));
+  }
+
+  private void assertEqualKeysShareAHashCode(String difference, Object key1, Object key2) {
+    assertTrue("Two pieces differing only by their " + difference + " should share an icon",
+        key1.equals(key2) && key2.equals(key1));
+    assertEquals("Two equal keys differing by their " + difference + " got a different hash code",
+        key1.hashCode(), key2.hashCode());
+  }
+
+  private Object createIconKey(HomePieceOfFurniture piece) throws Exception {
+    Constructor<?> keyConstructor = Class.forName(
+            "com.eteks.sweethome3d.swing.PlanComponent$HomePieceOfFurnitureTopViewIconKey")
+        .getDeclaredConstructor(HomePieceOfFurniture.class);
+    keyConstructor.setAccessible(true);
+    return keyConstructor.newInstance(piece);
+  }
+
+  private Map<?, ?> readField(PlanComponent planComponent, String name) throws Exception {
+    Field field = PlanComponent.class.getDeclaredField(name);
+    field.setAccessible(true);
+    return (Map<?, ?>)field.get(planComponent);
+  }
+
   private Home createHomeWithSharedAndDistinctPieces() throws IOException {
     Home home = new Home();
     Content sharedIcon = createIconContent(Color.RED);
@@ -305,6 +405,39 @@ public class PlanComponentTopViewIconTest extends TestCase {
         60, 40, 80, 0, 0, true, null,
         CatalogPieceOfFurniture.IDENTITY_ROTATION, 0, null, null,
         true, true, true, false, null, null, null, null);
+  }
+
+  /**
+   * Returns a catalog piece with both a plan icon and a model, either of which may be null.
+   */
+  private CatalogPieceOfFurniture createCatalogPiece(String id, Content planIcon, Content model) {
+    return createCatalogPiece(id, planIcon, model, CatalogPieceOfFurniture.IDENTITY_ROTATION);
+  }
+
+  private CatalogPieceOfFurniture createCatalogPiece(String id, Content planIcon, Content model,
+                                                     float [][] modelRotation) {
+    return new CatalogPieceOfFurniture(id, "Piece " + id, null, model, planIcon, model,
+        60, 40, 80, 0, true, modelRotation, null, true, null, null);
+  }
+
+  /**
+   * Returns a content whose first read blocks until <code>released</code> counts down, which
+   * keeps the icon read from it a wait icon for as long as the caller needs.
+   */
+  private Content createBlockingIconContent(Color color, final CountDownLatch released)
+      throws IOException {
+    final Content content = createIconContent(color);
+    return new Content() {
+        public InputStream openStream() throws IOException {
+          try {
+            released.await();
+          } catch (InterruptedException ex) {
+            Thread.currentThread().interrupt();
+            throw new InterruptedIOException("Interrupted while waiting to read the icon");
+          }
+          return content.openStream();
+        }
+      };
   }
 
   private Content createIconContent(Color color) throws IOException {

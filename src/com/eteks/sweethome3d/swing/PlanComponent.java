@@ -4914,8 +4914,11 @@ public class PlanComponent extends JComponent implements PlanView, Scrollable, P
           new WeakHashMap<HomePieceOfFurnitureTopViewIconKey, WeakReference<HomePieceOfFurnitureTopViewIconKey>>();
     }
     HomePieceOfFurnitureTopViewIconKey topViewIconKey = this.furnitureTopViewIconKeys.get(piece);
-    PieceOfFurnitureTopViewIcon icon;
-    if (topViewIconKey == null) {
+    PieceOfFurnitureTopViewIcon icon = topViewIconKey != null
+        ? this.furnitureTopViewIconsCache.get(topViewIconKey)
+        : null;
+    if (icon == null) {
+      // Either this piece has no key yet, or the entry its key gave access to was dropped
       topViewIconKey = new HomePieceOfFurnitureTopViewIconKey(piece.clone());
       icon = this.furnitureTopViewIconsCache.get(topViewIconKey);
       boolean missingIcon = icon == null;
@@ -4934,15 +4937,14 @@ public class PlanComponent extends JComponent implements PlanView, Scrollable, P
           // The cache held no equal key, so this one is the key of the entry just added
           rememberTopViewIconKey(topViewIconKey);
         }
-      } else {
-        // As furnitureTopViewIconKeys and furnitureTopViewIconsCache are both WeakHashMap instances,
-        // use the HomePieceOfFurnitureTopViewIconKey instance that already exists in furnitureTopViewIconsCache
-        // to avoid the deletion of the entry containing the new sibling when a piece is garbage collected
-        topViewIconKey = getKeyOfCachedTopViewIcon(topViewIconKey);
       }
+      // As furnitureTopViewIconKeys and furnitureTopViewIconsCache are both WeakHashMap instances,
+      // use the HomePieceOfFurnitureTopViewIconKey instance that furnitureTopViewIconsCache is
+      // keyed by to avoid the deletion of the entry containing the new sibling when a piece is
+      // garbage collected. Replacing the icon of an existing entry doesn't replace its key,
+      // so this matters even when the cache was just written to
+      topViewIconKey = getKeyOfCachedTopViewIcon(topViewIconKey);
       this.furnitureTopViewIconKeys.put(piece, topViewIconKey);
-    } else {
-      icon = this.furnitureTopViewIconsCache.get(topViewIconKey);
     }
 
     if (icon.isWaitIcon() || icon.isErrorIcon()) {
@@ -7244,6 +7246,8 @@ public class PlanComponent extends JComponent implements PlanView, Scrollable, P
   private static class PieceOfFurnitureModelIcon extends PieceOfFurnitureTopViewIcon {
     private static BranchGroup     sceneRoot;
     private static ExecutorService iconsCreationExecutor;
+    // Lock serializing the icons rendered through sceneRoot and its single off screen canvas
+    private static final Object    sceneLock = new Object();
 
     /**
      * Creates a top view icon proxy for a <code>piece</code> of furniture.
@@ -7375,38 +7379,49 @@ public class PlanComponent extends JComponent implements PlanView, Scrollable, P
       BranchGroup model = new BranchGroup();
       model.setCapability(BranchGroup.ALLOW_DETACH);
       model.addChild(modelTransformGroup);
-      BranchGroup sceneRoot = getSceneRoot(iconSize);
-      sceneRoot.addChild(model);
+      // sceneRoot, its background and its canvas are shared by every icon rendered in this JVM,
+      // while the sequence below is far from atomic: an icon is rendered twice and the two
+      // images are compared. Icons are created both in iconsCreationExecutor when the plan is
+      // painted on screen, and in the calling thread when it's printed or exported, so without
+      // this lock two renders may interleave and an icon may capture an other piece's model.
+      synchronized (sceneLock) {
+        BranchGroup sceneRoot = getSceneRoot(iconSize);
+        sceneRoot.addChild(model);
+        try {
+          // Render scene with a white background
+          Background background = (Background)sceneRoot.getChild(0);
+          background.setColor(1, 1, 1);
+          Canvas3D canvas3D = ((SimpleUniverse)sceneRoot.getUserData()).getCanvas();
+          canvas3D.renderOffScreenBuffer();
+          canvas3D.waitForOffScreenRendering();
+          BufferedImage imageWithWhiteBackgound = canvas3D.getOffScreenBuffer().getImage();
+          int [] imageWithWhiteBackgoundPixels = getImagePixels(imageWithWhiteBackgound);
 
-      // Render scene with a white background
-      Background background = (Background)sceneRoot.getChild(0);
-      background.setColor(1, 1, 1);
-      Canvas3D canvas3D = ((SimpleUniverse)sceneRoot.getUserData()).getCanvas();
-      canvas3D.renderOffScreenBuffer();
-      canvas3D.waitForOffScreenRendering();
-      BufferedImage imageWithWhiteBackgound = canvas3D.getOffScreenBuffer().getImage();
-      int [] imageWithWhiteBackgoundPixels = getImagePixels(imageWithWhiteBackgound);
+          // Render scene with a black background
+          background.setColor(0, 0, 0);
+          canvas3D.renderOffScreenBuffer();
+          canvas3D.waitForOffScreenRendering();
+          BufferedImage imageWithBlackBackgound = canvas3D.getOffScreenBuffer().getImage();
+          int [] imageWithBlackBackgoundPixels = getImagePixels(imageWithBlackBackgound);
 
-      // Render scene with a black background
-      background.setColor(0, 0, 0);
-      canvas3D.renderOffScreenBuffer();
-      canvas3D.waitForOffScreenRendering();
-      BufferedImage imageWithBlackBackgound = canvas3D.getOffScreenBuffer().getImage();
-      int [] imageWithBlackBackgoundPixels = getImagePixels(imageWithBlackBackgound);
+          // Create an image with transparent pixels where model isn't drawn
+          for (int i = 0; i < imageWithBlackBackgoundPixels.length; i++) {
+            if (imageWithBlackBackgoundPixels [i] != imageWithWhiteBackgoundPixels [i]
+                && imageWithBlackBackgoundPixels [i] == 0xFF000000
+                && imageWithWhiteBackgoundPixels [i] == 0xFFFFFFFF) {
+              imageWithWhiteBackgoundPixels [i] = 0;
+            }
+          }
 
-      // Create an image with transparent pixels where model isn't drawn
-      for (int i = 0; i < imageWithBlackBackgoundPixels.length; i++) {
-        if (imageWithBlackBackgoundPixels [i] != imageWithWhiteBackgoundPixels [i]
-            && imageWithBlackBackgoundPixels [i] == 0xFF000000
-            && imageWithWhiteBackgoundPixels [i] == 0xFFFFFFFF) {
-          imageWithWhiteBackgoundPixels [i] = 0;
+          return new ImageIcon(Toolkit.getDefaultToolkit().createImage(new MemoryImageSource(
+              imageWithWhiteBackgound.getWidth(), imageWithWhiteBackgound.getHeight(),
+              imageWithWhiteBackgoundPixels, 0, imageWithWhiteBackgound.getWidth())));
+        } finally {
+          // Detach the model whatever happened, a model left in the scene would be drawn
+          // in the icons rendered next
+          sceneRoot.removeChild(model);
         }
       }
-
-      sceneRoot.removeChild(model);
-      return new ImageIcon(Toolkit.getDefaultToolkit().createImage(new MemoryImageSource(
-          imageWithWhiteBackgound.getWidth(), imageWithWhiteBackgound.getHeight(),
-          imageWithWhiteBackgoundPixels, 0, imageWithWhiteBackgound.getWidth())));
     }
 
     /**
@@ -7499,22 +7514,20 @@ public class PlanComponent extends JComponent implements PlanView, Scrollable, P
     private HomePieceOfFurniture piece;
     private int                  hashCode;
 
+    /**
+     * Hashes only the data <code>equals</code> compares whatever the two pieces are, so that
+     * two equal keys can't get a different hash code. The size and the mirroring of a piece are
+     * left out on purpose: <code>equals</code> compares them under conditions which depend on
+     * both pieces, and two equal keys may not agree on them. The data of a model is included,
+     * as a key built from a plan icon is never equal to a key built from a model.
+     */
     public HomePieceOfFurnitureTopViewIconKey(HomePieceOfFurniture piece) {
       this.piece = piece;
-      this.hashCode = (piece.getPlanIcon() != null ? piece.getPlanIcon().hashCode() : piece.getModel().hashCode())
-          + (piece.getColor() != null ? 37 * piece.getColor().hashCode() : 1234);
-      if (piece.isHorizontallyRotated()
-          || piece.getTexture() != null) {
-        this.hashCode +=
-              (piece.getTexture() != null ? 37 * piece.getTexture().hashCode() : 0)
-            + 37 * Float.valueOf(piece.getWidthInPlan()).hashCode()
-            + 37 * Float.valueOf(piece.getDepthInPlan()).hashCode()
-            + 37 * Float.valueOf(piece.getHeightInPlan()).hashCode();
-      }
-      if (piece.getRoll() != 0) {
-        this.hashCode += 37 * Boolean.valueOf(piece.isModelMirrored()).hashCode();
-      }
-      if (piece.getPlanIcon() != null) {
+      Content planIcon = piece.getPlanIcon();
+      this.hashCode = (planIcon != null ? planIcon.hashCode() : piece.getModel().hashCode())
+          + (piece.getColor() != null ? 37 * piece.getColor().hashCode() : 1234)
+          + (piece.getTexture() != null ? 37 * piece.getTexture().hashCode() : 0);
+      if (planIcon == null) {
         this.hashCode +=
               37 * Arrays.deepHashCode(piece.getModelRotation())
             + 37 * Boolean.valueOf(piece.isModelCenteredAtOrigin()).hashCode()
@@ -7533,9 +7546,12 @@ public class PlanComponent extends JComponent implements PlanView, Scrollable, P
         HomePieceOfFurniture piece2 = ((HomePieceOfFurnitureTopViewIconKey)obj).piece;
         // Test all furniture data that could make change the plan icon
         // (see HomePieceOfFurniture3D and PlanComponent#addModelListeners for changes conditions)
+        // A piece drawn from its plan icon is never equal to a piece rendered from its model,
+        // whichever of the two keys is asked
         return (this.piece.getPlanIcon() != null
                   ? this.piece.getPlanIcon().equals(piece2.getPlanIcon())
-                  : this.piece.getModel().equals(piece2.getModel()))
+                  : piece2.getPlanIcon() == null
+                    && this.piece.getModel().equals(piece2.getModel()))
             && (this.piece.getColor() == piece2.getColor()
                 || this.piece.getColor() != null && this.piece.getColor().equals(piece2.getColor()))
             && (this.piece.getTexture() == piece2.getTexture()
