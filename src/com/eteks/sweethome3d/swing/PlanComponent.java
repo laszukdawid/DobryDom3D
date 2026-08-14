@@ -3037,6 +3037,20 @@ public class PlanComponent extends JComponent implements PlanView, Scrollable, P
       xMax = convertXPixelToModel(getWidth());
       yMax = convertYPixelToModel(getHeight());
     }
+    Shape clip = g2D.getClip();
+    if (clip != null) {
+      // Restrict painting to the lines crossing the clip, grown by the outset of their stroke,
+      // so that repainting a small dirty region doesn't redraw the grid of the whole view
+      Rectangle2D clipBounds = clip.getBounds2D();
+      float strokeMargin = 2 / gridScale;
+      xMin = Math.max(xMin, (float)clipBounds.getMinX() - strokeMargin);
+      xMax = Math.min(xMax, (float)clipBounds.getMaxX() + strokeMargin);
+      yMin = Math.max(yMin, (float)clipBounds.getMinY() - strokeMargin);
+      yMax = Math.min(yMax, (float)clipBounds.getMaxY() + strokeMargin);
+      if (xMin > xMax || yMin > yMax) {
+        return;
+      }
+    }
     boolean useGridImage = false;
     try {
       useGridImage = OperatingSystem.isMacOSX()
@@ -3073,27 +3087,33 @@ public class PlanComponent extends JComponent implements PlanView, Scrollable, P
                               float gridSize, float mainGridSize) {
     g2D.setColor(UIManager.getColor("controlShadow"));
     g2D.setStroke(new BasicStroke(0.5f / gridScale));
-    // Draw vertical lines
-    for (double x = (int)(xMin / gridSize) * gridSize; x < xMax; x += gridSize) {
-      g2D.draw(new Line2D.Double(x, yMin, x, yMax));
-    }
-    // Draw horizontal lines
-    for (double y = (int)(yMin / gridSize) * gridSize; y < yMax; y += gridSize) {
-      g2D.draw(new Line2D.Double(xMin, y, xMax, y));
-    }
+    // Draw all the lines of the grid as the subpaths of a single path, issuing one draw
+    // call instead of one per line
+    g2D.draw(getGridLinesPath(xMin, xMax, yMin, yMax, gridSize));
 
     if (mainGridSize != gridSize) {
       g2D.setStroke(new BasicStroke(1.5f / gridScale,
           BasicStroke.CAP_BUTT, BasicStroke.JOIN_BEVEL));
-      // Draw main vertical lines
-      for (double x = (int)(xMin / mainGridSize) * mainGridSize; x < xMax; x += mainGridSize) {
-        g2D.draw(new Line2D.Double(x, yMin, x, yMax));
-      }
-      // Draw positive main horizontal lines
-      for (double y = (int)(yMin / mainGridSize) * mainGridSize; y < yMax; y += mainGridSize) {
-        g2D.draw(new Line2D.Double(xMin, y, xMax, y));
-      }
+      g2D.draw(getGridLinesPath(xMin, xMax, yMin, yMax, mainGridSize));
     }
+  }
+
+  /**
+   * Returns the vertical and horizontal lines spaced by <code>gridSize</code> which cross
+   * the given range, gathered in one path.
+   */
+  private static GeneralPath getGridLinesPath(float xMin, float xMax, float yMin, float yMax,
+                                              float gridSize) {
+    GeneralPath gridLines = new GeneralPath();
+    for (double x = (int)(xMin / gridSize) * gridSize; x < xMax; x += gridSize) {
+      gridLines.moveTo(x, yMin);
+      gridLines.lineTo(x, yMax);
+    }
+    for (double y = (int)(yMin / gridSize) * gridSize; y < yMax; y += gridSize) {
+      gridLines.moveTo(xMin, y);
+      gridLines.lineTo(xMax, y);
+    }
+    return gridLines;
   }
 
   /**
