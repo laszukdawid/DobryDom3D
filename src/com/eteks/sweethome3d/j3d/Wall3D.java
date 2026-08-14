@@ -181,8 +181,11 @@ public class Wall3D extends Object3DBranch {
    * Sets the 3D geometry of this wall shapes that matches its 2D geometry.
    */
   private void updateWallGeometry(boolean waitDoorOrWindowModelsLoadingEnd) {
-    updateWallSideGeometry(WALL_LEFT_SIDE, waitDoorOrWindowModelsLoadingEnd);
-    updateWallSideGeometry(WALL_RIGHT_SIDE, waitDoorOrWindowModelsLoadingEnd);
+    // Both sides of a wall, and the baseboard of each, are cut out by the same doors and windows,
+    // so gather them once rather than walking the whole home furniture for each of them
+    List<HomePieceOfFurniture> visibleDoorsAndWindows = getVisibleDoorsAndWindows(getHome().getFurniture());
+    updateWallSideGeometry(WALL_LEFT_SIDE, waitDoorOrWindowModelsLoadingEnd, visibleDoorsAndWindows);
+    updateWallSideGeometry(WALL_RIGHT_SIDE, waitDoorOrWindowModelsLoadingEnd, visibleDoorsAndWindows);
     setPickable(getHome().getEnvironment().getWallsAlpha() == 0);
 
     Shape3D wallSelectionShape = (Shape3D)getChild(8);
@@ -191,7 +194,8 @@ public class Wall3D extends Object3DBranch {
   }
 
   private void updateWallSideGeometry(int wallSide,
-                                      boolean waitDoorOrWindowModelsLoadingEnd) {
+                                      boolean waitDoorOrWindowModelsLoadingEnd,
+                                      List<HomePieceOfFurniture> visibleDoorsAndWindows) {
     Wall wall = (Wall)getUserData();
     HomeTexture wallTexture;
     Baseboard baseboard;
@@ -223,7 +227,7 @@ public class Wall3D extends Object3DBranch {
                                 new ArrayList<Geometry>()};
       // Create geometries of the wall side
       createWallGeometries(wallGeometries [0], wallGeometries [2], wallGeometries [3], wallSide,
-          null, wallTexture, waitDoorOrWindowModelsLoadingEnd);
+          null, wallTexture, waitDoorOrWindowModelsLoadingEnd, visibleDoorsAndWindows);
       if (baseboard != null) {
         HomeTexture baseboardTexture = baseboard.getTexture();
         if (baseboardTexture == null
@@ -232,7 +236,7 @@ public class Wall3D extends Object3DBranch {
         }
         // Create geometries of its baseboard
         createWallGeometries(wallGeometries [1], wallGeometries [1], wallGeometries [1], wallSide,
-            baseboard, baseboardTexture, waitDoorOrWindowModelsLoadingEnd);
+            baseboard, baseboardTexture, waitDoorOrWindowModelsLoadingEnd, visibleDoorsAndWindows);
       }
       for (int i = 0; i < wallSideGroups.length; i++) {
         for (Geometry wallGeometry : (List<Geometry>)wallGeometries [i]) {
@@ -265,7 +269,8 @@ public class Wall3D extends Object3DBranch {
                                     final int wallSide,
                                     final Baseboard baseboard,
                                     final HomeTexture texture,
-                                    final boolean waitDoorOrWindowModelsLoadingEnd) {
+                                    final boolean waitDoorOrWindowModelsLoadingEnd,
+                                    final List<HomePieceOfFurniture> visibleDoorsAndWindows) {
     final Wall wall = (Wall)getUserData();
     Shape wallShape = getShape(wall.getPoints());
     final float [][] wallSidePoints = getWallSidePoints(wallSide);
@@ -311,7 +316,7 @@ public class Wall3D extends Object3DBranch {
     // Search which doors or windows intersect with this wall side or its baseboard
     List<DoorOrWindowArea> windowIntersections = new ArrayList<DoorOrWindowArea>();
     List<HomePieceOfFurniture> intersectingDoorOrWindows = new ArrayList<HomePieceOfFurniture>();
-    for (HomePieceOfFurniture piece : getVisibleDoorsAndWindows(getHome().getFurniture())) {
+    for (HomePieceOfFurniture piece : visibleDoorsAndWindows) {
       float pieceElevation = piece.getGroundElevation();
       if (pieceElevation + piece.getHeight() > wallElevation
           && pieceElevation < maxTopElevation) {
@@ -619,8 +624,10 @@ public class Wall3D extends Object3DBranch {
                         && baseboard == null) {
                       EventQueue.invokeLater(new Runnable() {
                           public void run() {
-                            // Request a new update only once all missing models are loaded
-                            updateWallSideGeometry(wallSide, waitDoorOrWindowModelsLoadingEnd);
+                            // Request a new update only once all missing models are loaded.
+                            // This runs later, so the doors and windows are gathered again
+                            updateWallSideGeometry(wallSide, waitDoorOrWindowModelsLoadingEnd,
+                                getVisibleDoorsAndWindows(getHome().getFurniture()));
                           }
                         });
                     }
