@@ -66,6 +66,7 @@ import java.awt.geom.Area;
 import java.awt.geom.Ellipse2D;
 import java.awt.geom.GeneralPath;
 import java.awt.geom.Line2D;
+import java.awt.geom.Path2D;
 import java.awt.geom.PathIterator;
 import java.awt.geom.Point2D;
 import java.awt.geom.Rectangle2D;
@@ -1417,9 +1418,14 @@ public class PlanComponent extends JComponent implements PlanView, Scrollable, P
    */
   private float getPolylineCullingMargin(Polyline polyline) {
     float margin = getPolylinePaintedMargin(polyline);
-    if (polyline.getJoinStyle() == Polyline.JoinStyle.MITER) {
+    if (polyline.getJoinStyle() == Polyline.JoinStyle.MITER
+        // The chevron of an open arrow is drawn with its own miter joined stroke,
+        // whatever the join style of the polyline it ends
+        || polyline.getStartArrowStyle() == Polyline.ArrowStyle.OPEN
+        || polyline.getEndArrowStyle() == Polyline.ArrowStyle.OPEN) {
       margin += Math.abs(polyline.getThickness()) * 10 / 2;
-    } else if (polyline.getJoinStyle() == Polyline.JoinStyle.CURVED) {
+    }
+    if (polyline.getJoinStyle() == Polyline.JoinStyle.CURVED) {
       float [][] points = polyline.getPoints();
       float maxNeighborSpan = 0;
       for (int i = 0; i < points.length; i++) {
@@ -3126,11 +3132,12 @@ public class PlanComponent extends JComponent implements PlanView, Scrollable, P
 
   /**
    * Returns the vertical and horizontal lines spaced by <code>gridSize</code> which cross
-   * the given range, gathered in one path.
+   * the given range, gathered in one path. The path keeps double precision so lines far
+   * from the origin don't collapse on the same rounded floats.
    */
-  private static GeneralPath getGridLinesPath(float xMin, float xMax, float yMin, float yMax,
-                                              float gridSize) {
-    GeneralPath gridLines = new GeneralPath();
+  private static Path2D getGridLinesPath(float xMin, float xMax, float yMin, float yMax,
+                                         float gridSize) {
+    Path2D gridLines = new Path2D.Double();
     for (double x = (int)(xMin / gridSize) * gridSize; x < xMax; x += gridSize) {
       gridLines.moveTo(x, yMin);
       gridLines.lineTo(x, yMax);
