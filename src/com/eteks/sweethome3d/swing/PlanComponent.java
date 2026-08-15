@@ -898,6 +898,8 @@ public class PlanComponent extends JComponent implements PlanView, Scrollable, P
             otherLevelsWallAreaCache = null;
             otherLevelsWallsCache = null;
             wallAreasCache = null;
+            // The walls cut out by a door depend on the level they are at
+            doorOrWindowWallThicknessAreasCache = null;
             repaint();
           }
         }

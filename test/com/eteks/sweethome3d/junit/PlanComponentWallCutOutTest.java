@@ -24,10 +24,13 @@ import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.RenderingHints;
 import java.awt.image.BufferedImage;
+import java.awt.geom.Area;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.lang.reflect.Field;
+import java.util.WeakHashMap;
 
 import javax.imageio.ImageIO;
 
@@ -39,6 +42,7 @@ import com.eteks.sweethome3d.model.CatalogPieceOfFurniture;
 import com.eteks.sweethome3d.model.Content;
 import com.eteks.sweethome3d.model.Home;
 import com.eteks.sweethome3d.model.HomeDoorOrWindow;
+import com.eteks.sweethome3d.model.Level;
 import com.eteks.sweethome3d.model.Sash;
 import com.eteks.sweethome3d.model.UserPreferences;
 import com.eteks.sweethome3d.model.Wall;
@@ -100,6 +104,142 @@ public class PlanComponentWallCutOutTest extends TestCase {
     assertTrue("The walls away from the door lost their painting", patternDrawn);
   }
 
+  /**
+   * The walls a door cuts depend on the level they are at, and the cut out areas are
+   * cached: a wall moved to the level of the door must be cut from then on, not painted
+   * whole under an area cached while it was elsewhere.
+   */
+  public void testCutOutFollowsAWallMovedToTheLevelOfTheDoor() throws Exception {
+    UserPreferences preferences = new DefaultUserPreferences();
+    preferences.setFurnitureViewedFromTop(false);
+    Home home = new Home();
+    home.getCompass().setVisible(false);
+    Level groundLevel = new Level("ground", 0, 12, 250);
+    Level upperLevel = new Level("upper", 262, 12, 250);
+    home.addLevel(groundLevel);
+    home.addLevel(upperLevel);
+    home.setSelectedLevel(groundLevel);
+
+    Wall doorWall = new Wall(100, 200, 500, 200, 20, 250);
+    home.addWall(doorWall);
+    doorWall.setLevel(groundLevel);
+    // The brushing wall starts on the upper level, out of reach of the door
+    Wall movedWall = new Wall(100, 215, 500, 215, 20, 250);
+    home.addWall(movedWall);
+    movedWall.setLevel(upperLevel);
+
+    HomeDoorOrWindow door = createDoorCuttingBothSides();
+    home.addPieceOfFurniture(door);
+    door.setLevel(groundLevel);
+
+    TestPlanComponent planComponent = new TestPlanComponent(home, preferences);
+    // Warm the cut out cache while the brushing wall lives on the other level
+    paintForScreen(planComponent);
+
+    movedWall.setLevel(groundLevel);
+    BufferedImage image = paintForScreen(planComponent);
+
+    for (int y = 214; y <= 222; y++) {
+      for (int x = 294; x <= 306; x++) {
+        assertEquals("The cut out of the door missed the wall moved to its level at ("
+                + x + ", " + y + ")",
+            0xFFFFFF, image.getRGB(x, y) & 0xFFFFFF);
+      }
+    }
+  }
+
+  /**
+   * Print and export painting may run outside the event dispatch thread, so neither may
+   * read or write the cut out cache of interactive painting, which only that thread
+   * owns. A cache which fails on any access proves they never touch it, and that
+   * interactive painting still does.
+   */
+  public void testPrintAndExportPaintingLeaveTheInteractiveCacheAlone() throws Exception {
+    UserPreferences preferences = new DefaultUserPreferences();
+    preferences.setFurnitureViewedFromTop(false);
+    Home home = new Home();
+    home.getCompass().setVisible(false);
+    home.addWall(new Wall(100, 200, 500, 200, 20, 250));
+    HomeDoorOrWindow door = createDoorCuttingBothSides();
+    home.addPieceOfFurniture(door);
+
+    TestPlanComponent planComponent = new TestPlanComponent(home, preferences);
+    Field cacheField = PlanComponent.class.getDeclaredField("doorOrWindowWallThicknessAreasCache");
+    cacheField.setAccessible(true);
+    cacheField.set(planComponent, new WeakHashMap<HomeDoorOrWindow, Area>() {
+        @Override
+        public Area get(Object key) {
+          throw new IllegalStateException("Interactive cache read");
+        }
+
+        @Override
+        public Area put(HomeDoorOrWindow key, Area value) {
+          throw new IllegalStateException("Interactive cache written");
+        }
+      });
+
+    try {
+      paintForPrint(planComponent);
+      paintForExport(planComponent);
+    } catch (IllegalStateException ex) {
+      fail("Print or export painting touched the interactive cache: " + ex.getMessage());
+    }
+
+    try {
+      paintForScreen(planComponent);
+      fail("Interactive painting didn't go through its cache");
+    } catch (IllegalStateException ex) {
+      // The trap sprang: interactive painting still uses the cache
+    }
+  }
+
+  private HomeDoorOrWindow createDoorCuttingBothSides() throws IOException {
+    CatalogDoorOrWindow catalogDoor = new CatalogDoorOrWindow(
+        "both-sides-door", "Door", null, createIconContent(), null,
+        100, 20, 200, 0, true,
+        1f, 0f,
+        new Sash [0],
+        CatalogPieceOfFurniture.IDENTITY_ROTATION, null,
+        true, null, null);
+    HomeDoorOrWindow door = new HomeDoorOrWindow(catalogDoor);
+    door.setX(300);
+    door.setY(200);
+    door.setWallCutOutOnBothSides(true);
+    return door;
+  }
+
+  private BufferedImage paintForScreen(TestPlanComponent planComponent) throws Exception {
+    BufferedImage image = createImage();
+    Graphics2D g2D = (Graphics2D)image.getGraphics();
+    g2D.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_OFF);
+    planComponent.paintItemsForScreen(g2D);
+    g2D.dispose();
+    return image;
+  }
+
+  private void paintForPrint(TestPlanComponent planComponent) throws Exception {
+    BufferedImage image = createImage();
+    Graphics2D g2D = (Graphics2D)image.getGraphics();
+    planComponent.paintItems(g2D);
+    g2D.dispose();
+  }
+
+  private void paintForExport(TestPlanComponent planComponent) throws Exception {
+    BufferedImage image = createImage();
+    Graphics2D g2D = (Graphics2D)image.getGraphics();
+    planComponent.paintItemsForExport(g2D);
+    g2D.dispose();
+  }
+
+  private BufferedImage createImage() {
+    BufferedImage image = new BufferedImage(IMAGE_WIDTH, IMAGE_HEIGHT, BufferedImage.TYPE_INT_RGB);
+    Graphics2D g2D = (Graphics2D)image.getGraphics();
+    g2D.setColor(Color.WHITE);
+    g2D.fillRect(0, 0, IMAGE_WIDTH, IMAGE_HEIGHT);
+    g2D.dispose();
+    return image;
+  }
+
   private Content createIconContent() throws IOException {
     BufferedImage iconImage = new BufferedImage(16, 16, BufferedImage.TYPE_INT_RGB);
     Graphics2D g2D = (Graphics2D)iconImage.getGraphics();
@@ -142,6 +282,14 @@ public class PlanComponentWallCutOutTest extends TestCase {
 
     public void paintItems(Graphics g) throws Exception {
       paintHomeItems(g, this.home.getSelectedLevel(), 1f, Color.WHITE, Color.BLACK, PaintMode.PRINT);
+    }
+
+    public void paintItemsForScreen(Graphics g) throws Exception {
+      paintHomeItems(g, this.home.getSelectedLevel(), 1f, Color.WHITE, Color.BLACK, PaintMode.PAINT);
+    }
+
+    public void paintItemsForExport(Graphics g) throws Exception {
+      paintHomeItems(g, this.home.getSelectedLevel(), 1f, Color.WHITE, Color.BLACK, PaintMode.EXPORT);
     }
   }
 }
