@@ -364,6 +364,7 @@
           <include name="**/WallShapeTest.java"/>
           <include name="**/PolylineShapeTest.java"/>
           <include name="**/ItemPointsTest.java"/>
+          <include name="**/PlanControllerMagnetismTest.java"/>
           <include name="**/WallPanelTest.java"/>
           <include name="**/YafarayRendererTest.java"/>
         </fileset>
