@@ -41,37 +41,50 @@ import com.eteks.sweethome3d.model.ObserverCamera;
 public class ItemPointsTest extends TestCase {
   /**
    * The corners of a piece follow each of its location, plan size and angle properties,
-   * checked one at a time against a piece built in the same configuration.
+   * checked one at a time. Every expected object is built cold, from scratch, so that a
+   * setter which forgot to drop the cache can't leave the same stale points on both
+   * sides of the comparison.
    */
   public void testPiecePointsFollowEachProperty() {
-    CatalogPieceOfFurniture catalogPiece = createCatalogPiece();
-    HomePieceOfFurniture piece = new HomePieceOfFurniture(catalogPiece);
-    HomePieceOfFurniture mirrorPiece = new HomePieceOfFurniture(catalogPiece);
+    HomePieceOfFurniture piece = new HomePieceOfFurniture(createCatalogPiece());
 
     piece.getPoints();
     piece.setX(100);
-    mirrorPiece.setX(100);
-    assertPointsEqual("setX", mirrorPiece.getPoints(), piece.getPoints());
+    // A piece built from the catalog starts at (width / 2, depth / 2) = (30, 20)
+    assertPointsEqual("setX", coldPiece(100, 20, 0, 60, 40).getPoints(), piece.getPoints());
 
     piece.getPoints();
     piece.setY(50);
-    mirrorPiece.setY(50);
-    assertPointsEqual("setY", mirrorPiece.getPoints(), piece.getPoints());
+    assertPointsEqual("setY", coldPiece(100, 50, 0, 60, 40).getPoints(), piece.getPoints());
 
     piece.getPoints();
     piece.setAngle((float)Math.PI / 5);
-    mirrorPiece.setAngle((float)Math.PI / 5);
-    assertPointsEqual("setAngle", mirrorPiece.getPoints(), piece.getPoints());
+    assertPointsEqual("setAngle",
+        coldPiece(100, 50, (float)Math.PI / 5, 60, 40).getPoints(), piece.getPoints());
 
     piece.getPoints();
     piece.setWidthInPlan(90);
-    mirrorPiece.setWidthInPlan(90);
-    assertPointsEqual("setWidthInPlan", mirrorPiece.getPoints(), piece.getPoints());
+    assertPointsEqual("setWidthInPlan",
+        coldPiece(100, 50, (float)Math.PI / 5, 90, 40).getPoints(), piece.getPoints());
 
     piece.getPoints();
     piece.setDepthInPlan(70);
-    mirrorPiece.setDepthInPlan(70);
-    assertPointsEqual("setDepthInPlan", mirrorPiece.getPoints(), piece.getPoints());
+    assertPointsEqual("setDepthInPlan",
+        coldPiece(100, 50, (float)Math.PI / 5, 90, 70).getPoints(), piece.getPoints());
+  }
+
+  /**
+   * Returns a piece in the given configuration whose points were never asked for.
+   */
+  private HomePieceOfFurniture coldPiece(float x, float y, float angle,
+                                         float widthInPlan, float depthInPlan) {
+    HomePieceOfFurniture piece = new HomePieceOfFurniture(createCatalogPiece());
+    piece.setX(x);
+    piece.setY(y);
+    piece.setAngle(angle);
+    piece.setWidthInPlan(widthInPlan);
+    piece.setDepthInPlan(depthInPlan);
+    return piece;
   }
 
   /**
@@ -89,9 +102,8 @@ public class ItemPointsTest extends TestCase {
     piece.setX(300);
     assertPointsEqual("clone after source change", clonePoints, clone.getPoints());
     clone.setY(200);
-    HomePieceOfFurniture mirrorPiece = new HomePieceOfFurniture(createCatalogPiece());
-    mirrorPiece.setX(300);
-    assertPointsEqual("source after clone change", mirrorPiece.getPoints(), piece.getPoints());
+    assertPointsEqual("source after clone change",
+        coldPiece(300, 20, 0, 60, 40).getPoints(), piece.getPoints());
 
     piece.getPoints();
     ByteArrayOutputStream bytes = new ByteArrayOutputStream();
@@ -104,8 +116,8 @@ public class ItemPointsTest extends TestCase {
     assertPointsEqual("piece read back", piece.getPoints(), readPiece.getPoints());
     readPiece.getPoints();
     readPiece.setX(400);
-    mirrorPiece.setX(400);
-    assertPointsEqual("piece read back then changed", mirrorPiece.getPoints(), readPiece.getPoints());
+    assertPointsEqual("piece read back then changed",
+        coldPiece(400, 20, 0, 60, 40).getPoints(), readPiece.getPoints());
   }
 
   /**
@@ -153,34 +165,53 @@ public class ItemPointsTest extends TestCase {
     assertPointsEqual("setOffset", new DimensionLine(10, 5, 200, 60, -40).getPoints(),
         dimensionLine.getPoints());
 
-    // Collapse the line on its start and raise its end to make an elevation dimension
-    // line, whose points follow its pitch, one setter at a time
+    // Collapse the line on its start and give it a pitch while it is still planar, so
+    // that raising its end elevation flips it to an elevation dimension line whose
+    // points turn by that pitch: a setElevationEnd which kept stale points would then
+    // answer the planar geometry
     dimensionLine.getPoints();
     dimensionLine.setXEnd(10);
     dimensionLine.getPoints();
     dimensionLine.setYEnd(5);
+    dimensionLine.setPitch((float)Math.PI / 2);
     dimensionLine.getPoints();
     dimensionLine.setElevationEnd(250);
-    assertPointsEqual("setElevationEnd", new DimensionLine(10, 5, 0, 10, 5, 250, -40).getPoints(),
+    assertPointsEqual("setElevationEnd",
+        coldDimensionLine(10, 5, 0, 10, 5, 250, -40, (float)Math.PI / 2).getPoints(),
         dimensionLine.getPoints());
 
+    // The pitch now drives the points, so changing it must move them
     dimensionLine.getPoints();
-    dimensionLine.setPitch((float)Math.PI / 2);
-    DimensionLine mirrorDimensionLine = new DimensionLine(10, 5, 0, 10, 5, 250, -40);
-    mirrorDimensionLine.setPitch((float)Math.PI / 2);
-    assertPointsEqual("setPitch", mirrorDimensionLine.getPoints(), dimensionLine.getPoints());
+    dimensionLine.setPitch((float)Math.PI / 4);
+    assertPointsEqual("setPitch",
+        coldDimensionLine(10, 5, 0, 10, 5, 250, -40, (float)Math.PI / 4).getPoints(),
+        dimensionLine.getPoints());
 
+    // Raising the start elevation to the end one flips the line back to its planar
+    // geometry, which a stale cache would miss
     dimensionLine.getPoints();
-    dimensionLine.setElevationStart(50);
-    DimensionLine raisedMirror = new DimensionLine(10, 5, 50, 10, 5, 250, -40);
-    raisedMirror.setPitch((float)Math.PI / 2);
-    assertPointsEqual("setElevationStart", raisedMirror.getPoints(), dimensionLine.getPoints());
+    dimensionLine.setElevationStart(250);
+    assertPointsEqual("setElevationStart",
+        coldDimensionLine(10, 5, 250, 10, 5, 250, -40, (float)Math.PI / 4).getPoints(),
+        dimensionLine.getPoints());
 
     float [][] wreckedPoints = dimensionLine.getPoints();
     float [][] snapshot = dimensionLine.getPoints();
     assertCopiesIndependent(wreckedPoints, snapshot);
     wreckPoints(wreckedPoints);
     assertPointsEqual("points after a handed-out write", snapshot, dimensionLine.getPoints());
+  }
+
+  /**
+   * Returns a dimension line in the given configuration whose points were never asked for.
+   */
+  private DimensionLine coldDimensionLine(float xStart, float yStart, float elevationStart,
+                                          float xEnd, float yEnd, float elevationEnd,
+                                          float offset, float pitch) {
+    DimensionLine dimensionLine = new DimensionLine(xStart, yStart, elevationStart,
+        xEnd, yEnd, elevationEnd, offset);
+    dimensionLine.setPitch(pitch);
+    return dimensionLine;
   }
 
   /**
@@ -213,33 +244,55 @@ public class ItemPointsTest extends TestCase {
    */
   public void testObserverCameraPointsFollowEachProperty() {
     ObserverCamera camera = new ObserverCamera(50, 50, 170, 0, 0, (float)Math.PI / 4);
-    ObserverCamera mirrorCamera = new ObserverCamera(50, 50, 170, 0, 0, (float)Math.PI / 4);
 
     camera.getPoints();
     camera.setX(300);
-    mirrorCamera.setX(300);
-    assertPointsEqual("setX", mirrorCamera.getPoints(), camera.getPoints());
+    assertPointsEqual("setX",
+        coldCamera(300, 50, 170, 0, 1, false).getPoints(), camera.getPoints());
 
     camera.getPoints();
     camera.setY(120);
-    mirrorCamera.setY(120);
-    assertPointsEqual("setY", mirrorCamera.getPoints(), camera.getPoints());
+    assertPointsEqual("setY",
+        coldCamera(300, 120, 170, 0, 1, false).getPoints(), camera.getPoints());
 
     camera.getPoints();
     camera.setYaw((float)Math.PI / 3);
-    mirrorCamera.setYaw((float)Math.PI / 3);
-    assertPointsEqual("setYaw", mirrorCamera.getPoints(), camera.getPoints());
+    assertPointsEqual("setYaw",
+        coldCamera(300, 120, 170, (float)Math.PI / 3, 1, false).getPoints(), camera.getPoints());
 
     camera.getPoints();
     camera.setPlanScale(2);
-    mirrorCamera.setPlanScale(2);
-    assertPointsEqual("setPlanScale", mirrorCamera.getPoints(), camera.getPoints());
+    assertPointsEqual("setPlanScale",
+        coldCamera(300, 120, 170, (float)Math.PI / 3, 2, false).getPoints(), camera.getPoints());
+
+    // The camera is drawn scaled after the height of its eyes, so its z drives its
+    // corners too, until a fixed size is requested
+    camera.getPoints();
+    camera.setZ(250);
+    assertPointsEqual("setZ",
+        coldCamera(300, 120, 250, (float)Math.PI / 3, 2, false).getPoints(), camera.getPoints());
+
+    camera.getPoints();
+    camera.setFixedSize(true);
+    assertPointsEqual("setFixedSize",
+        coldCamera(300, 120, 250, (float)Math.PI / 3, 2, true).getPoints(), camera.getPoints());
 
     float [][] wreckedPoints = camera.getPoints();
     float [][] snapshot = camera.getPoints();
     assertCopiesIndependent(wreckedPoints, snapshot);
     wreckPoints(wreckedPoints);
     assertPointsEqual("points after a handed-out write", snapshot, camera.getPoints());
+  }
+
+  /**
+   * Returns a camera in the given configuration whose points were never asked for.
+   */
+  private ObserverCamera coldCamera(float x, float y, float z, float yaw,
+                                    float planScale, boolean fixedSize) {
+    ObserverCamera camera = new ObserverCamera(x, y, z, yaw, 0, (float)Math.PI / 4);
+    camera.setPlanScale(planScale);
+    camera.setFixedSize(fixedSize);
+    return camera;
   }
 
   private CatalogPieceOfFurniture createCatalogPiece() {

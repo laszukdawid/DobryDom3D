@@ -22,9 +22,12 @@ package com.eteks.sweethome3d.junit;
 import java.awt.Color;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
+import java.awt.Point;
 import java.awt.Rectangle;
 import java.awt.RenderingHints;
 import java.awt.image.BufferedImage;
+
+import javax.swing.JViewport;
 
 import junit.framework.TestCase;
 
@@ -67,6 +70,84 @@ public class PlanComponentGridPaintingTest extends TestCase {
         System.clearProperty("apple.awt.graphics.UseQuartz");
       }
     }
+  }
+
+  /**
+   * Past 2^24 = 16777216 cm from the origin, consecutive floats are 2 cm apart, so a
+   * grid path built on floats would collapse every other line of a 1 cm grid onto its
+   * neighbor. The grid has to keep its lines distinct wherever the plan lies.
+   */
+  public void testGridLinesStayDistinctFarFromOrigin() {
+    // Force the grid to be drawn as lines, as on every system but Mac OS X
+    String previousUseQuartz = System.getProperty("apple.awt.graphics.UseQuartz");
+    System.setProperty("apple.awt.graphics.UseQuartz", "true");
+    try {
+      checkGridLinesStayDistinctFarFromOrigin();
+    } finally {
+      if (previousUseQuartz != null) {
+        System.setProperty("apple.awt.graphics.UseQuartz", previousUseQuartz);
+      } else {
+        System.clearProperty("apple.awt.graphics.UseQuartz");
+      }
+    }
+  }
+
+  private void checkGridLinesStayDistinctFarFromOrigin() {
+    UserPreferences preferences = new DefaultUserPreferences();
+    preferences.setFurnitureViewedFromTop(false);
+    assertTrue("The grid should be visible for this test to check anything",
+        preferences.isGridVisible());
+    Home home = new Home();
+    home.getCompass().setVisible(false);
+    // A wall stretching the plan past 2^24; the plan itself stays anchored at the origin
+    home.addWall(new Wall(16777300, 100, 16777400, 100, 20, 250));
+
+    TestPlanComponent planComponent = new TestPlanComponent(home, preferences);
+    // At a scale of 10 the grid steps by 1 cm, drawing a line every 10 pixels
+    planComponent.setScale(10);
+    // Scroll a viewport to the region past 2^24, the only way to look at it since the
+    // plan bounds always start back at the origin
+    JViewport viewport = new JViewport();
+    viewport.setSize(IMAGE_WIDTH, IMAGE_HEIGHT);
+    viewport.setView(planComponent);
+    planComponent.setSize(planComponent.getPreferredSize());
+    int viewX = Math.round((16777250 - planComponent.convertXPixelToModel(0))
+        * planComponent.getScale());
+    viewport.setViewPosition(new Point(viewX, 0));
+
+    BufferedImage image = createImage();
+    Graphics2D g2D = (Graphics2D)image.getGraphics();
+    g2D.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_OFF);
+    g2D.translate(-viewX, 0);
+    g2D.setClip(viewX, 0, IMAGE_WIDTH, IMAGE_HEIGHT);
+    planComponent.paintFully(g2D);
+    g2D.dispose();
+
+    // Count the runs of drawn pixels along a scanline between two horizontal grid
+    // lines: the view is 60 cm wide, so about 60 vertical lines have to show up, while
+    // lines collapsing on shared floats would halve that count
+    int lineCount = countDrawnRuns(image, 355);
+    assertTrue("Only " + lineCount + " grid lines are left far from the origin",
+        lineCount >= 50 && lineCount <= 70);
+  }
+
+  /**
+   * Returns the number of runs of consecutive drawn pixels along the row at <code>y</code>.
+   */
+  private int countDrawnRuns(BufferedImage image, int y) {
+    int runCount = 0;
+    boolean inRun = false;
+    for (int x = 0; x < IMAGE_WIDTH; x++) {
+      if (isDrawn(image, x, y)) {
+        if (!inRun) {
+          runCount++;
+          inRun = true;
+        }
+      } else {
+        inRun = false;
+      }
+    }
+    return runCount;
   }
 
   private void checkTiledGridMatchesFullGrid() {

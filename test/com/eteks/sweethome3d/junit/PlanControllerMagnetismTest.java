@@ -21,6 +21,7 @@ package com.eteks.sweethome3d.junit;
 
 import java.io.IOException;
 import java.io.OutputStream;
+import java.lang.reflect.Method;
 import java.util.List;
 import java.util.Properties;
 
@@ -168,6 +169,37 @@ public class PlanControllerMagnetismTest extends TestCase {
 
     assertEquals("A wall with NaN coordinates robbed a comparable wall of its magnetism",
         5 + piece.getDepthInPlan() / 2, piece.getY(), 0.15f);
+  }
+
+  /**
+   * The box test pruning the magnetism searches must fail open: points it can't compare,
+   * like NaN coordinates read from a home file, have to stay in and reach the exact
+   * geometry tests, wherever the box lies. The drag above proves a NaN wall doesn't
+   * break editing, but such a wall is filtered out earlier on its NaN length, so the
+   * contract of the box test itself is checked here directly.
+   */
+  public void testBoundsTestKeepsUncomparablePoints() throws Exception {
+    Method intersectsBounds = PlanController.class.getDeclaredMethod("intersectsBounds",
+        float [][].class, float.class, float.class, float.class, float.class, float.class);
+    intersectsBounds.setAccessible(true);
+
+    float [][] nanPoints = {{Float.NaN, Float.NaN}, {Float.NaN, Float.NaN}};
+    assertTrue("Points with NaN coordinates were pruned",
+        (Boolean)intersectsBounds.invoke(null, nanPoints, 0f, 0f, 0f, 10f, 10f));
+    // A NaN abscissa can't rule anything out, so as long as the ordinates overlap the
+    // box the points must stay in; ordinates provably outside may still prune them
+    float [][] halfNaNPoints = {{Float.NaN, 5}, {Float.NaN, 8}};
+    assertTrue("Points with a NaN abscissa and overlapping ordinates were pruned",
+        (Boolean)intersectsBounds.invoke(null, halfNaNPoints, 0f, 0f, 0f, 10f, 10f));
+    float [][] farPoints = {{100, 100}, {110, 110}};
+    assertFalse("Points far outside the box weren't pruned",
+        (Boolean)intersectsBounds.invoke(null, farPoints, 0f, 0f, 0f, 10f, 10f));
+    float [][] touchingPoints = {{10, 10}, {20, 20}};
+    assertTrue("Points touching the corner of the box were pruned",
+        (Boolean)intersectsBounds.invoke(null, touchingPoints, 0f, 0f, 0f, 10f, 10f));
+    float [][] marginPoints = {{12, 12}, {20, 20}};
+    assertTrue("Points reaching the box through their margin were pruned",
+        (Boolean)intersectsBounds.invoke(null, marginPoints, 2f, 0f, 0f, 10f, 10f));
   }
 
   private HomePieceOfFurniture createPiece() {
