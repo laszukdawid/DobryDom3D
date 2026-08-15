@@ -812,6 +812,11 @@ public class PlanComponent extends JComponent implements PlanView, Scrollable, P
                      || HomePieceOfFurniture.Property.LEVEL.name().equals(ev.getPropertyName())
                      || HomePieceOfFurniture.Property.HEIGHT_IN_PLAN.name().equals(ev.getPropertyName())) {
             sortedLevelFurniture = null;
+            if (doorOrWindowWallThicknessAreasCache != null
+                && HomePieceOfFurniture.Property.LEVEL.name().equals(ev.getPropertyName())) {
+              // The walls cut out by a door depend on the level of the door
+              doorOrWindowWallThicknessAreasCache.remove(ev.getSource());
+            }
             repaint();
           } else if (HomePieceOfFurniture.Property.ICON.name().equals(ev.getPropertyName())
                      || HomeDoorOrWindow.Property.WALL_CUT_OUT_ON_BOTH_SIDES.name().equals(ev.getPropertyName())) {
@@ -824,7 +829,6 @@ public class PlanComponent extends JComponent implements PlanView, Scrollable, P
                          || HomePieceOfFurniture.Property.MODEL_MIRRORED.name().equals(ev.getPropertyName())
                          || HomePieceOfFurniture.Property.X.name().equals(ev.getPropertyName())
                          || HomePieceOfFurniture.Property.Y.name().equals(ev.getPropertyName())
-                         || HomePieceOfFurniture.Property.LEVEL.name().equals(ev.getPropertyName())
                          || HomeDoorOrWindow.Property.WALL_THICKNESS.name().equals(ev.getPropertyName())
                          || HomeDoorOrWindow.Property.WALL_DISTANCE.name().equals(ev.getPropertyName())
                          || HomeDoorOrWindow.Property.WALL_WIDTH.name().equals(ev.getPropertyName())

@@ -149,6 +149,111 @@ public class PlanComponentWallCutOutTest extends TestCase {
   }
 
   /**
+   * A wall reaches the levels its height spans, so growing a wall of the level below up
+   * to the level of the door must bring it into the cut out, not leave it painted whole
+   * under an area cached while it was too short.
+   */
+  public void testCutOutFollowsAWallGrownUpToTheLevelOfTheDoor() throws Exception {
+    UserPreferences preferences = new DefaultUserPreferences();
+    preferences.setFurnitureViewedFromTop(false);
+    Home home = new Home();
+    home.getCompass().setVisible(false);
+    Level lowerLevel = new Level("lower", -262, 12, 250);
+    Level upperLevel = new Level("upper", 0, 12, 250);
+    home.addLevel(lowerLevel);
+    home.addLevel(upperLevel);
+    home.setSelectedLevel(upperLevel);
+
+    Wall doorWall = new Wall(100, 200, 500, 200, 20, 250);
+    home.addWall(doorWall);
+    doorWall.setLevel(upperLevel);
+    // A brushing wall of the level below, 200 cm high: it stops 62 cm short of the
+    // upper level, out of reach of the door
+    Wall growingWall = new Wall(100, 215, 500, 215, 20, 200);
+    home.addWall(growingWall);
+    growingWall.setLevel(lowerLevel);
+
+    HomeDoorOrWindow door = createDoorCuttingBothSides();
+    home.addPieceOfFurniture(door);
+    door.setLevel(upperLevel);
+
+    // Warm the cut out cache while the brushing wall stays below
+    TestPlanComponent planComponent = new TestPlanComponent(home, preferences);
+    paintForScreen(planComponent);
+
+    // Grown to 300 cm, the wall now spans into the upper level and shows in its plan,
+    // so the cut out of the door has to wipe it there too
+    growingWall.setHeight(Float.valueOf(300));
+    BufferedImage image = paintForScreen(planComponent);
+
+    for (int y = 214; y <= 222; y++) {
+      for (int x = 294; x <= 306; x++) {
+        assertEquals("The cut out of the door missed the wall grown up to its level at ("
+                + x + ", " + y + ")",
+            0xFFFFFF, image.getRGB(x, y) & 0xFFFFFF);
+      }
+    }
+  }
+
+  /**
+   * The walls a door cuts also depend on the level of the door itself: at equal
+   * elevations, a wall only reaches the levels above its own. A door moved down to the
+   * level of the wall holding it must stop cutting a brushing wall of the level above,
+   * whose painting a stale cached area would keep wiping.
+   */
+  public void testCutOutFollowsADoorMovedToAnotherLevel() throws Exception {
+    UserPreferences preferences = new DefaultUserPreferences();
+    preferences.setFurnitureViewedFromTop(false);
+    Home home = new Home();
+    home.getCompass().setVisible(false);
+    // Two levels at the same elevation, drawn together in the plan and ordered by
+    // their elevation index
+    Level lowerLevel = new Level("lower", 0, 12, 250);
+    lowerLevel.setElevationIndex(0);
+    Level upperLevel = new Level("upper", 0, 12, 250);
+    upperLevel.setElevationIndex(1);
+    home.addLevel(lowerLevel);
+    home.addLevel(upperLevel);
+    home.setSelectedLevel(upperLevel);
+
+    Wall doorWall = new Wall(100, 200, 500, 200, 20, 250);
+    home.addWall(doorWall);
+    doorWall.setLevel(lowerLevel);
+    Wall brushingWall = new Wall(100, 215, 500, 215, 20, 250);
+    home.addWall(brushingWall);
+    brushingWall.setLevel(upperLevel);
+
+    HomeDoorOrWindow door = createDoorCuttingBothSides();
+    home.addPieceOfFurniture(door);
+    door.setLevel(upperLevel);
+
+    TestPlanComponent planComponent = new TestPlanComponent(home, preferences);
+    // Warm the cut out cache while the door, at the upper level, cuts both walls
+    BufferedImage warmImage = paintForScreen(planComponent);
+    boolean brushingWallCut = true;
+    for (int y = 214; y <= 222 && brushingWallCut; y++) {
+      for (int x = 294; x <= 306 && brushingWallCut; x++) {
+        brushingWallCut = (warmImage.getRGB(x, y) & 0xFFFFFF) == 0xFFFFFF;
+      }
+    }
+    assertTrue("The door at the upper level should cut the brushing wall for this test "
+        + "to check anything", brushingWallCut);
+
+    // Moved down to the lower level, the door can't reach the upper brushing wall,
+    // whose pattern has to show again behind it
+    door.setLevel(lowerLevel);
+    BufferedImage image = paintForScreen(planComponent);
+    boolean patternDrawn = false;
+    for (int y = 214; y <= 222 && !patternDrawn; y++) {
+      for (int x = 294; x <= 306 && !patternDrawn; x++) {
+        patternDrawn = (image.getRGB(x, y) & 0xFFFFFF) != 0xFFFFFF;
+      }
+    }
+    assertTrue("The door moved to the lower level kept cutting the wall of the upper one",
+        patternDrawn);
+  }
+
+  /**
    * Print and export painting may run outside the event dispatch thread, so neither may
    * read or write the cut out cache of interactive painting, which only that thread
    * owns. A cache which fails on any access proves they never touch it, and that
