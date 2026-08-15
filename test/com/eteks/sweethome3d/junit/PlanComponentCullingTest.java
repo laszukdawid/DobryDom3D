@@ -236,6 +236,39 @@ public class PlanComponentCullingTest extends TestCase {
   }
 
   /**
+   * The chevron of an OPEN arrow is stroked with its own miter join, whatever the join
+   * style of its polyline. Its apex is pushed half a thickness out by a round cap and
+   * its miter reaches 1.346 thickness further, together outgrowing the plain thickness
+   * and arrow margin once the polyline is thicker than about 1430. This clip only
+   * covers pixels of that overshoot, so it passes only when culling grants open arrows
+   * their miter outset on a polyline whose own joins don't ask for it.
+   */
+  public void testClippedPaintingKeepsMiterOfOpenArrow() throws Exception {
+    UserPreferences preferences = new DefaultUserPreferences();
+    preferences.setFurnitureViewedFromTop(false);
+    Home home = new Home();
+    home.getCompass().setVisible(false);
+    // The arrow apex sits at -3600 + 2000 / 2 = -2600 and its miter tip reaches
+    // 1.346 * 2000 = 2692 further, near x = 92, while the box around the points grown
+    // by the plain margin of 2000 + 10 * 2000^0.66 = 3509 stops at x = -91
+    Polyline polyline = new Polyline(new float [][] {{-3600, 200}, {-8000, 200}});
+    polyline.setThickness(2000);
+    polyline.setJoinStyle(Polyline.JoinStyle.ROUND);
+    polyline.setCapStyle(Polyline.CapStyle.ROUND);
+    polyline.setStartArrowStyle(Polyline.ArrowStyle.OPEN);
+    home.addPolyline(polyline);
+
+    TestPlanComponent planComponent = new TestPlanComponent(home, preferences);
+    paintUnclipped(planComponent);
+    BufferedImage unclippedImage = paintUnclipped(planComponent);
+    Rectangle arrowClip = new Rectangle(0, 150, 80, 100);
+    BufferedImage clippedImage = createImage();
+    paintInto(clippedImage, planComponent, arrowClip);
+
+    assertClipKeepsDrawnPixels(unclippedImage, clippedImage, arrowClip);
+  }
+
+  /**
    * Checks that every pixel drawn strictly inside <code>clip</code> in the reference
    * image is drawn in the clipped image too, and that the region isn't trivially empty.
    */

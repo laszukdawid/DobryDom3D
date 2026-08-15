@@ -78,9 +78,12 @@ public class PlanComponentGridPaintingTest extends TestCase {
    * neighbor. The grid has to keep its lines distinct wherever the plan lies.
    */
   public void testGridLinesStayDistinctFarFromOrigin() {
-    // Force the grid to be drawn as lines, as on every system but Mac OS X
+    // Force the grid to be drawn as lines, as on every system but Mac OS X, and pin the
+    // resolution scale the expected line spacing is computed from
     String previousUseQuartz = System.getProperty("apple.awt.graphics.UseQuartz");
+    String previousResolutionScale = System.getProperty("com.eteks.sweethome3d.resolutionScale");
     System.setProperty("apple.awt.graphics.UseQuartz", "true");
+    System.setProperty("com.eteks.sweethome3d.resolutionScale", "1");
     try {
       checkGridLinesStayDistinctFarFromOrigin();
     } finally {
@@ -88,6 +91,11 @@ public class PlanComponentGridPaintingTest extends TestCase {
         System.setProperty("apple.awt.graphics.UseQuartz", previousUseQuartz);
       } else {
         System.clearProperty("apple.awt.graphics.UseQuartz");
+      }
+      if (previousResolutionScale != null) {
+        System.setProperty("com.eteks.sweethome3d.resolutionScale", previousResolutionScale);
+      } else {
+        System.clearProperty("com.eteks.sweethome3d.resolutionScale");
       }
     }
   }

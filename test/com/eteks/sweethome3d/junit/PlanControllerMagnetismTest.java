@@ -186,11 +186,21 @@ public class PlanControllerMagnetismTest extends TestCase {
     float [][] nanPoints = {{Float.NaN, Float.NaN}, {Float.NaN, Float.NaN}};
     assertTrue("Points with NaN coordinates were pruned",
         (Boolean)intersectsBounds.invoke(null, nanPoints, 0f, 0f, 0f, 10f, 10f));
-    // A NaN abscissa can't rule anything out, so as long as the ordinates overlap the
-    // box the points must stay in; ordinates provably outside may still prune them
-    float [][] halfNaNPoints = {{Float.NaN, 5}, {Float.NaN, 8}};
+    // A NaN coordinate can't rule anything out on its axis, so points whose other,
+    // comparable axis overlaps the box must stay in; a comparable axis provably
+    // outside is still enough to prune them, whatever the NaN one might mean
+    float [][] nanXOverlappingY = {{Float.NaN, 5}, {Float.NaN, 8}};
     assertTrue("Points with a NaN abscissa and overlapping ordinates were pruned",
-        (Boolean)intersectsBounds.invoke(null, halfNaNPoints, 0f, 0f, 0f, 10f, 10f));
+        (Boolean)intersectsBounds.invoke(null, nanXOverlappingY, 0f, 0f, 0f, 10f, 10f));
+    float [][] nanXSeparatedY = {{Float.NaN, 500}, {Float.NaN, 510}};
+    assertFalse("Points with a NaN abscissa and far ordinates weren't pruned",
+        (Boolean)intersectsBounds.invoke(null, nanXSeparatedY, 0f, 0f, 0f, 10f, 10f));
+    float [][] nanYOverlappingX = {{5, Float.NaN}, {8, Float.NaN}};
+    assertTrue("Points with a NaN ordinate and overlapping abscissas were pruned",
+        (Boolean)intersectsBounds.invoke(null, nanYOverlappingX, 0f, 0f, 0f, 10f, 10f));
+    float [][] nanYSeparatedX = {{500, Float.NaN}, {510, Float.NaN}};
+    assertFalse("Points with a NaN ordinate and far abscissas weren't pruned",
+        (Boolean)intersectsBounds.invoke(null, nanYSeparatedX, 0f, 0f, 0f, 10f, 10f));
     float [][] farPoints = {{100, 100}, {110, 110}};
     assertFalse("Points far outside the box weren't pruned",
         (Boolean)intersectsBounds.invoke(null, farPoints, 0f, 0f, 0f, 10f, 10f));

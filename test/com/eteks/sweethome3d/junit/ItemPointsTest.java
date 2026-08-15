@@ -260,22 +260,23 @@ public class ItemPointsTest extends TestCase {
     assertPointsEqual("setYaw",
         coldCamera(300, 120, 170, (float)Math.PI / 3, 1, false).getPoints(), camera.getPoints());
 
+    // The camera is drawn scaled after the height of its eyes as long as its plan
+    // scale stays at 1 and its size isn't fixed, so z and the fixed size flag are
+    // checked before the plan scale, where they still drive the corners
     camera.getPoints();
-    camera.setPlanScale(2);
-    assertPointsEqual("setPlanScale",
-        coldCamera(300, 120, 170, (float)Math.PI / 3, 2, false).getPoints(), camera.getPoints());
-
-    // The camera is drawn scaled after the height of its eyes, so its z drives its
-    // corners too, until a fixed size is requested
-    camera.getPoints();
-    camera.setZ(250);
+    camera.setZ(210);
     assertPointsEqual("setZ",
-        coldCamera(300, 120, 250, (float)Math.PI / 3, 2, false).getPoints(), camera.getPoints());
+        coldCamera(300, 120, 210, (float)Math.PI / 3, 1, false).getPoints(), camera.getPoints());
 
     camera.getPoints();
     camera.setFixedSize(true);
     assertPointsEqual("setFixedSize",
-        coldCamera(300, 120, 250, (float)Math.PI / 3, 2, true).getPoints(), camera.getPoints());
+        coldCamera(300, 120, 210, (float)Math.PI / 3, 1, true).getPoints(), camera.getPoints());
+
+    camera.getPoints();
+    camera.setPlanScale(2);
+    assertPointsEqual("setPlanScale",
+        coldCamera(300, 120, 210, (float)Math.PI / 3, 2, true).getPoints(), camera.getPoints());
 
     float [][] wreckedPoints = camera.getPoints();
     float [][] snapshot = camera.getPoints();
