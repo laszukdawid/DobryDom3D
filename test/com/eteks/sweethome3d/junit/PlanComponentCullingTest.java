@@ -176,6 +176,87 @@ public class PlanComponentCullingTest extends TestCase {
   }
 
   /**
+   * A thick polyline ending in a sharp spike paints its miter join well past the box
+   * around its points. This clip only covers pixels which lie beyond that box grown by
+   * the plain thickness and arrow margin, so it passes only when culling grants miter
+   * joined polylines their miter outset.
+   */
+  public void testClippedPaintingKeepsMiterSpikeOfThickPolyline() throws Exception {
+    UserPreferences preferences = new DefaultUserPreferences();
+    preferences.setFurnitureViewedFromTop(false);
+    Home home = new Home();
+    home.getCompass().setVisible(false);
+    // The spike at (300, 100) has a half angle of atan(40 / 200) = 11.3 degrees, whose
+    // miter factor 1 / sin = 5.1 stays under the limit of 10, so the join is drawn and
+    // its tip reaches 6 * 5.1 = 30.6 units past the vertex, at about x = 330
+    Polyline polyline = new Polyline(new float [][] {{100, 60}, {300, 100}, {100, 140}});
+    polyline.setThickness(12);
+    home.addPolyline(polyline);
+
+    TestPlanComponent planComponent = new TestPlanComponent(home, preferences);
+    paintUnclipped(planComponent);
+    BufferedImage unclippedImage = paintUnclipped(planComponent);
+    // The clip starts at x = 314, past the points box (x <= 300) grown by the thickness
+    // and arrow margin (12), so only the miter outset can keep the polyline painted
+    Rectangle spikeClip = new Rectangle(314, 80, 30, 40);
+    BufferedImage clippedImage = createImage();
+    paintInto(clippedImage, planComponent, spikeClip);
+
+    assertClipKeepsDrawnPixels(unclippedImage, clippedImage, spikeClip);
+  }
+
+  /**
+   * A curved closed polyline bows outside of the box around its points. This clip only
+   * covers pixels of that bow, past the box grown by the plain thickness margin, so it
+   * passes only when culling grants curved polylines the reach of their control points.
+   */
+  public void testClippedPaintingKeepsBowOfCurvedPolyline() throws Exception {
+    UserPreferences preferences = new DefaultUserPreferences();
+    preferences.setFurnitureViewedFromTop(false);
+    Home home = new Home();
+    home.getCompass().setVisible(false);
+    // The closing left edge curve from (420, 130) to (420, 60) takes its control points
+    // 100 / 3.625 = 27.6 units to the left, bowing to about x = 399 at its middle
+    Polyline polyline = new Polyline(new float [][] {{420, 60}, {520, 60}, {520, 130}, {420, 130}});
+    polyline.setJoinStyle(Polyline.JoinStyle.CURVED);
+    polyline.setClosedPath(true);
+    polyline.setThickness(3);
+    home.addPolyline(polyline);
+
+    TestPlanComponent planComponent = new TestPlanComponent(home, preferences);
+    paintUnclipped(planComponent);
+    BufferedImage unclippedImage = paintUnclipped(planComponent);
+    // The clip ends at x = 414, short of the points box (x >= 420) grown by the
+    // thickness margin (3), so only the bow allowance can keep the polyline painted
+    Rectangle bowClip = new Rectangle(394, 85, 20, 20);
+    BufferedImage clippedImage = createImage();
+    paintInto(clippedImage, planComponent, bowClip);
+
+    assertClipKeepsDrawnPixels(unclippedImage, clippedImage, bowClip);
+  }
+
+  /**
+   * Checks that every pixel drawn strictly inside <code>clip</code> in the reference
+   * image is drawn in the clipped image too, and that the region isn't trivially empty.
+   */
+  private void assertClipKeepsDrawnPixels(BufferedImage expectedImage, BufferedImage image,
+                                          Rectangle clip) {
+    int drawnPixelCount = 0;
+    for (int y = clip.y + 1; y < clip.y + clip.height - 1; y++) {
+      for (int x = clip.x + 1; x < clip.x + clip.width - 1; x++) {
+        if (isDrawn(expectedImage, x, y)) {
+          drawnPixelCount++;
+          if (!isDrawnAround(image, x, y)) {
+            fail("Painting under the clip lost what is painted at (" + x + ", " + y + ")");
+          }
+        }
+      }
+    }
+    assertTrue("Nothing is painted under the clip, the fixture doesn't reach it",
+        drawnPixelCount > 10);
+  }
+
+  /**
    * Returns a home containing items spread over the painted area, including a door
    * whose sashes and wall cut out are painted outside of its own points.
    */
