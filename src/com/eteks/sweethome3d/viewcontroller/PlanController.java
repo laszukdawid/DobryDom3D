@@ -2505,6 +2505,7 @@ public class PlanController extends FurnitureController implements Controller {
           String propertyName = ev.getPropertyName();
           if (HomePieceOfFurniture.Property.X.name().equals(propertyName)
               || HomePieceOfFurniture.Property.Y.name().equals(propertyName)
+              || HomePieceOfFurniture.Property.ANGLE.name().equals(propertyName)
               || HomePieceOfFurniture.Property.WIDTH_IN_PLAN.name().equals(propertyName)
               || HomePieceOfFurniture.Property.DEPTH_IN_PLAN.name().equals(propertyName)) {
             furnitureSidesCache.remove((HomePieceOfFurniture)ev.getSource());
@@ -2664,6 +2665,31 @@ public class PlanController extends FurnitureController implements Controller {
   }
 
   /**
+   * Returns <code>true</code> unless the bounding box of <code>points</code>, grown by
+   * <code>margin</code>, lies entirely outside of the box from (<code>minX</code>,
+   * <code>minY</code>) to (<code>maxX</code>, <code>maxY</code>). The test is written as
+   * the negation of "provably outside" so that points which can't be compared, like NaN
+   * coordinates read from a home file, keep being processed by the caller.
+   */
+  private static boolean intersectsBounds(float [][] points, float margin,
+                                          float minX, float minY, float maxX, float maxY) {
+    float pointsMinX = points [0][0];
+    float pointsMaxX = points [0][0];
+    float pointsMinY = points [0][1];
+    float pointsMaxY = points [0][1];
+    for (int i = 1; i < points.length; i++) {
+      pointsMinX = Math.min(pointsMinX, points [i][0]);
+      pointsMaxX = Math.max(pointsMaxX, points [i][0]);
+      pointsMinY = Math.min(pointsMinY, points [i][1]);
+      pointsMaxY = Math.max(pointsMaxY, points [i][1]);
+    }
+    return !(pointsMaxX + margin < minX)
+        && !(pointsMinX - margin > maxX)
+        && !(pointsMaxY + margin < minY)
+        && !(pointsMinY - margin > maxY);
+  }
+
+  /**
    * Attempts to move and resize <code>piece</code> depending on the wall under the
    * point (<code>x</code>, <code>y</code>) and returns that wall it it exists.
    * @see #adjustMagnetizedPieceOfFurniture(HomePieceOfFurniture, float, float)
@@ -2694,19 +2720,6 @@ public class PlanController extends FurnitureController implements Controller {
           break;
         }
       }
-      if (referenceWall == null) {
-        // If not found search if point (x, y) is contained in home walls with a margin
-        for (Wall wall : walls) {
-          if (wall.isAtLevel(selectedLevel)
-              && isLevelNullOrViewable(wall.getLevel())
-              && wall.containsPoint(x, y, includeBaseboards, 0)
-              && wall.getStartPointToEndPointDistance() > 0) {
-            referenceWall = getReferenceWall(wall, x, y);
-            referenceWallArcExtent = wall.getArcExtent();
-            break;
-          }
-        }
-      }
     }
 
     if (referenceWall == null) {
@@ -2714,12 +2727,22 @@ public class PlanController extends FurnitureController implements Controller {
       Area pieceAreaWithMargin = new Area(getRotatedRectangle(
           piece.getX() - piece.getWidthInPlan() / 2 - margin, piece.getY() - piece.getDepthInPlan() / 2 - margin,
           piece.getWidthInPlan() + 2 * margin, piece.getDepthInPlan() + 2 * margin, piece.getAngle()));
+      Rectangle2D pieceAreaBounds = pieceAreaWithMargin.getBounds2D();
+      float pieceAreaMinX = (float)pieceAreaBounds.getMinX();
+      float pieceAreaMinY = (float)pieceAreaBounds.getMinY();
+      float pieceAreaMaxX = (float)pieceAreaBounds.getMaxX();
+      float pieceAreaMaxY = (float)pieceAreaBounds.getMaxY();
       float intersectionWithReferenceWallSurface = 0;
       for (Wall wall : walls) {
         if (wall.isAtLevel(selectedLevel)
             && isLevelNullOrViewable(wall.getLevel())
             && wall.getStartPointToEndPointDistance() > 0) {
           float [][] wallPoints = wall.getPoints(includeBaseboards);
+          // Spare the area operations for the walls whose box can't intersect the piece
+          if (!intersectsBounds(wallPoints, 0,
+                  pieceAreaMinX, pieceAreaMinY, pieceAreaMaxX, pieceAreaMaxY)) {
+            continue;
+          }
           Area wallAreaIntersection = new Area(getPath(wallPoints));
           wallAreaIntersection.intersect(pieceAreaWithMargin);
           if (!wallAreaIntersection.isEmpty()) {
@@ -3261,6 +3284,14 @@ public class PlanController extends FurnitureController implements Controller {
     // Search if the border of another piece at floor level intersects with the given piece
     float pieceElevation = piece.getGroundElevation();
     float margin = 2 * PIXEL_MARGIN / getScale();
+    float pieceMinX = Math.min(Math.min(piecePoints [0][0], piecePoints [1][0]),
+        Math.min(piecePoints [2][0], piecePoints [3][0]));
+    float pieceMaxX = Math.max(Math.max(piecePoints [0][0], piecePoints [1][0]),
+        Math.max(piecePoints [2][0], piecePoints [3][0]));
+    float pieceMinY = Math.min(Math.min(piecePoints [0][1], piecePoints [1][1]),
+        Math.min(piecePoints [2][1], piecePoints [3][1]));
+    float pieceMaxY = Math.max(Math.max(piecePoints [0][1], piecePoints [1][1]),
+        Math.max(piecePoints [2][1], piecePoints [3][1]));
     HomePieceOfFurniture referencePiece = null;
     Area intersectionWithReferencePieceArea = null;
     float intersectionWithReferencePieceSurface = 0;
@@ -3274,6 +3305,12 @@ public class PlanController extends FurnitureController implements Controller {
           && (!doorOrWindowBoundToWall // Ignore other furniture for doors and windows bound to a wall
               || homePiece.isDoorOrWindow())) {
         float [][] points = homePiece.getPoints();
+        // The intersections below all lie within the other piece grown by the margin its
+        // sides are thickened with, so the costly area operations can be spared for the
+        // pieces whose box, grown the same way, can't reach the dragged piece
+        if (!intersectsBounds(points, margin, pieceMinX, pieceMinY, pieceMaxX, pieceMaxY)) {
+          continue;
+        }
         Area marginArea;
         if (doorOrWindowBoundToWall && homePiece.isDoorOrWindow()) {
           marginArea = new Area(getPath(new Wall(
@@ -11016,7 +11053,7 @@ public class PlanController extends FurnitureController implements Controller {
       Wall previousWall = this.wallEndAtStart != null
           ? this.wallEndAtStart
           : this.wallStartAtStart;
-      // Create a new wall with an angle equal to previous wall angle - 90°
+      // Create a new wall with an angle equal to previous wall angle - 90ï¿½
       double previousWallAngle = Math.PI - Math.atan2(previousWall.getYStart() - previousWall.getYEnd(),
           previousWall.getXStart() - previousWall.getXEnd());
       previousWallAngle -=  Math.PI / 2;
@@ -12568,7 +12605,7 @@ public class PlanController extends FurnitureController implements Controller {
       float newPitch = (float)(this.oldPitch
           + (y - getYLastMousePress()) * Math.cos(this.selectedCamera.getYaw()) * Math.PI / 360
           - (x - getXLastMousePress()) * Math.sin(this.selectedCamera.getYaw()) * Math.PI / 360);
-      // Check new angle is between -90° and 90°
+      // Check new angle is between -90ï¿½ and 90ï¿½
       newPitch = Math.max(newPitch, -(float)Math.PI / 2);
       newPitch = Math.min(newPitch, (float)Math.PI / 2);
 
@@ -14273,7 +14310,7 @@ public class PlanController extends FurnitureController implements Controller {
       float [][] points = this.newRoom.getPoints();
       this.xPreviousPoint = points [points.length - 1][0];
       this.yPreviousPoint = points [points.length - 1][1];
-      // Create a new side with an angle equal to previous side angle - 90°
+      // Create a new side with an angle equal to previous side angle - 90ï¿½
       double previousSideAngle = Math.PI - Math.atan2(points [points.length - 2][1] - points [points.length - 1][1],
           points [points.length - 2][0] - points [points.length - 1][0]);
       previousSideAngle -=  Math.PI / 2;
@@ -15258,7 +15295,7 @@ public class PlanController extends FurnitureController implements Controller {
       float [][] points = this.newPolyline.getPoints();
       this.xPreviousPoint = points [points.length - 1][0];
       this.yPreviousPoint = points [points.length - 1][1];
-      // Create a new segment with an angle equal to previous segment angle - 90°
+      // Create a new segment with an angle equal to previous segment angle - 90ï¿½
       double previousSegmentAngle = Math.PI - Math.atan2(points [points.length - 2][1] - points [points.length - 1][1],
           points [points.length - 2][0] - points [points.length - 1][0]);
       previousSegmentAngle -=  Math.PI / 2;

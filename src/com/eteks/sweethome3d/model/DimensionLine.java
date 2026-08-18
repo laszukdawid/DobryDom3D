@@ -55,7 +55,8 @@ public class DimensionLine extends HomeObject implements Selectable, Elevatable 
   private boolean         visibleIn3D;
   private Level           level;
 
-  private transient Shape shapeCache;
+  private transient Shape      shapeCache;
+  private transient float [][] pointsCache;
 
 
   /**
@@ -127,7 +128,7 @@ public class DimensionLine extends HomeObject implements Selectable, Elevatable 
     if (xStart != this.xStart) {
       float oldXStart = this.xStart;
       this.xStart = xStart;
-      this.shapeCache = null;
+      clearShapeCache();
       firePropertyChange(Property.X_START.name(), oldXStart, xStart);
     }
   }
@@ -147,7 +148,7 @@ public class DimensionLine extends HomeObject implements Selectable, Elevatable 
     if (yStart != this.yStart) {
       float oldYStart = this.yStart;
       this.yStart = yStart;
-      this.shapeCache = null;
+      clearShapeCache();
       firePropertyChange(Property.Y_START.name(), oldYStart, yStart);
     }
   }
@@ -169,7 +170,7 @@ public class DimensionLine extends HomeObject implements Selectable, Elevatable 
     if (elevationStart != this.elevationStart) {
       float oldElevationStart = this.elevationStart;
       this.elevationStart = elevationStart;
-      this.shapeCache = null;
+      clearShapeCache();
       firePropertyChange(Property.ELEVATION_START.name(), oldElevationStart, elevationStart);
     }
   }
@@ -189,7 +190,7 @@ public class DimensionLine extends HomeObject implements Selectable, Elevatable 
     if (xEnd != this.xEnd) {
       float oldXEnd = this.xEnd;
       this.xEnd = xEnd;
-      this.shapeCache = null;
+      clearShapeCache();
       firePropertyChange(Property.X_END.name(), oldXEnd, xEnd);
     }
   }
@@ -209,7 +210,7 @@ public class DimensionLine extends HomeObject implements Selectable, Elevatable 
     if (yEnd != this.yEnd) {
       float oldYEnd = this.yEnd;
       this.yEnd = yEnd;
-      this.shapeCache = null;
+      clearShapeCache();
       firePropertyChange(Property.Y_END.name(), oldYEnd, yEnd);
     }
   }
@@ -231,7 +232,7 @@ public class DimensionLine extends HomeObject implements Selectable, Elevatable 
     if (elevationEnd != this.elevationEnd) {
       float oldElevationEnd = this.elevationEnd;
       this.elevationEnd = elevationEnd;
-      this.shapeCache = null;
+      clearShapeCache();
       firePropertyChange(Property.ELEVATION_END.name(), oldElevationEnd, elevationEnd);
     }
   }
@@ -261,7 +262,7 @@ public class DimensionLine extends HomeObject implements Selectable, Elevatable 
     if (offset != this.offset) {
       float oldOffset = this.offset;
       this.offset = offset;
-      this.shapeCache = null;
+      clearShapeCache();
       firePropertyChange(Property.OFFSET.name(), oldOffset, offset);
     }
   }
@@ -283,7 +284,7 @@ public class DimensionLine extends HomeObject implements Selectable, Elevatable 
     if (pitch != this.pitch) {
       float oldPitch = this.pitch;
       this.pitch = pitch;
-      this.shapeCache = null;
+      clearShapeCache();
       firePropertyChange(Property.PITCH.name(), oldPitch, pitch);
     }
   }
@@ -355,7 +356,7 @@ public class DimensionLine extends HomeObject implements Selectable, Elevatable 
     if (endMarkSize != this.endMarkSize) {
       float oldEndMarkSize = this.endMarkSize;
       this.endMarkSize = endMarkSize;
-      this.shapeCache = null;
+      clearShapeCache();
       firePropertyChange(Property.END_MARK_SIZE.name(), oldEndMarkSize, endMarkSize);
     }
   }
@@ -429,16 +430,24 @@ public class DimensionLine extends HomeObject implements Selectable, Elevatable 
    * @return an array of the 4 (x,y) coordinates of the rectangle.
    */
   public float [][] getPoints() {
-    double angle = isElevationDimensionLine()
-        ? this.pitch
-        : Math.atan2(this.yEnd - this.yStart, this.xEnd - this.xStart);
-    float dx = (float)-Math.sin(angle) * this.offset;
-    float dy = (float)Math.cos(angle) * this.offset;
+    if (this.pointsCache == null) {
+      double angle = isElevationDimensionLine()
+          ? this.pitch
+          : Math.atan2(this.yEnd - this.yStart, this.xEnd - this.xStart);
+      float dx = (float)-Math.sin(angle) * this.offset;
+      float dy = (float)Math.cos(angle) * this.offset;
 
-    return new float [] [] {{this.xStart, this.yStart},
-                            {this.xStart + dx, this.yStart + dy},
-                            {this.xEnd + dx, this.yEnd + dy},
-                            {this.xEnd, this.yEnd}};
+      // Cache points
+      this.pointsCache = new float [] [] {{this.xStart, this.yStart},
+                                          {this.xStart + dx, this.yStart + dy},
+                                          {this.xEnd + dx, this.yEnd + dy},
+                                          {this.xEnd, this.yEnd}};
+    }
+    float [][] points = new float [this.pointsCache.length][];
+    for (int i = 0; i < points.length; i++) {
+      points [i] = this.pointsCache [i].clone();
+    }
+    return points;
   }
 
   /**
@@ -634,6 +643,15 @@ public class DimensionLine extends HomeObject implements Selectable, Elevatable 
       this.shapeCache = dimensionLineShape;
     }
     return this.shapeCache;
+  }
+
+  /**
+   * Clears the cached shape and points of this dimension line, once one of the
+   * properties they are built from changed.
+   */
+  private void clearShapeCache() {
+    this.shapeCache = null;
+    this.pointsCache = null;
   }
 
   /**

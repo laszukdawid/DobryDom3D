@@ -322,6 +322,7 @@ public class Polyline extends HomeObject implements Selectable, Elevatable {
     if (thickness != this.thickness) {
       float oldThickness = this.thickness;
       this.thickness = thickness;
+      this.shapeCache = null;
       firePropertyChange(Property.THICKNESS.name(), oldThickness, thickness);
     }
   }
@@ -512,6 +513,8 @@ public class Polyline extends HomeObject implements Selectable, Elevatable {
   public void setClosedPath(boolean closedPath) {
     if (closedPath != this.closedPath) {
       this.closedPath = closedPath;
+      this.polylinePathCache = null;
+      this.shapeCache = null;
       firePropertyChange(Property.CLOSED_PATH.name(), !closedPath, closedPath);
     }
   }

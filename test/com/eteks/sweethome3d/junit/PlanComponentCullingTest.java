@@ -38,6 +38,7 @@ import com.eteks.sweethome3d.io.DefaultUserPreferences;
 import com.eteks.sweethome3d.model.CatalogDoorOrWindow;
 import com.eteks.sweethome3d.model.CatalogPieceOfFurniture;
 import com.eteks.sweethome3d.model.Content;
+import com.eteks.sweethome3d.model.DimensionLine;
 import com.eteks.sweethome3d.model.Home;
 import com.eteks.sweethome3d.model.HomeDoorOrWindow;
 import com.eteks.sweethome3d.model.HomePieceOfFurniture;
@@ -45,6 +46,7 @@ import com.eteks.sweethome3d.model.Label;
 import com.eteks.sweethome3d.model.Polyline;
 import com.eteks.sweethome3d.model.Room;
 import com.eteks.sweethome3d.model.Sash;
+import com.eteks.sweethome3d.model.TextStyle;
 import com.eteks.sweethome3d.model.UserPreferences;
 import com.eteks.sweethome3d.model.Wall;
 import com.eteks.sweethome3d.swing.PlanComponent;
@@ -174,6 +176,120 @@ public class PlanComponentCullingTest extends TestCase {
   }
 
   /**
+   * A thick polyline ending in a sharp spike paints its miter join well past the box
+   * around its points. This clip only covers pixels which lie beyond that box grown by
+   * the plain thickness and arrow margin, so it passes only when culling grants miter
+   * joined polylines their miter outset.
+   */
+  public void testClippedPaintingKeepsMiterSpikeOfThickPolyline() throws Exception {
+    UserPreferences preferences = new DefaultUserPreferences();
+    preferences.setFurnitureViewedFromTop(false);
+    Home home = new Home();
+    home.getCompass().setVisible(false);
+    // The spike at (300, 100) has a half angle of atan(40 / 200) = 11.3 degrees, whose
+    // miter factor 1 / sin = 5.1 stays under the limit of 10, so the join is drawn and
+    // its tip reaches 6 * 5.1 = 30.6 units past the vertex, at about x = 330
+    Polyline polyline = new Polyline(new float [][] {{100, 60}, {300, 100}, {100, 140}});
+    polyline.setThickness(12);
+    home.addPolyline(polyline);
+
+    TestPlanComponent planComponent = new TestPlanComponent(home, preferences);
+    paintUnclipped(planComponent);
+    BufferedImage unclippedImage = paintUnclipped(planComponent);
+    // The clip starts at x = 314, past the points box (x <= 300) grown by the thickness
+    // and arrow margin (12), so only the miter outset can keep the polyline painted
+    Rectangle spikeClip = new Rectangle(314, 80, 30, 40);
+    BufferedImage clippedImage = createImage();
+    paintInto(clippedImage, planComponent, spikeClip);
+
+    assertClipKeepsDrawnPixels(unclippedImage, clippedImage, spikeClip);
+  }
+
+  /**
+   * A curved closed polyline bows outside of the box around its points. This clip only
+   * covers pixels of that bow, past the box grown by the plain thickness margin, so it
+   * passes only when culling grants curved polylines the reach of their control points.
+   */
+  public void testClippedPaintingKeepsBowOfCurvedPolyline() throws Exception {
+    UserPreferences preferences = new DefaultUserPreferences();
+    preferences.setFurnitureViewedFromTop(false);
+    Home home = new Home();
+    home.getCompass().setVisible(false);
+    // The closing left edge curve from (420, 130) to (420, 60) takes its control points
+    // 100 / 3.625 = 27.6 units to the left, bowing to about x = 399 at its middle
+    Polyline polyline = new Polyline(new float [][] {{420, 60}, {520, 60}, {520, 130}, {420, 130}});
+    polyline.setJoinStyle(Polyline.JoinStyle.CURVED);
+    polyline.setClosedPath(true);
+    polyline.setThickness(3);
+    home.addPolyline(polyline);
+
+    TestPlanComponent planComponent = new TestPlanComponent(home, preferences);
+    paintUnclipped(planComponent);
+    BufferedImage unclippedImage = paintUnclipped(planComponent);
+    // The clip ends at x = 414, short of the points box (x >= 420) grown by the
+    // thickness margin (3), so only the bow allowance can keep the polyline painted
+    Rectangle bowClip = new Rectangle(394, 85, 20, 20);
+    BufferedImage clippedImage = createImage();
+    paintInto(clippedImage, planComponent, bowClip);
+
+    assertClipKeepsDrawnPixels(unclippedImage, clippedImage, bowClip);
+  }
+
+  /**
+   * The chevron of an OPEN arrow is stroked with its own miter join, whatever the join
+   * style of its polyline. Its apex is pushed half a thickness out by a round cap and
+   * its miter reaches 1.346 thickness further, together outgrowing the plain thickness
+   * and arrow margin once the polyline is thicker than about 1430. This clip only
+   * covers pixels of that overshoot, so it passes only when culling grants open arrows
+   * their miter outset on a polyline whose own joins don't ask for it.
+   */
+  public void testClippedPaintingKeepsMiterOfOpenArrow() throws Exception {
+    UserPreferences preferences = new DefaultUserPreferences();
+    preferences.setFurnitureViewedFromTop(false);
+    Home home = new Home();
+    home.getCompass().setVisible(false);
+    // The arrow apex sits at -3600 + 2000 / 2 = -2600 and its miter tip reaches
+    // 1.346 * 2000 = 2692 further, near x = 92, while the box around the points grown
+    // by the plain margin of 2000 + 10 * 2000^0.66 = 3509 stops at x = -91
+    Polyline polyline = new Polyline(new float [][] {{-3600, 200}, {-8000, 200}});
+    polyline.setThickness(2000);
+    polyline.setJoinStyle(Polyline.JoinStyle.ROUND);
+    polyline.setCapStyle(Polyline.CapStyle.ROUND);
+    polyline.setStartArrowStyle(Polyline.ArrowStyle.OPEN);
+    home.addPolyline(polyline);
+
+    TestPlanComponent planComponent = new TestPlanComponent(home, preferences);
+    paintUnclipped(planComponent);
+    BufferedImage unclippedImage = paintUnclipped(planComponent);
+    Rectangle arrowClip = new Rectangle(0, 150, 80, 100);
+    BufferedImage clippedImage = createImage();
+    paintInto(clippedImage, planComponent, arrowClip);
+
+    assertClipKeepsDrawnPixels(unclippedImage, clippedImage, arrowClip);
+  }
+
+  /**
+   * Checks that every pixel drawn strictly inside <code>clip</code> in the reference
+   * image is drawn in the clipped image too, and that the region isn't trivially empty.
+   */
+  private void assertClipKeepsDrawnPixels(BufferedImage expectedImage, BufferedImage image,
+                                          Rectangle clip) {
+    int drawnPixelCount = 0;
+    for (int y = clip.y + 1; y < clip.y + clip.height - 1; y++) {
+      for (int x = clip.x + 1; x < clip.x + clip.width - 1; x++) {
+        if (isDrawn(expectedImage, x, y)) {
+          drawnPixelCount++;
+          if (!isDrawnAround(image, x, y)) {
+            fail("Painting under the clip lost what is painted at (" + x + ", " + y + ")");
+          }
+        }
+      }
+    }
+    assertTrue("Nothing is painted under the clip, the fixture doesn't reach it",
+        drawnPixelCount > 10);
+  }
+
+  /**
    * Returns a home containing items spread over the painted area, including a door
    * whose sashes and wall cut out are painted outside of its own points.
    */
@@ -194,11 +310,34 @@ public class PlanComponentCullingTest extends TestCase {
     home.addRoom(new Room(new float [][] {{30, 30}, {300, 30}, {300, 350}, {30, 350}}));
     Room secondRoom = new Room(new float [][] {{310, 30}, {550, 30}, {550, 350}, {310, 350}});
     secondRoom.setName("Room name");
+    secondRoom.setNameAngle((float)Math.PI / 6);
     secondRoom.setAreaVisible(true);
     home.addRoom(secondRoom);
 
     home.addPolyline(new Polyline(new float [][] {{60, 200}, {200, 260}, {280, 120}}));
+    // A thick polyline ending in a sharp spike, whose miter join reaches far past the
+    // spike, with arrows sized after its thickness
+    Polyline miterPolyline = new Polyline(new float [][] {{350, 250}, {520, 245}, {350, 240}});
+    miterPolyline.setThickness(6);
+    miterPolyline.setStartArrowStyle(Polyline.ArrowStyle.DELTA);
+    miterPolyline.setEndArrowStyle(Polyline.ArrowStyle.OPEN);
+    home.addPolyline(miterPolyline);
+    // A curved closed polyline, whose curves bow outside of the box around its points
+    Polyline curvedPolyline = new Polyline(new float [][] {{420, 60}, {520, 60}, {520, 130}, {420, 130}});
+    curvedPolyline.setJoinStyle(Polyline.JoinStyle.CURVED);
+    curvedPolyline.setClosedPath(true);
+    home.addPolyline(curvedPolyline);
     home.addLabel(new Label("A label", 420, 300));
+    // Dimension lines: one with an offset, and a short one whose length text is wider
+    // than the line itself and overflows its ends
+    home.addDimensionLine(new DimensionLine(40, 40, 40, 340, 25));
+    home.addDimensionLine(new DimensionLine(90, 330, 100, 330, -15));
+    // A rotated multiline label aligned on its right edge, whose painted block reaches
+    // well away from its anchor point, into tiles the anchor itself doesn't touch
+    Label rotatedLabel = new Label("A much longer rotated label\non two lines", 470, 90);
+    rotatedLabel.setAngle((float)Math.PI / 3);
+    rotatedLabel.setStyle(new TextStyle(null, 18, false, false, TextStyle.Alignment.RIGHT));
+    home.addLabel(rotatedLabel);
 
     // The default catalog is empty when the furniture library isn't deployed, so build
     // the catalog pieces this test needs from an image generated on the fly

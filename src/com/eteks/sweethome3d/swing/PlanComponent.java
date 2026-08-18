@@ -66,6 +66,7 @@ import java.awt.geom.Area;
 import java.awt.geom.Ellipse2D;
 import java.awt.geom.GeneralPath;
 import java.awt.geom.Line2D;
+import java.awt.geom.Path2D;
 import java.awt.geom.PathIterator;
 import java.awt.geom.Point2D;
 import java.awt.geom.Rectangle2D;
@@ -811,6 +812,11 @@ public class PlanComponent extends JComponent implements PlanView, Scrollable, P
                      || HomePieceOfFurniture.Property.LEVEL.name().equals(ev.getPropertyName())
                      || HomePieceOfFurniture.Property.HEIGHT_IN_PLAN.name().equals(ev.getPropertyName())) {
             sortedLevelFurniture = null;
+            if (doorOrWindowWallThicknessAreasCache != null
+                && HomePieceOfFurniture.Property.LEVEL.name().equals(ev.getPropertyName())) {
+              // The walls cut out by a door depend on the level of the door
+              doorOrWindowWallThicknessAreasCache.remove(ev.getSource());
+            }
             repaint();
           } else if (HomePieceOfFurniture.Property.ICON.name().equals(ev.getPropertyName())
                      || HomeDoorOrWindow.Property.WALL_CUT_OUT_ON_BOTH_SIDES.name().equals(ev.getPropertyName())) {
@@ -823,7 +829,6 @@ public class PlanComponent extends JComponent implements PlanView, Scrollable, P
                          || HomePieceOfFurniture.Property.MODEL_MIRRORED.name().equals(ev.getPropertyName())
                          || HomePieceOfFurniture.Property.X.name().equals(ev.getPropertyName())
                          || HomePieceOfFurniture.Property.Y.name().equals(ev.getPropertyName())
-                         || HomePieceOfFurniture.Property.LEVEL.name().equals(ev.getPropertyName())
                          || HomeDoorOrWindow.Property.WALL_THICKNESS.name().equals(ev.getPropertyName())
                          || HomeDoorOrWindow.Property.WALL_DISTANCE.name().equals(ev.getPropertyName())
                          || HomeDoorOrWindow.Property.WALL_WIDTH.name().equals(ev.getPropertyName())
@@ -897,6 +902,8 @@ public class PlanComponent extends JComponent implements PlanView, Scrollable, P
             otherLevelsWallAreaCache = null;
             otherLevelsWallsCache = null;
             wallAreasCache = null;
+            // The walls cut out by a door depend on the level they are at
+            doorOrWindowWallThicknessAreasCache = null;
             repaint();
           }
         }
@@ -1405,6 +1412,37 @@ public class PlanComponent extends JComponent implements PlanView, Scrollable, P
   private static boolean isArrowPainted(Polyline.ArrowStyle arrowStyle) {
     return arrowStyle != null
         && arrowStyle != Polyline.ArrowStyle.NONE;
+  }
+
+  /**
+   * Returns how far outside of the box around its points a polyline may paint. On top of
+   * the margin its thickness and arrows need, a miter joined stroke sticks out of a sharp
+   * corner by up to half of its miter limit of 10 times its thickness, and a curved join
+   * bows out of the box by up to how far the control points of its curves lie from their
+   * ends, which is the span between the points neighboring each of them divided by the
+   * 3.625 constant a curved polyline path is built with.
+   */
+  private float getPolylineCullingMargin(Polyline polyline) {
+    float margin = getPolylinePaintedMargin(polyline);
+    if (polyline.getJoinStyle() == Polyline.JoinStyle.MITER
+        // The chevron of an open arrow is drawn with its own miter joined stroke,
+        // whatever the join style of the polyline it ends
+        || polyline.getStartArrowStyle() == Polyline.ArrowStyle.OPEN
+        || polyline.getEndArrowStyle() == Polyline.ArrowStyle.OPEN) {
+      margin += Math.abs(polyline.getThickness()) * 10 / 2;
+    }
+    if (polyline.getJoinStyle() == Polyline.JoinStyle.CURVED) {
+      float [][] points = polyline.getPoints();
+      float maxNeighborSpan = 0;
+      for (int i = 0; i < points.length; i++) {
+        float [] previousPoint = points [(i + points.length - 1) % points.length];
+        float [] nextPoint = points [(i + 1) % points.length];
+        maxNeighborSpan = Math.max(maxNeighborSpan,
+            (float)Point2D.distance(previousPoint [0], previousPoint [1], nextPoint [0], nextPoint [1]));
+      }
+      margin += maxNeighborSpan / 3.625f;
+    }
+    return margin;
   }
 
   /**
@@ -3037,6 +3075,20 @@ public class PlanComponent extends JComponent implements PlanView, Scrollable, P
       xMax = convertXPixelToModel(getWidth());
       yMax = convertYPixelToModel(getHeight());
     }
+    Shape clip = g2D.getClip();
+    if (clip != null) {
+      // Restrict painting to the lines crossing the clip, grown by the outset of their stroke,
+      // so that repainting a small dirty region doesn't redraw the grid of the whole view
+      Rectangle2D clipBounds = clip.getBounds2D();
+      float strokeMargin = 2 / gridScale;
+      xMin = Math.max(xMin, (float)clipBounds.getMinX() - strokeMargin);
+      xMax = Math.min(xMax, (float)clipBounds.getMaxX() + strokeMargin);
+      yMin = Math.max(yMin, (float)clipBounds.getMinY() - strokeMargin);
+      yMax = Math.min(yMax, (float)clipBounds.getMaxY() + strokeMargin);
+      if (xMin > xMax || yMin > yMax) {
+        return;
+      }
+    }
     boolean useGridImage = false;
     try {
       useGridImage = OperatingSystem.isMacOSX()
@@ -3073,27 +3125,34 @@ public class PlanComponent extends JComponent implements PlanView, Scrollable, P
                               float gridSize, float mainGridSize) {
     g2D.setColor(UIManager.getColor("controlShadow"));
     g2D.setStroke(new BasicStroke(0.5f / gridScale));
-    // Draw vertical lines
-    for (double x = (int)(xMin / gridSize) * gridSize; x < xMax; x += gridSize) {
-      g2D.draw(new Line2D.Double(x, yMin, x, yMax));
-    }
-    // Draw horizontal lines
-    for (double y = (int)(yMin / gridSize) * gridSize; y < yMax; y += gridSize) {
-      g2D.draw(new Line2D.Double(xMin, y, xMax, y));
-    }
+    // Draw all the lines of the grid as the subpaths of a single path, issuing one draw
+    // call instead of one per line
+    g2D.draw(getGridLinesPath(xMin, xMax, yMin, yMax, gridSize));
 
     if (mainGridSize != gridSize) {
       g2D.setStroke(new BasicStroke(1.5f / gridScale,
           BasicStroke.CAP_BUTT, BasicStroke.JOIN_BEVEL));
-      // Draw main vertical lines
-      for (double x = (int)(xMin / mainGridSize) * mainGridSize; x < xMax; x += mainGridSize) {
-        g2D.draw(new Line2D.Double(x, yMin, x, yMax));
-      }
-      // Draw positive main horizontal lines
-      for (double y = (int)(yMin / mainGridSize) * mainGridSize; y < yMax; y += mainGridSize) {
-        g2D.draw(new Line2D.Double(xMin, y, xMax, y));
-      }
+      g2D.draw(getGridLinesPath(xMin, xMax, yMin, yMax, mainGridSize));
     }
+  }
+
+  /**
+   * Returns the vertical and horizontal lines spaced by <code>gridSize</code> which cross
+   * the given range, gathered in one path. The path keeps double precision so lines far
+   * from the origin don't collapse on the same rounded floats.
+   */
+  private static Path2D getGridLinesPath(float xMin, float xMax, float yMin, float yMax,
+                                         float gridSize) {
+    Path2D gridLines = new Path2D.Double();
+    for (double x = (int)(xMin / gridSize) * gridSize; x < xMax; x += gridSize) {
+      gridLines.moveTo(x, yMin);
+      gridLines.lineTo(x, yMax);
+    }
+    for (double y = (int)(yMin / gridSize) * gridSize; y < yMax; y += gridSize) {
+      gridLines.moveTo(xMin, y);
+      gridLines.lineTo(xMax, y);
+    }
+    return gridLines;
   }
 
   /**
@@ -3426,6 +3485,79 @@ public class PlanComponent extends JComponent implements PlanView, Scrollable, P
   }
 
   /**
+   * Returns <code>true</code> unless the block of text measured by <code>textWidth</code>,
+   * <code>lineCount</code> and <code>fontMetrics</code>, anchored at the baseline point
+   * (<code>x</code>, <code>y</code>) of its last line and rotated around it by
+   * <code>angle</code>, lies entirely outside of <code>clipBounds</code>. The corners of the
+   * block are grown by a whole line height, which covers the glyphs overshooting the ascent
+   * or the advance of their line as well as the stroke drawn around outlined text.
+   */
+  private static boolean textIntersectsClipBounds(Rectangle2D clipBounds,
+                                                  float textWidth, int lineCount,
+                                                  FontMetrics fontMetrics, TextStyle style,
+                                                  float x, float y, float angle) {
+    if (clipBounds == null) {
+      return true;
+    }
+    float minX;
+    if (style.getAlignment() == TextStyle.Alignment.LEFT) {
+      minX = 0;
+    } else if (style.getAlignment() == TextStyle.Alignment.RIGHT) {
+      minX = -textWidth;
+    } else { // CENTER
+      minX = -textWidth / 2;
+    }
+    float maxX = minX + textWidth;
+    float lineHeight = fontMetrics.getHeight();
+    float minY = -((lineCount - 1) * lineHeight + fontMetrics.getAscent());
+    float maxY = fontMetrics.getDescent();
+    float cos = (float)Math.cos(angle);
+    float sin = (float)Math.sin(angle);
+    float [][] corners = {
+        {x + minX * cos - minY * sin, y + minX * sin + minY * cos},
+        {x + maxX * cos - minY * sin, y + maxX * sin + minY * cos},
+        {x + maxX * cos - maxY * sin, y + maxX * sin + maxY * cos},
+        {x + minX * cos - maxY * sin, y + minX * sin + maxY * cos}};
+    return intersectsClipBounds(clipBounds, corners, lineHeight);
+  }
+
+  /**
+   * Returns <code>true</code> unless <code>dimensionLine</code> paints entirely outside of
+   * <code>clipBounds</code>. The points of a dimension line already delimit the box between
+   * its base and its offset line, so the margin has to cover its end marks, the width of its
+   * strokes and the height of its length text; the length text can also reach past the ends
+   * of a line shorter than it, which is only checked when everything else lies outside.
+   */
+  private boolean intersectsDimensionLineClipBounds(Rectangle2D clipBounds,
+                                                    DimensionLine dimensionLine, Font defaultFont,
+                                                    float planScale, PaintMode paintMode,
+                                                    boolean feedback) {
+    if (clipBounds == null) {
+      return true;
+    }
+    TextStyle lengthStyle = dimensionLine.getLengthStyle();
+    if (lengthStyle == null) {
+      lengthStyle = this.preferences.getDefaultTextStyle(dimensionLine.getClass());
+    }
+    if (feedback && getFont() != null) {
+      lengthStyle = lengthStyle.deriveStyle(getFont().getSize() / planScale / this.resolutionScale);
+    }
+    FontMetrics lengthFontMetrics = getFontMetrics(defaultFont, lengthStyle);
+    float margin = dimensionLine.getEndMarkSize() / 2
+        + (getStrokeWidth(DimensionLine.class, paintMode) + 4) / planScale
+        + lengthFontMetrics.getHeight() + 2;
+    float [][] points = dimensionLine.getPoints();
+    if (intersectsClipBounds(clipBounds, points, margin)) {
+      return true;
+    }
+    float length = dimensionLine.getLength();
+    String lengthText = this.preferences.getLengthUnit().getFormat().format(length);
+    float textOverflow = (lengthFontMetrics.stringWidth(lengthText) - length) / 2;
+    return textOverflow > 0
+        && intersectsClipBounds(clipBounds, points, margin + textOverflow);
+  }
+
+  /**
    * Returns how far outside of the shape it draws the given stroke may paint. A miter joined
    * stroke, which is what <code>new BasicStroke(width)</code> builds, sticks out of an acute
    * vertex by up to half of its miter limit times its width, far more than the half width a
@@ -3743,9 +3875,6 @@ public class PlanComponent extends JComponent implements PlanView, Scrollable, P
                          String text, TextStyle style, Integer outlineColor,
                          float x, float y, float angle,
                          Font defaultFont) {
-    AffineTransform previousTransform = g2D.getTransform();
-    g2D.translate(x, y);
-    g2D.rotate(angle);
     if (style == null) {
       style = this.preferences.getDefaultTextStyle(selectableClass);
     }
@@ -3757,6 +3886,13 @@ public class PlanComponent extends JComponent implements PlanView, Scrollable, P
       lineWidths [i] = (float)fontMetrics.getStringBounds(lines [i], g2D).getWidth();
       textWidth = Math.max(lineWidths [i], textWidth);
     }
+    if (!textIntersectsClipBounds(getPaintedClipBounds(g2D), textWidth, lines.length,
+            fontMetrics, style, x, y, angle)) {
+      return;
+    }
+    AffineTransform previousTransform = g2D.getTransform();
+    g2D.translate(x, y);
+    g2D.rotate(angle);
     BasicStroke stroke = null;
     Font font;
     if (outlineColor != null) {
@@ -4583,7 +4719,10 @@ public class PlanComponent extends JComponent implements PlanView, Scrollable, P
                                                   Color backgroundColor, Color foregroundColor, PaintMode paintMode) {
     if (doorOrWindow.isWallCutOutOnBothSides()) {
       Area doorOrWindowWallArea = null;
-      if (this.doorOrWindowWallThicknessAreasCache != null) {
+      // The cache is only read and written for interactive painting: print and export may
+      // run on their own thread, and the map isn't made for concurrent access
+      if (paintMode == PaintMode.PAINT
+          && this.doorOrWindowWallThicknessAreasCache != null) {
         doorOrWindowWallArea = this.doorOrWindowWallThicknessAreasCache.get(doorOrWindow);
       }
 
@@ -4596,35 +4735,45 @@ public class PlanComponent extends JComponent implements PlanView, Scrollable, P
         GeneralPath doorOrWindowWallPartShape = new GeneralPath();
         doorOrWindowWallPartShape.append(it, false);
         Area doorOrWindowWallPartArea = new Area(doorOrWindowWallPartShape);
+        Rectangle2D doorOrWindowWallPartBounds = doorOrWindowWallPartShape.getBounds2D();
 
         doorOrWindowWallArea = new Area();
         for (Wall wall : home.getWalls()) {
           if (wall.isAtLevel(doorOrWindow.getLevel())
               && doorOrWindow.isParallelToWall(wall)) {
-            Shape wallShape = ShapeTools.getShape(wall.getPoints(), true, null);
-            Area wallArea = new Area(wallShape);
-            wallArea.intersect(doorOrWindowWallPartArea);
-            if (!wallArea.isEmpty()) {
-              Rectangle2D doorOrWindowExtendedRectangle = new Rectangle2D.Float(
-                  (float)doorOrWindowRectangle.getX(),
-                  (float)doorOrWindowRectangle.getY() - 2 * wall.getThickness(),
-                  (float)doorOrWindowRectangle.getWidth(),
-                  (float)doorOrWindowRectangle.getWidth() + 4 * wall.getThickness());
-              it = doorOrWindowExtendedRectangle.getPathIterator(rotation);
-              GeneralPath path = new GeneralPath();
-              path.append(it, false);
-              wallArea = new Area(wallShape);
-              wallArea.intersect(new Area(path));
-              doorOrWindowWallArea.add(wallArea);
+            float [][] wallPoints = wall.getPoints();
+            // Every area intersected below lies within the rectangle of the piece grown
+            // by its width and twice the thickness of the wall, so the costly area
+            // operations can be spared for the walls whose points can't reach that far
+            if (intersectsClipBounds(doorOrWindowWallPartBounds, wallPoints,
+                    2 * wall.getThickness() + (float)doorOrWindowRectangle.getWidth())) {
+              Shape wallShape = ShapeTools.getShape(wallPoints, true, null);
+              Area wallArea = new Area(wallShape);
+              wallArea.intersect(doorOrWindowWallPartArea);
+              if (!wallArea.isEmpty()) {
+                Rectangle2D doorOrWindowExtendedRectangle = new Rectangle2D.Float(
+                    (float)doorOrWindowRectangle.getX(),
+                    (float)doorOrWindowRectangle.getY() - 2 * wall.getThickness(),
+                    (float)doorOrWindowRectangle.getWidth(),
+                    (float)doorOrWindowRectangle.getWidth() + 4 * wall.getThickness());
+                it = doorOrWindowExtendedRectangle.getPathIterator(rotation);
+                GeneralPath path = new GeneralPath();
+                path.append(it, false);
+                wallArea = new Area(wallShape);
+                wallArea.intersect(new Area(path));
+                doorOrWindowWallArea.add(wallArea);
+              }
             }
           }
         }
       }
 
-      if (this.doorOrWindowWallThicknessAreasCache == null) {
-        this.doorOrWindowWallThicknessAreasCache = new WeakHashMap<HomeDoorOrWindow, Area>();
+      if (paintMode == PaintMode.PAINT) {
+        if (this.doorOrWindowWallThicknessAreasCache == null) {
+          this.doorOrWindowWallThicknessAreasCache = new WeakHashMap<HomeDoorOrWindow, Area>();
+        }
+        this.doorOrWindowWallThicknessAreasCache.put(doorOrWindow, doorOrWindowWallArea);
       }
-      this.doorOrWindowWallThicknessAreasCache.put(doorOrWindow, doorOrWindowWallArea);
 
       g2D.setPaint(backgroundColor);
       g2D.fill(doorOrWindowWallArea);
@@ -5081,12 +5230,20 @@ public class PlanComponent extends JComponent implements PlanView, Scrollable, P
                               Paint selectionOutlinePaint,
                               Paint indicatorPaint, float planScale,
                               Color foregroundColor, PaintMode paintMode) {
+    Rectangle2D clipBounds = getPaintedClipBounds(g2D);
     // Draw polylines
     for (Polyline polyline : polylines) {
       if (isViewableAtLevel(polyline, level)) {
         boolean selected = isItemSelected(selectedItems, polyline);
         if (paintMode != PaintMode.CLIPBOARD
             || selected) {
+          if (!selected
+              && !intersectsClipBounds(clipBounds, polyline.getPoints(),
+                      getPolylineCullingMargin(polyline))) {
+            // Skip a polyline painted entirely outside of the clip; a selected one keeps
+            // being painted for its outline and indicators
+            continue;
+          }
           g2D.setPaint(new Color(polyline.getColor()));
           float thickness = polyline.getThickness();
           g2D.setStroke(ShapeTools.getStroke(thickness, polyline.getCapStyle(), polyline.getJoinStyle(),
@@ -5200,11 +5357,20 @@ public class PlanComponent extends JComponent implements PlanView, Scrollable, P
         ? (DimensionLine)selectedItems.get(0)
         : null;
 
+    Rectangle2D clipBounds = getPaintedClipBounds(g2D);
     // Draw dimension lines
     // Change font size
     Font previousFont = g2D.getFont();
     for (DimensionLine dimensionLine : dimensionLines) {
       if (isViewableAtLevel(dimensionLine, level)) {
+        if (dimensionLine != selectedDimensionLineWithIndicators
+            && !isItemSelected(selectedItems, dimensionLine)
+            && !intersectsDimensionLineClipBounds(clipBounds, dimensionLine, previousFont,
+                    planScale, paintMode, feedback)) {
+          // Skip a dimension line painted entirely outside of the clip; a selected one
+          // keeps being painted for its outline and indicators
+          continue;
+        }
         Integer dimensionLineColor = dimensionLine.getColor();
         float markEndScale = dimensionLine.getEndMarkSize() / markEndWidth;
         BasicStroke dimensionLineStroke = new BasicStroke(getStrokeWidth(DimensionLine.class, paintMode) / markEndScale / planScale);

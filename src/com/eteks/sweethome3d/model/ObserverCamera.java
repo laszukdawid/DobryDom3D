@@ -45,8 +45,9 @@ public class ObserverCamera extends Camera implements Selectable {
   private boolean fixedSize;
 
   private transient float planScale = 1;
-  private transient Shape shapeCache;
-  private transient Shape rectangleShapeCache;
+  private transient Shape      shapeCache;
+  private transient Shape      rectangleShapeCache;
+  private transient float [][] pointsCache;
 
   /**
    * Creates a camera at given location and angle.
@@ -83,8 +84,7 @@ public class ObserverCamera extends Camera implements Selectable {
       float oldDepth = getDepth();
       float oldHeight = getHeight();
       this.fixedSize = fixedSize;
-      this.shapeCache = null;
-      this.rectangleShapeCache = null;
+      clearShapeCaches();
       firePropertyChange(Property.WIDTH.name(), oldWidth, getWidth());
       firePropertyChange(Property.DEPTH.name(), oldDepth, getDepth());
       firePropertyChange(Property.HEIGHT.name(), oldHeight, getHeight());
@@ -110,8 +110,7 @@ public class ObserverCamera extends Camera implements Selectable {
       float oldDepth = getDepth();
       float oldHeight = getHeight();
       this.planScale = scale;
-      this.shapeCache = null;
-      this.rectangleShapeCache = null;
+      clearShapeCaches();
       firePropertyChange(Property.WIDTH.name(), oldWidth, getWidth());
       firePropertyChange(Property.DEPTH.name(), oldDepth, getDepth());
       firePropertyChange(Property.HEIGHT.name(), oldHeight, getHeight());
@@ -131,8 +130,7 @@ public class ObserverCamera extends Camera implements Selectable {
    */
   public void setYaw(float yaw) {
     super.setYaw(yaw);
-    this.shapeCache = null;
-    this.rectangleShapeCache = null;
+    clearShapeCaches();
   }
 
   /**
@@ -140,8 +138,7 @@ public class ObserverCamera extends Camera implements Selectable {
    */
   public void setX(float x) {
     super.setX(x);
-    this.shapeCache = null;
-    this.rectangleShapeCache = null;
+    clearShapeCaches();
   }
 
   /**
@@ -149,8 +146,7 @@ public class ObserverCamera extends Camera implements Selectable {
    */
   public void setY(float y) {
     super.setY(y);
-    this.shapeCache = null;
-    this.rectangleShapeCache = null;
+    clearShapeCaches();
   }
 
   /**
@@ -161,8 +157,7 @@ public class ObserverCamera extends Camera implements Selectable {
     float oldDepth = getDepth();
     float oldHeight = getHeight();
     super.setZ(z);
-    this.shapeCache = null;
-    this.rectangleShapeCache = null;
+    clearShapeCaches();
     firePropertyChange(Property.WIDTH.name(), oldWidth, getWidth());
     firePropertyChange(Property.DEPTH.name(), oldDepth, getDepth());
     firePropertyChange(Property.HEIGHT.name(), oldHeight, getHeight());
@@ -214,13 +209,21 @@ public class ObserverCamera extends Camera implements Selectable {
    * @return an array of the 4 (x,y) coordinates of the camera corners.
    */
   public float [][] getPoints() {
-    float [][] cameraPoints = new float[4][2];
-    PathIterator it = getRectangleShape().getPathIterator(null);
-    for (int i = 0; i < cameraPoints.length; i++) {
-      it.currentSegment(cameraPoints [i]);
-      it.next();
+    if (this.pointsCache == null) {
+      float [][] cameraPoints = new float[4][2];
+      PathIterator it = getRectangleShape().getPathIterator(null);
+      for (int i = 0; i < cameraPoints.length; i++) {
+        it.currentSegment(cameraPoints [i]);
+        it.next();
+      }
+      // Cache points
+      this.pointsCache = cameraPoints;
     }
-    return cameraPoints;
+    float [][] points = new float [this.pointsCache.length][];
+    for (int i = 0; i < points.length; i++) {
+      points [i] = this.pointsCache [i].clone();
+    }
+    return points;
   }
 
   /**
@@ -290,6 +293,16 @@ public class ObserverCamera extends Camera implements Selectable {
       this.rectangleShapeCache = cameraRectangleShape;
     }
     return this.rectangleShapeCache;
+  }
+
+  /**
+   * Clears the cached shapes and points of this camera, once its location, its size
+   * or its yaw changed.
+   */
+  private void clearShapeCaches() {
+    this.shapeCache = null;
+    this.rectangleShapeCache = null;
+    this.pointsCache = null;
   }
 
   /**

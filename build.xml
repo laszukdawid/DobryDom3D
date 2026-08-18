@@ -336,6 +336,8 @@
       </classpath>
       <jvmarg value="--add-opens=java.desktop/java.awt=ALL-UNNAMED"/>
       <jvmarg value="--add-opens=java.desktop/sun.awt=ALL-UNNAMED"/>
+      <!-- Same open as the executable jar manifest; only warns on non-macOS JDKs -->
+      <jvmarg value="--add-opens=java.desktop/com.apple.eio=ALL-UNNAMED"/>
       <sysproperty key="java.awt.headless" value="true"/>
       <sysproperty key="com.eteks.sweethome3d.no3D" value="true"/>
       <sysproperty key="user.home" value="${basedir}/build/test-home"/>
@@ -355,9 +357,14 @@
           <include name="**/CatalogTreeTest.java"/>
           <include name="**/FurnitureTableTest.java"/>
           <include name="**/PlanComponentCullingTest.java"/>
+          <include name="**/PlanComponentGridPaintingTest.java"/>
+          <include name="**/PlanComponentWallCutOutTest.java"/>
           <include name="**/PlanComponentRepaintBoundsTest.java"/>
           <include name="**/PlanComponentTopViewIconTest.java"/>
           <include name="**/WallShapeTest.java"/>
+          <include name="**/PolylineShapeTest.java"/>
+          <include name="**/ItemPointsTest.java"/>
+          <include name="**/PlanControllerMagnetismTest.java"/>
           <include name="**/WallPanelTest.java"/>
           <include name="**/YafarayRendererTest.java"/>
         </fileset>
@@ -384,6 +391,8 @@
       <jvmarg value="--add-opens=java.desktop/sun.awt=ALL-UNNAMED"/>
       <jvmarg value="--add-opens=java.desktop/sun.java2d=ALL-UNNAMED"/>
       <jvmarg value="--add-opens=java.base/java.util=ALL-UNNAMED"/>
+      <!-- Same open as the executable jar manifest; only warns on non-macOS JDKs -->
+      <jvmarg value="--add-opens=java.desktop/com.apple.eio=ALL-UNNAMED"/>
       <jvmarg value="--enable-native-access=ALL-UNNAMED"/>
       <sysproperty key="java.awt.headless" value="false"/>
       <sysproperty key="com.eteks.sweethome3d.applicationJar" value="${basedir}/build/SweetHome3D.jar"/>
