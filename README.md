@@ -1,12 +1,17 @@
-# Sweet Home 3D
+# DobryDom3D
 
-This repository is an unofficial GitHub fork of the Sweet Home 3D 7.5 source
-distribution.
+**DobryDom3D** is an independent, GPL-licensed home-design application based on
+Sweet Home 3D 7.5. The name comes from the Polish words *dobry dom*—“good
+home.”
 
-The original project is hosted on [SourceForge](https://sourceforge.net/projects/sweethome3d/).
-This repository does not claim original ownership or official project status.
-It preserves the upstream source snapshot as a starting point for incremental
-modernization.
+This repository is an unofficial fork. The original Sweet Home 3D project is
+hosted on [SourceForge](https://sourceforge.net/projects/sweethome3d/).
+DobryDom3D does not claim original ownership, official project status, or
+endorsement by the Sweet Home 3D maintainers. It preserves the upstream source
+snapshot as the basis for continued development and modernization.
+
+A project website is planned and will be published with GitHub Pages. Until
+then, this repository is the project’s canonical home.
 
 ## Upstream Snapshot
 
@@ -156,8 +161,10 @@ a self-contained reproducer and a ready-to-file upstream report live under
 2.10 source with `--release 11` so it remains readable when compiling with the
 pinned JDK 21 while still parsing modern class files.
 
-## Fork Status
+## Project Status
 
-This is the initial repository staging pass. No application code or behavior was
-changed here; future changes will be developed separately from the preserved
-upstream snapshot.
+The project is being renamed to **DobryDom3D**. Repository documentation uses
+the new name, while source packages, build artifacts, file formats, and parts
+of the application UI may continue to use the upstream Sweet Home 3D name
+during the branding migration. Original copyright, licensing, attribution, and
+third-party notices will remain intact.
