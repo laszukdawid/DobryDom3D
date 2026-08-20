@@ -1,3 +1,4 @@
+# This file is part of DobryDom3D, a fork of Sweet Home 3D 7.5, modified by DobryDom3D contributors since August 2026.
 version: "3"
 
 vars:
@@ -38,7 +39,7 @@ tasks:
       - ant clean jarExecutable
 
   run:
-    desc: Build and run Sweet Home 3D
+    desc: Build and run DobryDom3D
     deps: [build:executable]
     cmds:
       - '"{{.JAVA_HOME}}/bin/java" -jar "{{.APP_JAR}}"'

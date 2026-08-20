@@ -2,6 +2,7 @@
  * UserPreferencesPanel.java 18 sept. 2006
  *
  * Sweet Home 3D, Copyright (c) 2024 Space Mushrooms <info@sweethome3d.com>
+ * This file is part of DobryDom3D, a fork of Sweet Home 3D 7.5, modified by DobryDom3D contributors since August 2026.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -772,7 +773,7 @@ public class UserPreferencesPanel extends JPanel implements DialogView {
     }
 
     if (controller.isPropertyEditable(UserPreferencesController.Property.CHECK_UPDATES_ENABLED)
-        && Boolean.parseBoolean(System.getProperty("com.eteks.sweethome3d.checkUpdates", "true"))) {
+        && Boolean.parseBoolean(System.getProperty("com.eteks.sweethome3d.checkUpdates", "false"))) {
       // Create check box bound to controller CHECK_UPDATES_ENABLED property
       this.checkUpdatesCheckBox = new JCheckBox(SwingTools.getLocalizedLabelText(preferences,
           UserPreferencesPanel.class, "checkUpdatesCheckBox.text"), controller.isCheckUpdatesEnabled());

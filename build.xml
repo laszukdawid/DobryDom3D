@@ -2,6 +2,7 @@
 <!-- build.xml
 
      Sweet Home 3D, Copyright (c) 2024 Space Mushrooms <info@sweethome3d.com>.
+     This file is part of DobryDom3D, a fork of Sweet Home 3D 7.5, modified by DobryDom3D contributors since August 2026.
 
      Ant build file. Available targets :
      - build       : Builds SweetHome3D.jar file in build directory
@@ -141,7 +142,7 @@
   <condition property="package.image.suffix" value=".app" else="">
     <isset property="package.macosx"/>
   </condition>
-  <property name="package.name" value="Sweet Home 3D"/>
+  <property name="package.name" value="DobryDom3D"/>
   <property name="package.dir" location="build/package"/>
   <property name="package.input.dir" location="${package.dir}/input"/>
   <property name="package.image.dir" location="${package.dir}/image"/>
@@ -1047,7 +1048,7 @@
       <arg value="--app-version"/>
       <arg value="${version}"/>
       <arg value="--vendor"/>
-      <arg value="Space Mushrooms"/>
+      <arg value="DobryDom3D contributors"/>
       <arg value="--description"/>
       <arg value="Interior design application"/>
       <arg value="--copyright"/>
@@ -1073,7 +1074,7 @@
       <arg value="--java-options"/>
       <arg value="-Dsweethome3d.bundle=true"/>
       <arg value="--java-options"/>
-      <arg value="-Dcom.eteks.sweethome3d.applicationId=SweetHome3D#Installer"/>
+      <arg value="-Dcom.eteks.sweethome3d.applicationId=DobryDom3D#Installer"/>
       <arg value="--java-options"/>
       <arg value="--add-opens=java.desktop/java.awt=ALL-UNNAMED"/>
       <arg value="--java-options"/>
@@ -1138,7 +1139,7 @@
       <arg value="--app-version"/>
       <arg value="${version}"/>
       <arg value="--vendor"/>
-      <arg value="Space Mushrooms"/>
+      <arg value="DobryDom3D contributors"/>
       <arg value="--description"/>
       <arg value="Interior design application"/>
       <arg value="--copyright"/>
@@ -1166,7 +1167,7 @@
       <arg value="--java-options"/>
       <arg value="-Dsweethome3d.bundle=true"/>
       <arg value="--java-options"/>
-      <arg value="-Dcom.eteks.sweethome3d.applicationId=SweetHome3D#Installer"/>
+      <arg value="-Dcom.eteks.sweethome3d.applicationId=DobryDom3D#Installer"/>
       <arg value="--java-options"/>
       <arg value="--add-opens=java.desktop/java.awt=ALL-UNNAMED"/>
       <arg value="--java-options"/>
@@ -1196,7 +1197,7 @@
       <arg value="--win-shortcut"/>
       <arg value="--win-shortcut-prompt"/>
       <arg value="--win-upgrade-uuid"/>
-      <arg value="e30b3e5b-79fd-4d23-9d41-5108859e1815"/>
+      <arg value="d3467f1c-4624-4a83-933b-70406d665311"/>
     </exec>
     <move file="${package.installer.dir}/${package.name}-${version}.exe"
           tofile="install/SweetHome3D-${version}-windows-x64.exe"/>
@@ -1237,7 +1238,7 @@
       <arg value="--app-version"/>
       <arg value="${version}"/>
       <arg value="--vendor"/>
-      <arg value="Space Mushrooms"/>
+      <arg value="DobryDom3D contributors"/>
       <arg value="--description"/>
       <arg value="Interior design application"/>
       <arg value="--copyright"/>
@@ -1263,7 +1264,7 @@
       <arg value="--java-options"/>
       <arg value="-Dsweethome3d.bundle=true"/>
       <arg value="--java-options"/>
-      <arg value="-Dcom.eteks.sweethome3d.applicationId=SweetHome3D#Installer"/>
+      <arg value="-Dcom.eteks.sweethome3d.applicationId=DobryDom3D#Installer"/>
       <arg value="--java-options"/>
       <arg value="--add-opens=java.desktop/java.awt=ALL-UNNAMED"/>
       <arg value="--java-options"/>
@@ -1308,7 +1309,7 @@
       <arg value="--app-version"/>
       <arg value="${version}"/>
       <arg value="--vendor"/>
-      <arg value="Space Mushrooms"/>
+      <arg value="DobryDom3D contributors"/>
       <arg value="--description"/>
       <arg value="Interior design application"/>
       <arg value="--copyright"/>
@@ -1334,7 +1335,7 @@
       <arg value="--java-options"/>
       <arg value="-Dsweethome3d.bundle=true"/>
       <arg value="--java-options"/>
-      <arg value="-Dcom.eteks.sweethome3d.applicationId=SweetHome3D#Installer"/>
+      <arg value="-Dcom.eteks.sweethome3d.applicationId=DobryDom3D#Installer"/>
       <arg value="--java-options"/>
       <arg value="--add-opens=java.desktop/java.awt=ALL-UNNAMED"/>
       <arg value="--java-options"/>
