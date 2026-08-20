@@ -33,8 +33,8 @@
      - jdepend : Launchs a JDepend graphical UI to help update dependencies in PackageDependenciesTest
 -->
 <project basedir="." default="jarExecutable" name="SweetHome3D">
-  <!-- Current version of Sweet Home 3D -->
-  <property name="version" value="7.5"/>
+  <!-- Current DobryDom3D product version -->
+  <property name="version" value="0.1.0"/>
   <property name="java.release" value="21"/>
   <!-- Do not import the process environment as Ant properties. Forked JUnit
        XML formatters serialize the complete Ant property set. Build tools
