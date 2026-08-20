@@ -6,6 +6,11 @@ This changelog records changes made in DobryDom3D after the upstream Sweet Home
 
 ## [Unreleased]
 
+### Added
+
+- Added a standalone reproducer and an upstream JDK bug-report draft for the
+  JDK 22+ multi-monitor menu-popup positioning regression.
+
 ### Changed
 
 - Adopted **DobryDom3D** as the project name and documented the planned branding
