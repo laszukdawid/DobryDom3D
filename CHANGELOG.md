@@ -13,6 +13,9 @@ This changelog records changes made in DobryDom3D after the upstream Sweet Home
 
 ### Changed
 
+- Started independent product versioning at **DobryDom3D 0.1.0** while keeping
+  the upstream source, catalog, plugin, and `.sh3d` format compatibility
+  versions unchanged.
 - Adopted **DobryDom3D** as the project name and documented the planned branding
   migration. The original Sweet Home 3D attribution and licensing remain
   unchanged.

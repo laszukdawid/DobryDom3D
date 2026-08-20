@@ -68,7 +68,7 @@ system property, for example:
 JAVA_HOME=/home/dawid/.asdf/installs/java/temurin-21.0.6+7.0.LTS
 "$JAVA_HOME/bin/java" \
   -Dswing.defaultlaf=com.formdev.flatlaf.FlatDarkLaf \
-  -jar install/SweetHome3D-7.5.jar
+  -jar install/SweetHome3D-0.1.0.jar
 ```
 
 The core theme classes include `FlatLightLaf`, `FlatDarkLaf`, `FlatIntelliJLaf`,
@@ -99,7 +99,7 @@ ant clean linux64Installer
 Run each target on its matching operating system. The Windows target requires
 the native tooling used by `jpackage` to create an EXE. macOS creates separate
 x64 and arm64 DMGs rather than merging runtimes into a universal application.
-The Linux target creates `install/SweetHome3D-7.5-linux-x64.tgz`.
+The Linux target creates `install/SweetHome3D-0.1.0-linux-x64.tgz`.
 
 Signed release targets require platform credentials that are intentionally not
 stored in this repository:
@@ -162,6 +162,9 @@ a self-contained reproducer and a ready-to-file upstream report live under
 pinned JDK 21 while still parsing modern class files.
 
 ## Project Status
+
+The current development version is **DobryDom3D 0.1.0**, based on the Sweet
+Home 3D 7.5 source snapshot.
 
 The project is being renamed to **DobryDom3D**. Repository documentation uses
 the new name, while source packages, build artifacts, file formats, and parts
