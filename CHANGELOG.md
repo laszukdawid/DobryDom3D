@@ -1,7 +1,46 @@
 # Changelog
 
-This changelog records changes made in this fork after the upstream Sweet Home
+This changelog records changes made in DobryDom3D after the upstream Sweet Home
 3D 7.5 snapshot. The fork baseline is commit `8823bdd`.
+
+
+## [Unreleased]
+
+### Changed
+
+- Adopted **DobryDom3D** as the project name and documented the planned branding
+  migration. The original Sweet Home 3D attribution and licensing remain
+  unchanged.
+- Identified this GitHub repository as the canonical project home until a
+  GitHub Pages website is published.
+
+
+## [2026-08-18]
+
+### Changed
+
+- Batched plan-grid lines into paths and limited grid painting to the clipped
+  region, avoiding work across the rest of a large plan.
+- Skipped room, furniture and label text, dimension lines, and polylines that
+  fall completely outside the repaint clip.
+- Cached the computed points of furniture, dimension lines, and observer
+  cameras, invalidating each cache when the corresponding geometry changes.
+- Added bounding-box checks before expensive area intersections when cutting
+  doors and windows through walls and when magnetizing dragged furniture.
+- Opened `com.apple.eio` to test JVMs so macOS tests receive the same module
+  access as the executable application.
+
+### Fixed
+
+- Invalidated a polyline's cached shapes when its thickness or closed state
+  changes.
+- Invalidated cached furniture sides after rotation so magnetism follows the
+  rotated contour.
+- Invalidated door and window cut-out caches when either the opening or a wall
+  changes level, preventing stale openings from being painted on another
+  level.
+- Preserved grid precision far from the plan origin and accounted for open
+  arrow miters when deciding whether a polyline is outside the clip.
 
 
 ## [2026-08-14]
@@ -74,6 +113,9 @@ This changelog records changes made in this fork after the upstream Sweet Home
 
 ### Changed
 
+- Reused measured furniture-table column widths across pages of the same print
+  job instead of rendering every cell again whenever the printing system asks
+  for another page or probes the page count.
 - Reused int index buffers in `OBJLoader` instead of boxing every vertex,
   texture coordinate and normal index into an `Integer` appended to a
   per-element `ArrayList`. Indices are almost always above the `Integer` cache
@@ -87,6 +129,25 @@ This changelog records changes made in this fork after the upstream Sweet Home
   percentage whose heap and direct-buffer ceilings cannot together exceed
   physical memory, `MaxDirectMemorySize` defaulting to the max heap 1:1 while
   JOGL allocates its buffers as direct NIO buffers.
+
+
+## [2026-08-09]
+
+### Changed
+
+- Deferred expensive plan revalidation until the end of a drag while continuing
+  to repaint the plan and rulers during the drag.
+- Cached each wall's plan-view area until its geometry changes, avoiding repeated
+  shape-to-area conversion when building combined item areas.
+
+
+## [2026-08-07]
+
+### Fixed
+
+- Repositioned tooltips displaced to a monitor's usable-area edge by phantom
+  screen insets on multi-monitor X11 desktops, without overriding genuine dock
+  or taskbar insets.
 
 
 ## [2026-08-06]
