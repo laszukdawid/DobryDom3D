@@ -65,6 +65,12 @@ tasks:
     cmds:
       - task: test:virtual-x-server
 
+  test:fast:
+    desc: Run a small deterministic smoke suite for fast local iteration
+    deps: [check-java]
+    cmds:
+      - ant test-fast
+
   test:headless:
     desc: Run the headless test suite
     deps: [check-java]

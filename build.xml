@@ -70,6 +70,8 @@
     <include name="**/HomeSelectionTest.java"/>
     <include name="**/HomeController3DTest.java"/>
     <include name="**/HomeFileRecorderTest.java"/>
+    <include name="**/HomeXMLRoundTripTest.java"/>
+    <include name="**/AutoRecoveryManagerTest.java"/>
     <include name="**/IconManagerTest.java"/>
     <include name="**/CatalogTreeTest.java"/>
     <include name="**/FurnitureTableTest.java"/>
@@ -84,6 +86,11 @@
     <include name="**/PlanControllerMagnetismTest.java"/>
     <include name="**/WallPanelTest.java"/>
     <include name="**/YafarayRendererTest.java"/>
+  </patternset>
+  <!-- Fast smoke suite for quick local iteration -->
+  <patternset id="fast.test.includes">
+    <include name="**/HomeXMLRoundTripTest.java"/>
+    <include name="**/AutoRecoveryManagerTest.java"/>
   </patternset>
   <property name="test.includes" value="**/*Test.java"/>
 
@@ -479,6 +486,38 @@
       </batchtest>
     </junit>
     <antcall target="_checkTestReportProperties"/>
+  </target>
+
+  <!-- Fast smoke target for local iteration; skips credential isolation and
+       report property checks to stay under a few seconds -->
+  <target name="test-fast" depends="compile-tests"
+          description="Runs a small deterministic smoke suite of headless tests">
+    <junit fork="true" forkmode="perTest"
+           haltonerror="true" haltonfailure="true"
+           printsummary="true" showoutput="true"
+           timeout="60000" tempdir="build/test-tmp">
+      <classpath>
+        <pathelement location="build/test-classes"/>
+        <pathelement location="build/DobryDom3D.jar"/>
+        <pathelement location="src"/>
+        <pathelement location="test"/>
+        <path refid="test.dependencies"/>
+      </classpath>
+      <jvmarg value="--add-opens=java.desktop/java.awt=ALL-UNNAMED"/>
+      <jvmarg value="--add-opens=java.desktop/sun.awt=ALL-UNNAMED"/>
+      <sysproperty key="java.awt.headless" value="true"/>
+      <sysproperty key="com.eteks.sweethome3d.no3D" value="true"/>
+      <sysproperty key="user.home" value="${basedir}/build/test-home"/>
+      <sysproperty key="java.util.prefs.userRoot" value="${basedir}/build/test-prefs"/>
+      <sysproperty key="java.io.tmpdir" value="${basedir}/build/test-tmp"/>
+      <formatter type="plain" usefile="false"/>
+      <formatter type="xml"/>
+      <batchtest todir="build/test-reports">
+        <fileset dir="test">
+          <patternset refid="fast.test.includes"/>
+        </fileset>
+      </batchtest>
+    </junit>
   </target>
 
   <target name="test-all" depends="compile-tests,_checkTestCredentialIsolation"
