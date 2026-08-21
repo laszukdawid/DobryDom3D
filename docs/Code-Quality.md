@@ -30,12 +30,35 @@ Patterns worth keeping consistent:
 Known warts, fix opportunistically when touching nearby code:
 
 - Pre-generics-style collections in places; raw threads in older panels.
+  Measured legacy-collection usage: `Enumeration<>` ×48, `Vector` ×2,
+  `Hashtable` ×3.
 - ~65 `printStackTrace()` calls and ~42 broad `catch (Exception)` blocks.
+- Reflection-as-compatibility-fossil in 21 files — e.g. `File.getUsableSpace`
+  via reflection (`HomeFileRecorder.java:214–215`), a Java 1.6-era workaround
+  that is no longer needed on JDK 21. Worst instance is the
+  `sun.awt.AppContext` reflection hack in `VideoPanel.java:1802–1814`, which
+  targets removed internal API (tracked in
+  [Engineering Priorities](Engineering-Priorities.md)).
 - `ModelManager` lock-juggling around non-thread-safe Java3D cloning
   (`cloneLock`; cloning is documented not thread safe by Java 3D).
 - Per-repaint allocation of identical strokes/paints duplicated in
   `paintContent` and `paintHomeItems` (`PlanComponent.java` ~3234 and ~3334) —
   trivially hoistable, sits in the hottest path.
+
+Structural debt beyond local warts (details and evidence in
+[Architecture](Architecture.md)):
+
+- **God-class concentration**: `PlanController` 15,944 lines / ~100 nested
+  classes; `PlanComponent` 7,755; `HomePane` 5,988 (including an entire OBJ
+  exporter inside the view); `HomeController` 3,794 (including a SAX handler).
+- **Dual observer mechanisms** (PropertyChangeSupport + custom CollectionEvent)
+  that every view must implement both of.
+- **Five singletons** (`Component3DManager`, `ModelManager`,
+  `TextureManager`, `IconManager`, `ContentDigestManager`) accessed from
+  multiple threads with convention-based safety.
+- **Java serialization as the default home-file write path** with no class
+  filtering on `ObjectInputStream` and silent dropping of unknown enum
+  constants on downgrade.
 
 ## Perf work status
 
