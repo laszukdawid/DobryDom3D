@@ -9,7 +9,10 @@
      - application : Builds SweetHome3D.jar file without applet classes in build directory
      - test        : Builds the application and runs headless unit tests
      - test-all    : Builds the application and runs all unit and GUI tests
+     - coverage    : Runs the headless suite under JaCoCo and writes coverage reports
+     - spotbugs    : Runs SpotBugs over the built application classes
      - ci          : Cleans, tests and builds the standalone application
+     - ci-full     : Cleans, runs all tests including GUI, and builds the standalone application
      - clean       : Deletes generated build output
      - furniture   : Builds Furniture.jar file in build directory
      - textures    : Builds Textures.jar file in build directory
@@ -49,6 +52,39 @@
   <property name="junit.cache.dir" value="${user.home}/.cache/sweethome3d"/>
   <property name="junit.jar" location="${junit.cache.dir}/junit-${junit.version}.jar"/>
   <property name="hamcrest.jar" location="${junit.cache.dir}/hamcrest-core-${hamcrest.version}.jar"/>
+  <!-- Pinned analysis tool versions, downloaded with checksum verification by
+       the fetch-coverage-tools and fetch-spotbugs targets into the same cache
+       directory as the test JARs. -->
+  <property name="jacoco.version" value="0.8.15"/>
+  <property name="spotbugs.version" value="4.10.4"/>
+  <property name="jacoco.zip" location="${junit.cache.dir}/jacoco-${jacoco.version}.zip"/>
+  <property name="jacoco.home" location="${junit.cache.dir}/jacoco-${jacoco.version}"/>
+  <property name="jacoco.ant.jar" location="${jacoco.home}/lib/jacocoant.jar"/>
+  <property name="spotbugs.home" location="${junit.cache.dir}/spotbugs-${spotbugs.version}"/>
+  <property name="spotbugs.ant.jar" location="${spotbugs.home}/lib/spotbugs-ant-${spotbugs.version}.jar"/>
+  <!-- Headless suite membership shared between the test and coverage targets -->
+  <patternset id="headless.test.includes">
+    <include name="**/OperatingSystemTest.java"/>
+    <include name="**/ArchitectureTest.java"/>
+    <include name="**/HomeTest.java"/>
+    <include name="**/HomeSelectionTest.java"/>
+    <include name="**/HomeController3DTest.java"/>
+    <include name="**/HomeFileRecorderTest.java"/>
+    <include name="**/IconManagerTest.java"/>
+    <include name="**/CatalogTreeTest.java"/>
+    <include name="**/FurnitureTableTest.java"/>
+    <include name="**/PlanComponentCullingTest.java"/>
+    <include name="**/PlanComponentGridPaintingTest.java"/>
+    <include name="**/PlanComponentWallCutOutTest.java"/>
+    <include name="**/PlanComponentRepaintBoundsTest.java"/>
+    <include name="**/PlanComponentTopViewIconTest.java"/>
+    <include name="**/WallShapeTest.java"/>
+    <include name="**/PolylineShapeTest.java"/>
+    <include name="**/ItemPointsTest.java"/>
+    <include name="**/PlanControllerMagnetismTest.java"/>
+    <include name="**/WallPanelTest.java"/>
+    <include name="**/YafarayRendererTest.java"/>
+  </patternset>
   <property name="test.includes" value="**/*Test.java"/>
 
   <path id="application.compile.classpath">
@@ -242,6 +278,96 @@
           message="Checksum mismatch for ${hamcrest.jar}; delete it and retry"/>
   </target>
 
+  <!-- Downloads a file once into a cache directory and verifies its SHA-256
+       checksum, failing on any mismatch. -->
+  <macrodef name="download-verified">
+    <attribute name="url"/>
+    <attribute name="dest"/>
+    <attribute name="sha256"/>
+    <sequential>
+      <dirname property="download.parent.dir" file="@{dest}"/>
+      <mkdir dir="${download.parent.dir}"/>
+      <local name="download.checksum"/>
+      <get src="@{url}" dest="@{dest}" skipexisting="true" verbose="false"/>
+      <checksum file="@{dest}" algorithm="SHA-256" property="download.checksum"/>
+      <condition property="download.checksum.ok">
+        <equals arg1="${download.checksum}" arg2="@{sha256}"/>
+      </condition>
+      <fail unless="download.checksum.ok"
+            message="Checksum mismatch for @{dest}; delete it and retry"/>
+    </sequential>
+  </macrodef>
+
+  <target name="fetch-coverage-tools"
+          description="Downloads the pinned JaCoCo distribution with checksum verification">
+    <download-verified
+        url="https://repo1.maven.org/maven2/org/jacoco/jacoco/${jacoco.version}/jacoco-${jacoco.version}.zip"
+        dest="${jacoco.zip}"
+        sha256="5b3f6ddb724e761d25c937d68b0189a3a23f3e220e3282575ee0b53359e8110e"/>
+    <unzip src="${jacoco.zip}" dest="${jacoco.home}" overwrite="false"/>
+  </target>
+
+  <!-- SpotBugs and its pinned runtime dependencies, per its Maven POM. -->
+  <target name="fetch-spotbugs-tools"
+          description="Downloads the pinned SpotBugs distribution with checksum verification">
+    <property name="spotbugs.lib.dir" location="${spotbugs.home}/lib"/>
+    <mkdir dir="${spotbugs.lib.dir}"/>
+    <download-verified url="https://repo1.maven.org/maven2/com/github/spotbugs/spotbugs/${spotbugs.version}/spotbugs-${spotbugs.version}.jar"
+        dest="${spotbugs.lib.dir}/spotbugs-${spotbugs.version}.jar"
+        sha256="a88cad2e0ea9bb74b908ce82ae89416c61fa8f8ea5cfcc9368b1baac2da878d2"/>
+    <download-verified url="https://repo1.maven.org/maven2/com/github/spotbugs/spotbugs-ant/${spotbugs.version}/spotbugs-ant-${spotbugs.version}.jar"
+        dest="${spotbugs.ant.jar}"
+        sha256="9ec240477b7c87270be7dfe3196180cd3763f04c369e5691feeb12e66110a065"/>
+    <download-verified url="https://repo1.maven.org/maven2/com/github/spotbugs/spotbugs-annotations/${spotbugs.version}/spotbugs-annotations-${spotbugs.version}.jar"
+        dest="${spotbugs.lib.dir}/spotbugs-annotations-${spotbugs.version}.jar"
+        sha256="28fa4befaddce5d7b79b07c68e7c12fa27c5d9282c4229528717971606661ea3"/>
+    <download-verified url="https://repo1.maven.org/maven2/org/ow2/asm/asm/9.10.1/asm-9.10.1.jar"
+        dest="${spotbugs.lib.dir}/asm-9.10.1.jar"
+        sha256="ed825d10ab1399c8c0cb669e688cf0c8c82629b4c8399b58352b68e92ca10fcb"/>
+    <download-verified url="https://repo1.maven.org/maven2/org/ow2/asm/asm-analysis/9.10.1/asm-analysis-9.10.1.jar"
+        dest="${spotbugs.lib.dir}/asm-analysis-9.10.1.jar"
+        sha256="dede75a21306b65974ecd8f87114ff6970f09fb794157a4ca09ab25c888c2bfc"/>
+    <download-verified url="https://repo1.maven.org/maven2/org/ow2/asm/asm-commons/9.10.1/asm-commons-9.10.1.jar"
+        dest="${spotbugs.lib.dir}/asm-commons-9.10.1.jar"
+        sha256="6d0abefb7cbf972ea16edb37ec14835372505063a45f976ab7ea889ed9497895"/>
+    <download-verified url="https://repo1.maven.org/maven2/org/ow2/asm/asm-tree/9.10.1/asm-tree-9.10.1.jar"
+        dest="${spotbugs.lib.dir}/asm-tree-9.10.1.jar"
+        sha256="3dfb0d5b6a106cd40b5b250e39935fbf2f927f4477546a5369a3ac609cf0506b"/>
+    <download-verified url="https://repo1.maven.org/maven2/org/ow2/asm/asm-util/9.10.1/asm-util-9.10.1.jar"
+        dest="${spotbugs.lib.dir}/asm-util-9.10.1.jar"
+        sha256="1bb99d091fba2597dc6d51193e9bbcf0d8447e7ed96bd8f0198b18152f09655c"/>
+    <download-verified url="https://repo1.maven.org/maven2/org/apache/bcel/bcel/6.12.0/bcel-6.12.0.jar"
+        dest="${spotbugs.lib.dir}/bcel-6.12.0.jar"
+        sha256="012639e3d2a3079f4c9c1350f18202cea83a7112ef210e50c93b0b771ad5d3af"/>
+    <download-verified url="https://repo1.maven.org/maven2/com/github/stephenc/jcip/jcip-annotations/1.0-1/jcip-annotations-1.0-1.jar"
+        dest="${spotbugs.lib.dir}/jcip-annotations-1.0-1.jar"
+        sha256="4fccff8382aafc589962c4edb262f6aa595e34f1e11e61057d1c6a96e8fc7323"/>
+    <download-verified url="https://repo1.maven.org/maven2/org/dom4j/dom4j/2.2.0/dom4j-2.2.0.jar"
+        dest="${spotbugs.lib.dir}/dom4j-2.2.0.jar"
+        sha256="3fae79e081096e1410645eb3557c63b79ca266d510ab479889511109becd1690"/>
+    <download-verified url="https://repo1.maven.org/maven2/org/apache/commons/commons-lang3/3.20.0/commons-lang3-3.20.0.jar"
+        dest="${spotbugs.lib.dir}/commons-lang3-3.20.0.jar"
+        sha256="69e5c9fa35da7a51a5fd2099dfe56a2d8d32cf233e2f6d770e796146440263f4"/>
+    <download-verified url="https://repo1.maven.org/maven2/org/apache/commons/commons-text/1.15.0/commons-text-1.15.0.jar"
+        dest="${spotbugs.lib.dir}/commons-text-1.15.0.jar"
+        sha256="58d2da30f058512a1e7f914e39241deca4dff5c27a085b4ed2faa9e7208067f6"/>
+    <download-verified url="https://repo1.maven.org/maven2/org/slf4j/slf4j-api/2.0.18/slf4j-api-2.0.18.jar"
+        dest="${spotbugs.lib.dir}/slf4j-api-2.0.18.jar"
+        sha256="44508fd1576500688c790b190acdd16fec4f8c79a3e0b900afd70503cf055f55"/>
+    <download-verified url="https://repo1.maven.org/maven2/com/google/code/gson/gson/2.14.0/gson-2.14.0.jar"
+        dest="${spotbugs.lib.dir}/gson-2.14.0.jar"
+        sha256="2cbd119bf1961c28788310963dc80ba65f58cdeec1dd139c8bdb1240faa2c36f"/>
+    <download-verified url="https://repo1.maven.org/maven2/jaxen/jaxen/2.0.6/jaxen-2.0.6.jar"
+        dest="${spotbugs.lib.dir}/jaxen-2.0.6.jar"
+        sha256="3e2a755b283fd492fa4be204294c7abb7cd63ac94fb366baab9c7bb9afb00b6d"/>
+    <download-verified url="https://repo1.maven.org/maven2/net/sf/saxon/Saxon-HE/12.10/Saxon-HE-12.10.jar"
+        dest="${spotbugs.lib.dir}/Saxon-HE-12.10.jar"
+        sha256="b571af282f25d7301059f788b9a149aab8b5cdc14ef3d212dc5425d3dcbb9a97"/>
+    <download-verified url="https://repo1.maven.org/maven2/org/apache/logging/log4j/log4j-core/2.26.1/log4j-core-2.26.1.jar"
+        dest="${spotbugs.lib.dir}/log4j-core-2.26.1.jar"
+        sha256="2ec8c3bf5a6d7c89be8620116a2fc973f7dda1ad0261ad393c4d4726edfd3dcb"/>
+  </target>
+
   <target name="compile-tests" depends="build,fetch-junit">
     <mkdir dir="build/test-classes"/>
     <mkdir dir="build/test-reports"/>
@@ -348,26 +474,7 @@
       <formatter type="xml"/>
       <batchtest todir="build/test-reports">
         <fileset dir="test">
-          <include name="**/OperatingSystemTest.java"/>
-          <include name="**/ArchitectureTest.java"/>
-          <include name="**/HomeTest.java"/>
-          <include name="**/HomeSelectionTest.java"/>
-          <include name="**/HomeController3DTest.java"/>
-          <include name="**/HomeFileRecorderTest.java"/>
-          <include name="**/IconManagerTest.java"/>
-          <include name="**/CatalogTreeTest.java"/>
-          <include name="**/FurnitureTableTest.java"/>
-          <include name="**/PlanComponentCullingTest.java"/>
-          <include name="**/PlanComponentGridPaintingTest.java"/>
-          <include name="**/PlanComponentWallCutOutTest.java"/>
-          <include name="**/PlanComponentRepaintBoundsTest.java"/>
-          <include name="**/PlanComponentTopViewIconTest.java"/>
-          <include name="**/WallShapeTest.java"/>
-          <include name="**/PolylineShapeTest.java"/>
-          <include name="**/ItemPointsTest.java"/>
-          <include name="**/PlanControllerMagnetismTest.java"/>
-          <include name="**/WallPanelTest.java"/>
-          <include name="**/YafarayRendererTest.java"/>
+          <patternset refid="headless.test.includes"/>
         </fileset>
       </batchtest>
     </junit>
@@ -412,6 +519,81 @@
     <fail if="all.tests.failed" message="One or more tests failed; see build/test-reports"/>
   </target>
 
+  <target name="coverage" depends="compile-tests,fetch-coverage-tools,_checkTestCredentialIsolation"
+          description="Runs the headless suite under JaCoCo and writes XML and HTML reports">
+    <taskdef resource="org/jacoco/ant/antlib.xml"
+             classpath="${jacoco.ant.jar}"/>
+    <mkdir dir="build/coverage"/>
+    <coverage destfile="build/coverage/jacoco.exec">
+      <junit fork="true" forkmode="perTest"
+             haltonerror="true" haltonfailure="true"
+             printsummary="true" showoutput="false"
+             timeout="120000" tempdir="build/test-tmp">
+        <classpath>
+          <pathelement location="build/test-classes"/>
+          <pathelement location="build/DobryDom3D.jar"/>
+          <path refid="test.dependencies"/>
+        </classpath>
+        <jvmarg value="--add-opens=java.desktop/java.awt=ALL-UNNAMED"/>
+        <jvmarg value="--add-opens=java.desktop/sun.awt=ALL-UNNAMED"/>
+        <!-- Same open as the executable jar manifest; only warns on non-macOS JDKs -->
+        <jvmarg value="--add-opens=java.desktop/com.apple.eio=ALL-UNNAMED"/>
+        <sysproperty key="java.awt.headless" value="true"/>
+        <sysproperty key="com.eteks.sweethome3d.no3D" value="true"/>
+        <sysproperty key="user.home" value="${basedir}/build/test-home"/>
+        <sysproperty key="java.util.prefs.userRoot" value="${basedir}/build/test-prefs"/>
+        <sysproperty key="java.io.tmpdir" value="${basedir}/build/test-tmp"/>
+        <formatter type="plain" usefile="false"/>
+        <batchtest todir="build/test-reports">
+          <fileset dir="test">
+            <patternset refid="headless.test.includes"/>
+          </fileset>
+        </batchtest>
+      </junit>
+    </coverage>
+    <unzip src="build/DobryDom3D.jar" dest="build/coverage/classes"/>
+    <report>
+      <executiondata>
+        <file file="build/coverage/jacoco.exec"/>
+      </executiondata>
+      <structure name="DobryDom3D">
+        <classfiles>
+          <fileset dir="build/coverage/classes"/>
+        </classfiles>
+        <sourcefiles encoding="ISO-8859-1">
+          <fileset dir="src">
+            <include name="com/eteks/**/*.java"/>
+          </fileset>
+        </sourcefiles>
+      </structure>
+      <xml destdir="build/coverage"/>
+      <html destdir="build/coverage/html"/>
+    </report>
+    <delete dir="build/coverage/classes"/>
+    <antcall target="_checkTestReportProperties"/>
+  </target>
+
+  <target name="spotbugs" depends="build,fetch-spotbugs-tools"
+          description="Runs SpotBugs over the application classes and writes an XML report">
+    <taskdef resource="edu/umd/cs/findbugs/anttask/tasks.properties"
+             classpath="${spotbugs.ant.jar}"/>
+    <mkdir dir="build/spotbugs"/>
+    <spotbugs home="${spotbugs.home}"
+              output="xml:withMessages"
+              effort="max"
+              reportLevel="low"
+              timeout="1200000"
+              jvmargs="-Xmx2g"
+              outputFile="build/spotbugs/spotbugs.xml">
+      <class location="${basedir}/build/DobryDom3D.jar"/>
+      <auxClasspath>
+        <fileset dir="lib" includes="**/*.jar"/>
+        <pathelement location="libtest/AppleJavaExtensions.jar"/>
+        <pathelement location="libtest/jnlp.jar"/>
+      </auxClasspath>
+    </spotbugs>
+  </target>
+
   <target name="test-yafaray" depends="compile-tests,_checkTestCredentialIsolation"
           description="Runs the YafaRay native lifecycle test with finalization disabled">
     <junit fork="true" haltonerror="true" haltonfailure="true"
@@ -439,6 +621,9 @@
 
   <target name="ci" depends="clean,test,test-yafaray,application"
           description="Cleans, tests and builds the standalone application"/>
+
+  <target name="ci-full" depends="clean,test-all,test-yafaray,application"
+          description="Cleans, runs all tests including GUI, and builds the standalone application"/>
 
   <target name="furniture"
           description="Builds build/Furniture.jar that contains the furniture files">
