@@ -53,10 +53,25 @@ import com.eteks.sweethome3d.model.TexturesCategory;
 public class CatalogIdDeduplicationTest extends TestCase {
   private static final Charset PROPERTIES_ENCODING = Charset.forName("ISO-8859-1");
 
+  private Locale defaultLocale;
+  private final List<File> temporaryFiles = new ArrayList<File>();
+
   @Override
   protected void setUp() {
+    // Save default locale to restore it in tearDown
+    this.defaultLocale = Locale.getDefault();
     // Ensure alphabetical ordering checks are stable
     Locale.setDefault(Locale.US);
+  }
+
+  @Override
+  protected void tearDown() {
+    Locale.setDefault(this.defaultLocale);
+    // Delete fixture zips explicitly instead of relying only on deleteOnExit
+    for (File temporaryFile : this.temporaryFiles) {
+      temporaryFile.delete();
+    }
+    this.temporaryFiles.clear();
   }
 
   /**
@@ -276,9 +291,7 @@ public class CatalogIdDeduplicationTest extends TestCase {
    */
   private File createPluginFurnitureCatalog(String name, Map<String, String> properties)
       throws IOException {
-    File catalogFile = createTempZip(name, "PluginFurnitureCatalog.properties", properties);
-    catalogFile.deleteOnExit();
-    return catalogFile;
+    return createTempZip(name, "PluginFurnitureCatalog.properties", properties);
   }
 
   /**
@@ -286,15 +299,15 @@ public class CatalogIdDeduplicationTest extends TestCase {
    */
   private File createPluginTexturesCatalog(String name, Map<String, String> properties)
       throws IOException {
-    File catalogFile = createTempZip(name, "PluginTexturesCatalog.properties", properties);
-    catalogFile.deleteOnExit();
-    return catalogFile;
+    return createTempZip(name, "PluginTexturesCatalog.properties", properties);
   }
 
   private File createTempZip(String name, String propertiesEntryName,
                              Map<String, String> properties) throws IOException {
     File zipFile = File.createTempFile(name + "-catalog-", ".zip");
+    // Kept as a safety net if the test crashes before tearDown
     zipFile.deleteOnExit();
+    this.temporaryFiles.add(zipFile);
     ZipOutputStream out = new ZipOutputStream(new FileOutputStream(zipFile));
     try {
       out.putNextEntry(new ZipEntry(propertiesEntryName));
