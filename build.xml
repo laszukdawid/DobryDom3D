@@ -20,7 +20,7 @@
      - help        : Builds Help.jar file in build directory
 
      - jarExecutable              : Builds SweetHome3D-version.jar file in install directory
-     - packageAppImage            : Builds a Java 21 app image for the current platform
+     - packageAppImage            : Builds a Java 26 app image for the current platform
      - windowsInstaller           : Builds a Windows x64 installer with jpackage
      - windowsSignedInstaller     : Builds and signs a Windows x64 installer
      - macosxInstaller            : Builds a macOS installer for the current architecture
@@ -34,7 +34,7 @@
 <project basedir="." default="jarExecutable" name="SweetHome3D">
   <!-- Current DobryDom3D product version -->
   <property name="version" value="0.1.0"/>
-  <property name="java.release" value="21"/>
+  <property name="java.release" value="26"/>
   <!-- Do not import the process environment as Ant properties. Forked JUnit
        XML formatters serialize the complete Ant property set. Build tools
        inherit their process environment normally, and sensitive values are
@@ -740,7 +740,7 @@
     <fail unless="package.os" message="jpackage targets support Windows, macOS, and Linux only"/>
     <fail unless="package.arch" message="Unsupported architecture ${os.arch}"/>
     <fail unless="package.platform.supported"
-          message="No Java 21 native libraries are available for ${package.os}/${package.arch}"/>
+          message="No Java 26 native libraries are available for ${package.os}/${package.arch}"/>
     <available file="${jpackage.executable}" property="jpackage.available"/>
     <fail unless="jpackage.available" message="JDK ${java.release} jpackage not found at ${jpackage.executable}"/>
     <fail message="Packaging must run with JDK ${java.release}; current Ant Java version is ${ant.java.version}">
@@ -914,14 +914,14 @@
   </target>
 
   <target name="packageAppImage" depends="_copyPackageLicenses"
-          description="Builds a Java 21 app image for the current platform">
+          description="Builds a Java 26 app image for the current platform">
     <delete dir="${package.dir}"/>
     <echo message="${package.published.image} ready"/>
   </target>
 
   <target name="windowsInstaller"
           depends="_checkWindowsPackageHost,_checkPackageHost,_prepareWindowsPackage"
-          description="Builds a Java 21 Windows x64 installer with jpackage">
+          description="Builds a Java 26 Windows x64 installer with jpackage">
     <mkdir dir="${package.installer.dir}"/>
     <exec executable="${jpackage.executable}" failonerror="yes">
       <env key="WINDOWS_SIGNING_THUMBPRINT" value="${windows.signing.thumbprint}"/>
@@ -1005,7 +1005,7 @@
   </target>
 
   <target name="windowsSignedInstaller" depends="_checkWindowsSigning,windowsInstaller"
-          description="Signs the Java 21 Windows x64 installer">
+          description="Signs the Java 26 Windows x64 installer">
     <exec executable="signtool.exe" failonerror="yes">
       <arg value="sign"/>
       <arg value="/sha1"/>
@@ -1022,7 +1022,7 @@
 
   <target name="macosxInstaller"
           depends="_checkMacPackageHost,_checkPackageHost,_prepareMacPackage"
-          description="Builds a Java 21 macOS installer for the current architecture">
+          description="Builds a Java 26 macOS installer for the current architecture">
     <mkdir dir="${package.installer.dir}"/>
     <exec executable="${jpackage.executable}" failonerror="yes">
       <arg value="--type"/>
@@ -1092,7 +1092,7 @@
 
   <target name="macosxSignedInstaller"
           depends="_checkMacPackageHost,_checkPackageHost,_prepareMacPackage"
-          description="Builds a signed Java 21 macOS installer for the current architecture">
+          description="Builds a signed Java 26 macOS installer for the current architecture">
     <input message="Enter Developer ID team or user name:" addproperty="certificateName"/>
     <mkdir dir="${package.installer.dir}"/>
     <exec executable="${jpackage.executable}" failonerror="yes">
@@ -1167,7 +1167,7 @@
   </target>
 
   <target name="linux64Installer" depends="_checkLinuxPackageHost,_createPackageAppImage"
-          description="Builds a Linux x64 archive containing a Java 21 app image">
+          description="Builds a Linux x64 archive containing a Java 26 app image">
     <delete dir="${package.dir}/DobryDom3D-${version}"/>
     <move file="${package.generated.image}" tofile="${package.dir}/DobryDom3D-${version}"/>
     <copy todir="${package.dir}/DobryDom3D-${version}">

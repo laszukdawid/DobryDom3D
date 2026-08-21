@@ -30,7 +30,7 @@ checksums or provenance manifest.
 Compiler settings:
 
 - Two-stage javac (applet entry points compiled first).
-- `release="21"` via property `java.release=21` (build.xml:39, 180–187).
+- `release="26"` via property `java.release=26` (build.xml:42, 183–190).
 - Encoding ISO-8859-1.
 - **No `-Xlint`, no deprecation warnings enabled; `debug=false`** for
   production code (`debug=true` for tests). No static analysis beyond the
@@ -52,11 +52,11 @@ Tasks: `run`, `package:image`, `package:linux`, `test`, `test:headless`,
 `test:virtual-x-server`; all gated on `check-java` preconditions requiring
 asdf.
 
-- `JAVA_VERSION: temurin-21.0.6+7.0.LTS` is hardcoded in Taskfile.yml:4;
+- `JAVA_VERSION: temurin-26.0.2+10` is hardcoded in Taskfile.yml;
   `JAVA_HOME` derived via `asdf where java`.
 - `.tool-versions` pins the same temurin build for asdf/mise users (the
-  asdf-plugin spelling of Adoptium release `jdk-21.0.6+7`); keep it in sync
-  with `JAVA_VERSION` and CI's setup-java pin.
+  plugin spelling of Adoptium release `jdk-26.0.2+10`; non-LTS releases carry
+  no GA/LTS suffix); keep it in sync with `JAVA_VERSION` and CI's setup-java pin.
 - Caching via go-task `sources/generates/method: timestamp`, only for
   `build:executable`.
 - `task test` = `xvfb-run -a -s "-screen 0 1920x1080x24 -ac +extension GLX
@@ -84,11 +84,11 @@ Two workflows plus Dependabot:
 | Permissions | ✅ top-level `permissions: contents: read`; the release job alone elevates to `contents: write` for draft-release attachment |
 | Action pinning | ✅ all actions pinned by SHA with version comment |
 | Concurrency | ✅ per-ref group; superseded PR runs cancelled (tag/release runs never cancelled) |
-| Java pin | ✅ exact temurin release `21.0.6+7`, matching Taskfile.yml / .tool-versions |
+| Java pin | ✅ exact temurin release `26.0.2+10`, matching Taskfile.yml / .tool-versions |
 | Caching | ✅ `~/.cache/sweethome3d` (checksum-pinned JUnit/Hamcrest/JaCoCo/SpotBugs) |
 | Artifacts | ✅ JUnit reports, app JAR, linux x64 tgz, coverage, SpotBugs; env-leak scan gate before upload |
 | Timeouts | ✅ job-level (40 min) plus step-level on the long ant steps |
-| Matrix | ❌ none (Java 21 Linux only) |
+| Matrix | ❌ none (Java 26 Linux only) |
 
 Consequences still true:
 
@@ -115,7 +115,7 @@ Consequences still true:
 Platform natives: `lib/linux/{i386,x64}`, `lib/windows/{i386,x64}`,
 `lib/macosx` (legacy JOGL jnilibs), `lib/java3d-1.6/{i586,linux,windows,macosx}`,
 `lib/yafaray/{linux,macosx,windows}`. The 32-bit (`i386`/`i586`) trees are dead
-weight for a JDK 21 product that no longer ships 32-bit packages.
+weight for a JDK 26 product that no longer ships 32-bit packages.
 
 `libtest/` (8 jars): abbot (~2008 era), AppleJavaExtensions, gnu-regexp-1.1.4,
 javaAwtDesktop, jdepend-2.10 (rebuilt `--release 11`), **jdom-1.1.1**
@@ -126,8 +126,8 @@ javaAwtDesktop, jdepend-2.10 (rebuilt `--release 11`), **jdom-1.1.1**
 
 ## Packaging (`install/`)
 
-- Modern flow is JDK 21 `jpackage`: per-OS targets with host/arch guards
-  (`_checkPackageHost` enforcing JDK 21 and x64 everywhere, arm64 mac-only).
+- Modern flow is JDK 26 `jpackage`: per-OS targets with host/arch guards
+  (`_checkPackageHost` enforcing JDK 26 and x64 everywhere, arm64 mac-only).
 - `install/jpackage/*.properties`: 6 file associations
   (.sh3d/.sh3f/.sh3l/.sh3p/.sh3t/.sh3x).
 - Windows: exe (`--win-menu/dir-chooser/shortcut`, upgrade UUID), SHA-256 +
@@ -148,8 +148,8 @@ javaAwtDesktop, jdepend-2.10 (rebuilt `--release 11`), **jdom-1.1.1**
   `sunflow-0.07.3i-src-diff.zip` (118 KB) — license-compliance source dumps.
   Should live under docs/ or be referenced, not root clutter.
 - **Eclipse metadata committed**: `.project`, `.classpath`, `.settings/`
-  (25 KB jdt prefs). `.classpath` pins a `JavaSE-25` JRE container —
-  inconsistent with `release=21` everywhere else; also shipped inside
+  (25 KB jdt prefs). `.classpath` pins a `JavaSE-26` JRE container,
+  consistent with `release=26` elsewhere; also shipped inside
   `sourceArchive` (build.xml:1460–1464).
 - Size: src/ ≈ 32 MB (5.8 MB of it io/resources furniture/texture/example data
   — inherent to Sweet Home 3D), lib/ ≈ 85 MB, .git ≈ 46 MB. Acceptable for
@@ -179,9 +179,9 @@ checksums). Upgrades of runtime jars require manually replacing binaries in
    Windows/macOS packaging paths are untested in CI (resolved: actions are
    SHA-pinned; a `release.yml` tag pipeline validates the Linux archive and
    produces a draft release).
-4. **Toolchain drift (partially resolved)**: CI and `.tool-versions` now pin
-   temurin `21.0.6+7` in step with Taskfile's inline pin; the Eclipse
-   `.classpath` still says JavaSE-25.
+4. ~~**Toolchain drift**~~ resolved: CI, `.tool-versions`, and Taskfile's
+   inline pin all track temurin `26.0.2+10`, and the Eclipse `.classpath`
+   container (`JavaSE-26`) matches the compile release.
 5. Legacy attack surface kept alive: Web Start/applet/JNLP targets with
    `Permissions: all-permissions` manifests and a hardcoded PKCS#11 storepass
    `0000` (build.xml:727 et al.) — mostly inert but confusing and sign-capable.
@@ -192,7 +192,8 @@ checksums). Upgrades of runtime jars require manually replacing binaries in
   actions.~~ Done.
 - ~~Enable `setup-java` `cache:` or cache `~/.cache/sweethome3d`.~~ Done.
 - ~~Commit a `.tool-versions` matching the Taskfile temurin pin.~~ Done
-  (`java temurin-21.0.6+7.0.LTS`); align `.classpath` to 21 still pending.
+  (`java temurin-26.0.2+10`); the `.classpath` container is aligned too
+  (`JavaSE-26`).
 - Plan iText replacement (OpenPDF 1.x is the GPL-compatible continuation);
   document a Batik/JMF/sunflow retirement plan.
 - Move the two `-src-diff.zip` files out of the repo root; delete dead
