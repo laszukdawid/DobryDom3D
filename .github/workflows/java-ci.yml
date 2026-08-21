@@ -67,13 +67,13 @@ jobs:
       - name: Upload application JAR
         uses: actions/upload-artifact@v4
         with:
-          name: SweetHome3D-java-21
-          path: build/SweetHome3D.jar
+          name: DobryDom3D-java-21
+          path: build/DobryDom3D.jar
           if-no-files-found: error
 
       - name: Upload Linux archive
         uses: actions/upload-artifact@v4
         with:
-          name: SweetHome3D-linux-x64-java-21
-          path: install/SweetHome3D-*-linux-x64.tgz
+          name: DobryDom3D-linux-x64-java-21
+          path: install/DobryDom3D-*-linux-x64.tgz
           if-no-files-found: error

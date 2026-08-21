@@ -134,9 +134,8 @@ import com.eteks.sweethome3d.viewcontroller.ViewFactory;
  * from running as a single instance under operating systems different from Mac OS X. By default, it will try to
  * run as a single instance when possible.
  *
- * <li><code>com.eteks.sweethome3d.checkUpdates</code> defaults to <code>false</code> because DobryDom3D
- * doesn't have an update feed yet. Set it to <code>true</code> together with
- * <code>com.eteks.sweethome3d.updatesUrl</code> when a feed is available.</li>
+ * <li><code>com.eteks.sweethome3d.checkUpdates</code> should be set to <code>false</code>
+ * if application and library updates shouldn't be checked in Sweet Home 3D.
  *
  * <li><code>swing.defaultlaf</code> defines the Swing look and feel class used by
  * Sweet Home 3D. It defaults to FlatLaf Light and can be set to another FlatLaf
@@ -193,7 +192,7 @@ public class SweetHome3D extends HomeApplication {
    */
   protected SweetHome3D() {
     this.homeFrameControllers = new HashMap<Home, HomeFrameController>();
-    this.checkUpdatesNeeded = Boolean.parseBoolean(System.getProperty("com.eteks.sweethome3d.checkUpdates", "false"));
+    this.checkUpdatesNeeded = Boolean.parseBoolean(System.getProperty("com.eteks.sweethome3d.checkUpdates", "true"));
   }
 
   /**
@@ -1091,7 +1090,7 @@ public class SweetHome3D extends HomeApplication {
    * launches.
    */
   private static class StandaloneSingleInstanceService implements SingleInstanceService {
-    private static final String                SINGLE_INSTANCE_PORT    = "singleInstancePort#DobryDom3D";
+    private static final String                SINGLE_INSTANCE_PORT    = "singleInstancePort";
 
     private final Class<? extends SweetHome3D> mainClass;
     private final List<SingleInstanceListener> singleInstanceListeners = new ArrayList<SingleInstanceListener>();

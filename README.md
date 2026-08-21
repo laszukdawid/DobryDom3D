@@ -50,7 +50,7 @@ ant clean test
 ```
 
 The `ci` target cleans the workspace, runs the tests, and leaves the standalone
-application at `build/SweetHome3D.jar`:
+application at `build/DobryDom3D.jar`:
 
 ```sh
 ant ci
@@ -68,7 +68,7 @@ system property, for example:
 JAVA_HOME=/home/dawid/.asdf/installs/java/temurin-21.0.6+7.0.LTS
 "$JAVA_HOME/bin/java" \
   -Dswing.defaultlaf=com.formdev.flatlaf.FlatDarkLaf \
-  -jar install/SweetHome3D-0.1.0.jar
+  -jar install/DobryDom3D-0.1.0.jar
 ```
 
 The core theme classes include `FlatLightLaf`, `FlatDarkLaf`, `FlatIntelliJLaf`,
@@ -99,7 +99,7 @@ ant clean linux64Installer
 Run each target on its matching operating system. The Windows target requires
 the native tooling used by `jpackage` to create an EXE. macOS creates separate
 x64 and arm64 DMGs rather than merging runtimes into a universal application.
-The Linux target creates `install/SweetHome3D-0.1.0-linux-x64.tgz`.
+The Linux target creates `install/DobryDom3D-0.1.0-linux-x64.tgz`.
 
 Signed release targets require platform credentials that are intentionally not
 stored in this repository:
@@ -153,7 +153,7 @@ under their menu, while JDK 22, 23, 24, 25, and 26 snap them to the inset edge.
 There is no clean application workaround — the displacement happens inside
 `getPopupMenuOrigin()`, before `adjustPopupLocationToFitScreen`, so the documented
 `-Djavax.swing.adjustPopupLocationToFit=false` does not help. Moving to a newer
-JDK is tracked in [issue #24](https://github.com/laszukdawid/SweetHome3D/issues/24);
+JDK is tracked in [issue #24](https://github.com/laszukdawid/DobryDom3D/issues/24);
 a self-contained reproducer and a ready-to-file upstream report live under
 [`test/jbs/`](test/jbs/).
 
@@ -166,8 +166,7 @@ pinned JDK 21 while still parsing modern class files.
 The current development version is **DobryDom3D 0.1.0**, based on the Sweet
 Home 3D 7.5 source snapshot.
 
-The project is being renamed to **DobryDom3D**. Repository documentation uses
-the new name, while source packages, build artifacts, file formats, and parts
-of the application UI may continue to use the upstream Sweet Home 3D name
-during the branding migration. Original copyright, licensing, attribution, and
-third-party notices will remain intact.
+The application UI, documentation, and release artifacts use the
+**DobryDom3D** name. Source packages, public APIs, file formats, and persisted
+settings retain their upstream identifiers for compatibility. Original
+copyright, licensing, attribution, and third-party notices remain intact.

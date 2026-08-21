@@ -17,6 +17,12 @@
 /install/SweetHome3D-*.dmg
 /install/SweetHome3D-*.exe
 /install/SweetHome3D-*/
+/install/DobryDom3D-*.jar
+/install/DobryDom3D-*.zip
+/install/DobryDom3D-*.tgz
+/install/DobryDom3D-*.dmg
+/install/DobryDom3D-*.exe
+/install/DobryDom3D-*/
 
 # Test and local application output
 /.task/

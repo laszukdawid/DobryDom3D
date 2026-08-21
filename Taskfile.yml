@@ -3,7 +3,7 @@ version: "3"
 
 vars:
   JAVA_VERSION: temurin-21.0.6+7.0.LTS
-  APP_JAR: install/SweetHome3D-0.1.0.jar
+  APP_JAR: install/DobryDom3D-0.1.0.jar
   JAVA_HOME:
     sh: asdf where java "{{.JAVA_VERSION}}"
 

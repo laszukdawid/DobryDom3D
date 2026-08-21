@@ -148,7 +148,7 @@
   <property name="package.image.dir" location="${package.dir}/image"/>
   <property name="package.installer.dir" location="${package.dir}/installer"/>
   <property name="package.generated.image" location="${package.image.dir}/${package.name}${package.image.suffix}"/>
-  <property name="package.published.image" location="install/SweetHome3D-${version}-${package.os}-${package.arch}"/>
+  <property name="package.published.image" location="install/DobryDom3D-${version}-${package.os}-${package.arch}"/>
   <condition property="windows.signing.configured">
     <isset property="windows.signing.thumbprint"/>
   </condition>
@@ -170,8 +170,8 @@
   </target>
 
   <target name="build"
-          description="Builds build/SweetHome3D.jar with all its classes">
-    <echo message="compiling Sweet Home 3D for Java ${java.release} minimum version"/>
+          description="Builds build/DobryDom3D.jar with all its classes">
+    <echo message="compiling DobryDom3D for Java ${java.release} minimum version"/>
     <!-- Compile Sweet Home 3D -->
     <mkdir dir="build/classes"/>
     <!-- Compile Sweet Home 3D applet entry points first. -->
@@ -205,18 +205,18 @@
     </copy>
 
     <!-- Create SweetHome3D.jar -->
-    <zip destfile="build/SweetHome3D.jar"
+    <zip destfile="build/DobryDom3D.jar"
          basedir="build/classes"/>
     <delete dir="build/classes"/>
   </target>
 
   <target name="application" depends="build"
-          description="Builds build/SweetHome3D.jar application with all its classes">
-    <zip destfile="build/SweetHome3DStandalone.jar">
-      <zipfileset src="build/SweetHome3D.jar"
+          description="Builds build/DobryDom3D.jar application with all its classes">
+    <zip destfile="build/DobryDom3DStandalone.jar">
+      <zipfileset src="build/DobryDom3D.jar"
                   excludes="com/eteks/sweethome3d/applet/**"/>
     </zip>
-    <move file="build/SweetHome3DStandalone.jar" tofile="build/SweetHome3D.jar"/>
+    <move file="build/DobryDom3DStandalone.jar" tofile="build/DobryDom3D.jar"/>
   </target>
 
   <target name="fetch-junit"
@@ -252,7 +252,7 @@
            encoding="ISO-8859-1" release="${java.release}"
            includeantruntime="false" debug="true">
       <classpath>
-        <pathelement location="build/SweetHome3D.jar"/>
+        <pathelement location="build/DobryDom3D.jar"/>
         <path refid="test.dependencies"/>
       </classpath>
     </javac>
@@ -265,7 +265,7 @@
            timeout="120000" tempdir="build/test-tmp">
       <classpath>
         <pathelement location="build/test-classes"/>
-        <pathelement location="build/SweetHome3D.jar"/>
+        <pathelement location="build/DobryDom3D.jar"/>
         <pathelement location="src"/>
         <pathelement location="test"/>
         <path refid="test.dependencies"/>
@@ -330,7 +330,7 @@
            timeout="120000" tempdir="build/test-tmp">
       <classpath>
         <pathelement location="build/test-classes"/>
-        <pathelement location="build/SweetHome3D.jar"/>
+        <pathelement location="build/DobryDom3D.jar"/>
         <pathelement location="src"/>
         <pathelement location="test"/>
         <path refid="test.dependencies"/>
@@ -383,7 +383,7 @@
            timeout="60000" tempdir="build/test-tmp">
       <classpath>
         <pathelement location="build/test-classes"/>
-        <pathelement location="build/SweetHome3D.jar"/>
+        <pathelement location="build/DobryDom3D.jar"/>
         <pathelement location="src"/>
         <pathelement location="test"/>
         <path refid="test.dependencies"/>
@@ -396,7 +396,7 @@
       <jvmarg value="--add-opens=java.desktop/com.apple.eio=ALL-UNNAMED"/>
       <jvmarg value="--enable-native-access=ALL-UNNAMED"/>
       <sysproperty key="java.awt.headless" value="false"/>
-      <sysproperty key="com.eteks.sweethome3d.applicationJar" value="${basedir}/build/SweetHome3D.jar"/>
+      <sysproperty key="com.eteks.sweethome3d.applicationJar" value="${basedir}/build/DobryDom3D.jar"/>
       <sysproperty key="java.library.path" value="${test.native.library.path}"/>
       <sysproperty key="jogamp.gluegen.UseTempJarCache" value="false"/>
       <sysproperty key="user.home" value="${basedir}/build/test-home"/>
@@ -419,7 +419,7 @@
            timeout="120000" tempdir="build/test-tmp">
       <classpath>
         <pathelement location="build/test-classes"/>
-        <pathelement location="build/SweetHome3D.jar"/>
+        <pathelement location="build/DobryDom3D.jar"/>
         <pathelement location="src"/>
         <pathelement location="test"/>
         <path refid="test.dependencies"/>
@@ -697,16 +697,16 @@
     <mkdir dir="deploy/lib"/>
     <jar destfile="deploy/lib/SweetHome3DJavaWebStart.jar" manifest="build/META-INF/MANIFEST.MF" filesetmanifest="merge">
       <manifest>
-        <attribute name="Application-Name" value="Sweet Home 3D"/>
+        <attribute name="Application-Name" value="DobryDom3D"/>
       </manifest>
       <fileset dir="build" includes="JNLP-INF/APPLICATION.JNLP"/>
     </jar>
     <!-- Build SweetHome3D.jar file from the content of built jars -->
     <jar destfile="deploy/lib/SweetHome3D.jar" manifest="build/META-INF/MANIFEST.MF" filesetmanifest="merge">
       <manifest>
-        <attribute name="Application-Name" value="Sweet Home 3D"/>
+        <attribute name="Application-Name" value="DobryDom3D"/>
       </manifest>
-      <zipfileset src="build/SweetHome3D.jar"/>
+      <zipfileset src="build/DobryDom3D.jar"/>
       <zipfileset src="build/Furniture.jar"/>
       <zipfileset src="build/Textures.jar"/>
       <zipfileset src="build/Examples.jar"/>
@@ -752,7 +752,7 @@
     <input message="Enter domain name where applet will be hosted:" addproperty="domain"/>
     <jar destfile="deploy/lib/SweetHome3DApplet.jar">
       <manifest>
-        <attribute name="Application-Name"          value="Sweet Home 3D Online"/>
+        <attribute name="Application-Name"          value="DobryDom3D Online"/>
         <attribute name="Permissions"               value="all-permissions"/>
         <attribute name="Codebase"                  value="*"/>
         <!-- From Java 7u55, specifying domain is mandatory to call applet methods from JavaScript
@@ -760,7 +760,7 @@
         <attribute name="Caller-Allowable-Codebase" value="${domain}"/>
       </manifest>
       <fileset dir="build" includes="JNLP-INF/APPLICATION.JNLP"/>
-      <zipfileset src="build/SweetHome3D.jar"
+      <zipfileset src="build/DobryDom3D.jar"
                   excludes="com/eteks/sweethome3d/*.*, com/eteks/sweethome3d/resources/**, com/eteks/sweethome3d/applet/*Viewer*.*"/>
     </jar>
 
@@ -833,7 +833,7 @@
     <jar destfile="deploy/lib/SweetHome3DViewer.jar"
          basedir="build/classes" manifest="build/META-INF/MANIFEST.MF" filesetmanifest="merge">
       <manifest>
-        <attribute name="Application-Name" value="Sweet Home 3D Viewer"/>
+        <attribute name="Application-Name" value="DobryDom3D Viewer"/>
       </manifest>
       <fileset dir="build" includes="JNLP-INF/APPLICATION.JNLP"/>
       <include name="com/eteks/sweethome3d/applet/*"/>
@@ -883,16 +883,16 @@
   </target>
 
   <target name="jarExecutable" depends="application,furniture,textures,examples,help,jogl-java3d,jogl-java3d-x86"
-          description="Builds install/SweetHome3D-version.jar executable Jar">
+          description="Builds install/DobryDom3D-version.jar executable Jar">
     <!-- Create SweetHome3D-version.jar containing Sweet Home 3D classes and resources,
          and other DLLs and jars -->
-    <jar destfile="install/SweetHome3D-${version}.jar">
+    <jar destfile="install/DobryDom3D-${version}.jar">
       <manifest>
         <attribute name="Add-opens" value="java.desktop/java.awt java.desktop/sun.awt java.desktop/com.apple.eio java.desktop/com.apple.eawt"/>
         <attribute name="Enable-Native-Access" value="ALL-UNNAMED"/>
         <attribute name="Main-Class" value="com.eteks.sweethome3d.SweetHome3DBootstrap"/>
       </manifest>
-      <zipfileset src="build/SweetHome3D.jar"/>
+      <zipfileset src="build/DobryDom3D.jar"/>
       <zipfileset src="build/Furniture.jar"/>
       <zipfileset src="build/Textures.jar"/>
       <zipfileset src="build/Examples.jar"/>
@@ -941,7 +941,7 @@
     <!-- Clean build directory -->
     <delete dir="build"/>
 
-    <echo message="install/SweetHome3D-${version}.jar ready for ftp"/>
+    <echo message="install/DobryDom3D-${version}.jar ready for ftp"/>
   </target>
 
   <target name="_checkPackageHost">
@@ -976,7 +976,7 @@
     <mkdir dir="${package.input.dir}/natives"/>
     <copy todir="${package.input.dir}">
       <fileset dir="build">
-        <include name="SweetHome3D.jar"/>
+        <include name="DobryDom3D.jar"/>
         <include name="Furniture.jar"/>
         <include name="Textures.jar"/>
         <include name="Examples.jar"/>
@@ -1058,7 +1058,7 @@
       <arg value="--dest"/>
       <arg file="${package.image.dir}"/>
       <arg value="--main-jar"/>
-      <arg value="SweetHome3D.jar"/>
+      <arg value="DobryDom3D.jar"/>
       <arg value="--main-class"/>
       <arg value="com.eteks.sweethome3d.SweetHome3D"/>
       <arg value="--icon"/>
@@ -1074,7 +1074,7 @@
       <arg value="--java-options"/>
       <arg value="-Dsweethome3d.bundle=true"/>
       <arg value="--java-options"/>
-      <arg value="-Dcom.eteks.sweethome3d.applicationId=DobryDom3D#Installer"/>
+      <arg value="-Dcom.eteks.sweethome3d.applicationId=SweetHome3D#Installer"/>
       <arg value="--java-options"/>
       <arg value="--add-opens=java.desktop/java.awt=ALL-UNNAMED"/>
       <arg value="--java-options"/>
@@ -1151,7 +1151,7 @@
       <arg value="--resource-dir"/>
       <arg file="install/jpackage/windows"/>
       <arg value="--main-jar"/>
-      <arg value="SweetHome3D.jar"/>
+      <arg value="DobryDom3D.jar"/>
       <arg value="--main-class"/>
       <arg value="com.eteks.sweethome3d.SweetHome3D"/>
       <arg value="--icon"/>
@@ -1167,7 +1167,7 @@
       <arg value="--java-options"/>
       <arg value="-Dsweethome3d.bundle=true"/>
       <arg value="--java-options"/>
-      <arg value="-Dcom.eteks.sweethome3d.applicationId=DobryDom3D#Installer"/>
+      <arg value="-Dcom.eteks.sweethome3d.applicationId=SweetHome3D#Installer"/>
       <arg value="--java-options"/>
       <arg value="--add-opens=java.desktop/java.awt=ALL-UNNAMED"/>
       <arg value="--java-options"/>
@@ -1200,9 +1200,9 @@
       <arg value="d3467f1c-4624-4a83-933b-70406d665311"/>
     </exec>
     <move file="${package.installer.dir}/${package.name}-${version}.exe"
-          tofile="install/SweetHome3D-${version}-windows-x64.exe"/>
+          tofile="install/DobryDom3D-${version}-windows-x64.exe"/>
     <delete dir="${package.dir}"/>
-    <echo message="install/SweetHome3D-${version}-windows-x64.exe ready"/>
+    <echo message="install/DobryDom3D-${version}-windows-x64.exe ready"/>
   </target>
 
   <target name="_checkWindowsSigning">
@@ -1222,7 +1222,7 @@
       <arg value="sha256"/>
       <arg value="/fd"/>
       <arg value="sha256"/>
-      <arg file="install/SweetHome3D-${version}-windows-x64.exe"/>
+      <arg file="install/DobryDom3D-${version}-windows-x64.exe"/>
     </exec>
   </target>
 
@@ -1248,7 +1248,7 @@
       <arg value="--dest"/>
       <arg file="${package.installer.dir}"/>
       <arg value="--main-jar"/>
-      <arg value="SweetHome3D.jar"/>
+      <arg value="DobryDom3D.jar"/>
       <arg value="--main-class"/>
       <arg value="com.eteks.sweethome3d.SweetHome3D"/>
       <arg value="--icon"/>
@@ -1264,7 +1264,7 @@
       <arg value="--java-options"/>
       <arg value="-Dsweethome3d.bundle=true"/>
       <arg value="--java-options"/>
-      <arg value="-Dcom.eteks.sweethome3d.applicationId=DobryDom3D#Installer"/>
+      <arg value="-Dcom.eteks.sweethome3d.applicationId=SweetHome3D#Installer"/>
       <arg value="--java-options"/>
       <arg value="--add-opens=java.desktop/java.awt=ALL-UNNAMED"/>
       <arg value="--java-options"/>
@@ -1291,9 +1291,9 @@
       <arg file="install/jpackage/sh3p.properties"/>
     </exec>
     <move file="${package.installer.dir}/${package.name}-${version}.dmg"
-          tofile="install/SweetHome3D-${version}-macosx-${package.arch}.dmg"/>
+          tofile="install/DobryDom3D-${version}-macosx-${package.arch}.dmg"/>
     <delete dir="${package.dir}"/>
-    <echo message="install/SweetHome3D-${version}-macosx-${package.arch}.dmg ready"/>
+    <echo message="install/DobryDom3D-${version}-macosx-${package.arch}.dmg ready"/>
   </target>
 
   <target name="macosxSignedInstaller"
@@ -1319,7 +1319,7 @@
       <arg value="--dest"/>
       <arg file="${package.installer.dir}"/>
       <arg value="--main-jar"/>
-      <arg value="SweetHome3D.jar"/>
+      <arg value="DobryDom3D.jar"/>
       <arg value="--main-class"/>
       <arg value="com.eteks.sweethome3d.SweetHome3D"/>
       <arg value="--icon"/>
@@ -1335,7 +1335,7 @@
       <arg value="--java-options"/>
       <arg value="-Dsweethome3d.bundle=true"/>
       <arg value="--java-options"/>
-      <arg value="-Dcom.eteks.sweethome3d.applicationId=DobryDom3D#Installer"/>
+      <arg value="-Dcom.eteks.sweethome3d.applicationId=SweetHome3D#Installer"/>
       <arg value="--java-options"/>
       <arg value="--add-opens=java.desktop/java.awt=ALL-UNNAMED"/>
       <arg value="--java-options"/>
@@ -1367,16 +1367,16 @@
       <arg file="install/macosx/SweetHome3D.entitlements"/>
     </exec>
     <move file="${package.installer.dir}/${package.name}-${version}.dmg"
-          tofile="install/SweetHome3D-${version}-macosx-${package.arch}.dmg"/>
+          tofile="install/DobryDom3D-${version}-macosx-${package.arch}.dmg"/>
     <delete dir="${package.dir}"/>
-    <echo message="signed install/SweetHome3D-${version}-macosx-${package.arch}.dmg ready"/>
+    <echo message="signed install/DobryDom3D-${version}-macosx-${package.arch}.dmg ready"/>
   </target>
 
   <target name="linux64Installer" depends="_checkLinuxPackageHost,_createPackageAppImage"
           description="Builds a Linux x64 archive containing a Java 21 app image">
-    <delete dir="${package.dir}/SweetHome3D-${version}"/>
-    <move file="${package.generated.image}" tofile="${package.dir}/SweetHome3D-${version}"/>
-    <copy todir="${package.dir}/SweetHome3D-${version}">
+    <delete dir="${package.dir}/DobryDom3D-${version}"/>
+    <move file="${package.generated.image}" tofile="${package.dir}/DobryDom3D-${version}"/>
+    <copy todir="${package.dir}/DobryDom3D-${version}">
       <fileset dir=".">
         <include name="COPYING.TXT"/>
         <include name="LICENSE.TXT"/>
@@ -1395,20 +1395,20 @@
     </copy>
     <exec executable="tar" failonerror="yes">
       <arg value="-czf"/>
-      <arg file="install/SweetHome3D-${version}-linux-x64.tgz"/>
+      <arg file="install/DobryDom3D-${version}-linux-x64.tgz"/>
       <arg value="-C"/>
       <arg file="${package.dir}"/>
-      <arg value="SweetHome3D-${version}"/>
+      <arg value="DobryDom3D-${version}"/>
     </exec>
     <delete dir="${package.dir}"/>
-    <echo message="install/SweetHome3D-${version}-linux-x64.tgz ready"/>
+    <echo message="install/DobryDom3D-${version}-linux-x64.tgz ready"/>
   </target>
 
-  <!-- Builds install/SweetHome3DViewer-version.zip archive that contains
+  <!-- Builds install/DobryDom3DViewer-version.zip archive that contains
        the files required for SweetHome3DViewer applet -->
   <target name="viewerInstaller" depends="viewer"
-          description="Builds install/SweetHome3DViewer-version.zip archive">
-    <zip destfile="install/SweetHome3DViewer-${version}.zip">
+          description="Builds install/DobryDom3DViewer-version.zip archive">
+    <zip destfile="install/DobryDom3DViewer-${version}.zip">
       <zipfileset dir="deploy"
                   includes="lib/**, SweetHome3DViewer.html"/>
       <zipfileset dir="install/viewer"
@@ -1421,15 +1421,15 @@
       </zipfileset>
     </zip>
 
-    <echo message="install/SweetHome3DViewer-${version}.zip ready for ftp"/>
+    <echo message="install/DobryDom3DViewer-${version}.zip ready for ftp"/>
   </target>
 
-  <!-- Builds install/SweetHome3D-version-src.zip archive that contains
+  <!-- Builds install/DobryDom3D-version-src.zip archive that contains
        SweetHome3D source files in directory named SweetHome3D-version-src -->
   <target name="sourceArchive"
-          description="Builds install/SweetHome3D-version-src.zip archive">
-    <mkdir dir="install/source/SweetHome3D-${version}-src"/>
-    <copy todir="install/source/SweetHome3D-${version}-src">
+          description="Builds install/DobryDom3D-version-src.zip archive">
+    <mkdir dir="install/source/DobryDom3D-${version}-src"/>
+    <copy todir="install/source/DobryDom3D-${version}-src">
       <fileset dir=".">
         <include name="build.xml"/>
         <include name="README.md"/>
@@ -1459,26 +1459,26 @@
       </fileset>
     </copy>
 
-    <zip destfile="install/SweetHome3D-${version}-src.zip" basedir="install/source"
-         includes="SweetHome3D-${version}-src/**" />
+    <zip destfile="install/DobryDom3D-${version}-src.zip" basedir="install/source"
+         includes="DobryDom3D-${version}-src/**" />
 
     <!-- Clean build directory -->
     <delete dir="install/source"/>
 
-    <echo message="install/SweetHome3D-${version}-src.zip ready for ftp"/>
+    <echo message="install/DobryDom3D-${version}-src.zip ready for ftp"/>
   </target>
 
-  <!-- Builds install/SweetHome3D-version-javadoc.zip archive that contains
+  <!-- Builds install/DobryDom3D-version-javadoc.zip archive that contains
        the generated Javadoc of Java files found in SweetHome3D-version-src -->
   <target name="javadoc"
-          description="Builds install/SweetHome3D-version-javadoc.zip archive">
-    <mkdir dir="install/javadoc/SweetHome3D-${version}-javadoc"/>
-    <javadoc sourcepath="src" destdir="install/javadoc/SweetHome3D-${version}-javadoc"
+          description="Builds install/DobryDom3D-version-javadoc.zip archive">
+    <mkdir dir="install/javadoc/DobryDom3D-${version}-javadoc"/>
+    <javadoc sourcepath="src" destdir="install/javadoc/DobryDom3D-${version}-javadoc"
              encoding="ISO-8859-1" version="true" author="true" use="true"
-             windowtitle="Sweet Home 3D ${version} API">
-      <doctitle><![CDATA[<img src='http://www.sweethome3d.com/SweetHome3DIcon.gif' width='48' height='48' alt='Sweet Home 3D' align='absmiddle'> Sweet Home 3D ${version} API]]></doctitle>
-      <header><![CDATA[<a href='http://www.sweethome3d.com' target='_parent'><font size='+1'>Sweet Home 3D ${version}</font></a>]]></header>
-      <footer><![CDATA[<a href='http://www.sweethome3d.com' target='_parent'><font size='+1'>Sweet Home 3D ${version}</font></a>]]></footer>
+             windowtitle="DobryDom3D ${version} API">
+      <doctitle><![CDATA[DobryDom3D ${version} API]]></doctitle>
+      <header><![CDATA[<a href='https://github.com/laszukdawid/DobryDom3D' target='_parent'><font size='+1'>DobryDom3D ${version}</font></a>]]></header>
+      <footer><![CDATA[<a href='https://github.com/laszukdawid/DobryDom3D' target='_parent'><font size='+1'>DobryDom3D ${version}</font></a>]]></footer>
       <bottom><![CDATA[<table align='center'><tr>
                        <td><a href='http://www.sweethome3d.com' target='_parent'><img align='absmiddle' src='http://www.sweethome3d.com/images/SpaceMushroomsLogo.png' border='0'><a></td>
                        <td>&copy; Copyright 2024 Space Mushrooms
@@ -1494,13 +1494,13 @@
       </classpath>
     </javadoc>
 
-    <zip destfile="install/SweetHome3D-${version}-javadoc.zip" basedir="install/javadoc"
-         includes="SweetHome3D-${version}-javadoc/**" />
+    <zip destfile="install/DobryDom3D-${version}-javadoc.zip" basedir="install/javadoc"
+         includes="DobryDom3D-${version}-javadoc/**" />
 
     <!-- Clean build directory -->
     <delete dir="install/javadoc"/>
 
-    <echo message="install/SweetHome3D-${version}-javadoc.zip ready for ftp"/>
+    <echo message="install/DobryDom3D-${version}-javadoc.zip ready for ftp"/>
   </target>
 
   <!-- Launchs a JDepend graphical UI to help update dependencies in PackageDependenciesTest test -->
