@@ -2,6 +2,7 @@
  * HomeApplication.java 1 sept. 2006
  *
  * Sweet Home 3D, Copyright (c) 2024 Space Mushrooms <info@sweethome3d.com>
+ * This file is part of DobryDom3D, a fork of Sweet Home 3D 7.5, modified by DobryDom3D contributors since August 2026.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -115,11 +116,11 @@ public abstract class HomeApplication {
   public abstract UserPreferences getUserPreferences();
   
   /**
-   * Returns the name of this application. Default implementation returns <i>Sweet Home 3D</i>. 
+   * Returns the name of this application. Default implementation returns <i>DobryDom3D</i>.
    * @since 1.6
    */
   public String getName() {
-    return "Sweet Home 3D";
+    return "DobryDom3D";
   }
   
   /**

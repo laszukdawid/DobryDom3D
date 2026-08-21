@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Copyright 2026 DobryDom3D contributors. Distributed under GNU GPL v2 or later. -->
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="600" viewBox="0 0 1200 600">
+  <defs>
+    <linearGradient id="background" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#f7f2e8"/>
+      <stop offset="1" stop-color="#dce9e4"/>
+    </linearGradient>
+    <linearGradient id="mark" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#173e52"/>
+      <stop offset="1" stop-color="#0a2635"/>
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="600" fill="url(#background)"/>
+  <path d="M770 72 1128 254V517L770 337ZM770 72 484 231V494L770 337ZM484 231 770 390 1128 201"
+        fill="none" stroke="#8cbab0" stroke-width="4" opacity="0.45"/>
+  <path d="M552 267 772 145 1022 278 786 416ZM786 416V520M668 331V455M901 215V348M552 267V376L668 441M1022 278V389L901 459"
+        fill="none" stroke="#2f776f" stroke-width="8" stroke-linecap="round" stroke-linejoin="round" opacity="0.76"/>
+  <path d="M742 334 832 284 920 332 830 385Z" fill="#ef7657" opacity="0.9"/>
+  <path d="M832 284V367M742 334V417L830 467 920 416V332" fill="none" stroke="#d75742" stroke-width="7" stroke-linejoin="round"/>
+
+  <rect x="72" y="80" width="148" height="148" rx="34" fill="url(#mark)"/>
+  <path d="M91 150 146 101 201 150 192 160 146 119 100 160Z" fill="#ef7657"/>
+  <path d="M99 151 146 110 193 151V204H99Z" fill="#f4ecdc"/>
+  <path d="M112 164 145 145 181 166 147 186Z" fill="#4ea69b"/>
+  <path d="M129 174 147 184 164 174V197L147 207 129 197Z" fill="#ef7657"/>
+
+  <text x="72" y="334" fill="#102f3f" font-family="DejaVu Sans, sans-serif" font-size="82" font-weight="700" letter-spacing="-3">DobryDom3D</text>
+  <text x="76" y="393" fill="#2f776f" font-family="DejaVu Sans, sans-serif" font-size="27" letter-spacing="2">PLAN. FURNISH. VISUALIZE.</text>
+  <rect x="76" y="430" width="346" height="8" rx="4" fill="#ef7657"/>
+  <text x="72" y="556" fill="#31515d" font-family="DejaVu Sans, sans-serif" font-size="15">Based on Sweet Home 3D 7.5 | Copyright 2024 Space Mushrooms | GNU GPL</text>
+</svg>

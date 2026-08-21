@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Copyright 2026 DobryDom3D contributors. Distributed under GNU GPL v2 or later. -->
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <defs>
+    <linearGradient id="background" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#173e52"/>
+      <stop offset="1" stop-color="#0a2635"/>
+    </linearGradient>
+  </defs>
+  <rect x="52" y="52" width="920" height="920" rx="210" fill="url(#background)"/>
+  <path d="M176 486 512 188 848 486 795 546 512 296 229 546Z" fill="#ef7657"/>
+  <path d="M224 492 512 238 800 492V806H224Z" fill="#f4ecdc"/>
+  <path d="M224 492 512 238V806H224Z" fill="#d8e7e2"/>
+  <path d="M302 567 506 451 724 578 516 700Z" fill="#4ea69b"/>
+  <path d="M302 567 516 692V806H302Z" fill="#2f776f"/>
+  <path d="M516 692 724 578V806H516Z" fill="#225a5b"/>
+  <path d="M413 625 516 684 619 625V760L516 819 413 760Z" fill="#ef7657"/>
+  <path d="M516 684 619 625V760L516 819Z" fill="#d75742"/>
+  <path d="M315 569 506 461 710 580M516 692V806" fill="none" stroke="#f8f3e8" stroke-width="20" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

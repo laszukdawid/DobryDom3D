@@ -16,9 +16,9 @@ This changelog records changes made in DobryDom3D after the upstream Sweet Home
 - Started independent product versioning at **DobryDom3D 0.1.0** while keeping
   the upstream source, catalog, plugin, and `.sh3d` format compatibility
   versions unchanged.
-- Adopted **DobryDom3D** as the project name and documented the planned branding
-  migration. The original Sweet Home 3D attribution and licensing remain
-  unchanged.
+- Adopted **DobryDom3D** across the application UI, help, artwork, and release
+  artifacts while retaining upstream compatibility identifiers. The original
+  Sweet Home 3D attribution and licensing remain unchanged.
 - Identified this GitHub repository as the canonical project home until a
   GitHub Pages website is published.
 
@@ -226,7 +226,7 @@ This changelog records changes made in DobryDom3D after the upstream Sweet Home
   library folders through `Architecture` instead of the unsupported
   `sun.arch.data.model` property, and fail with a clear error on unsupported
   architectures rather than silently falling back to 32-bit libraries.
-- `PackageDependenciesTest` analyzes `build/SweetHome3D.jar` directly, passed
+- `PackageDependenciesTest` analyzes `build/DobryDom3D.jar` directly, passed
   through the `com.eteks.sweethome3d.applicationJar` system property, instead
   of exploding it into the root `classes/` directory. `test-all` no longer
   deletes and rebuilds an Eclipse incremental build, and root `classes/`

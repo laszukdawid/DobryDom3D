@@ -2,6 +2,7 @@
  * SweetHome3DBootstrap.java 2 sept. 07
  *
  * Sweet Home 3D, Copyright (c) 2024 Space Mushrooms <info@sweethome3d.com>
+ * This file is part of DobryDom3D, a fork of Sweet Home 3D 7.5, modified by DobryDom3D contributors since August 2026.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -70,7 +71,7 @@ public class SweetHome3DBootstrap {
     if (Architecture.getBitness() == -1) {
       // Fail clearly for unknown architectures instead of silently using 32 bits libraries
       throw new UnsupportedOperationException(
-          "Sweet Home 3D doesn't support architecture " + System.getProperty("os.arch"));
+          "DobryDom3D doesn't support architecture " + System.getProperty("os.arch"));
     }
     if (operatingSystemName.startsWith("Mac OS X")) {
       boolean macOSXLionOrInferior = operatingSystemVersion.startsWith("10.4")
@@ -81,14 +82,14 @@ public class SweetHome3DBootstrap {
           && System.getProperty("com.eteks.sweethome3d.deploymentInformation", "").startsWith("Java Web Start")) {
         // Refuse to let Sweet Home 3D run under Mac OS X with Java Web Start 6
         String message = Locale.getDefault().getLanguage().equals(Locale.FRENCH.getLanguage())
-            ? "Sweet Home 3D ne peut pas fonctionner avec Java\n"
+            ? "DobryDom3D ne peut pas fonctionner avec Java\n"
               + "Web Start 6 sous Mac OS X de façon fiable.\n"
               + "Merci de télécharger le programme d'installation depuis\n"
-              + "http://www.sweethome3d.com/fr/download.jsp"
-            : "Sweet Home 3D can't reliably run with Java Web Start 6\n"
+              + "https://github.com/laszukdawid/DobryDom3D/releases"
+            : "DobryDom3D can't reliably run with Java Web Start 6\n"
               + "under Mac OS X.\n"
               + "Please download the installer version from\n"
-              + "http://www.sweethome3d.com/download.jsp";
+              + "https://github.com/laszukdawid/DobryDom3D/releases";
         JOptionPane.showMessageDialog(null, message);
         System.exit(1);
       } else if ((javaVersion.startsWith("1.5")
@@ -110,14 +111,14 @@ public class SweetHome3DBootstrap {
                  || macOSXLionOrInferior) {
         // Refuse to let Sweet Home 3D run under Mac OS X with Java 7
         String message = Locale.getDefault().getLanguage().equals(Locale.FRENCH.getLanguage())
-            ? "Sweet Home 3D ne peut fonctionner avec Java 6/7 sur votre\n"
+            ? "DobryDom3D ne peut fonctionner avec Java 6/7 sur votre\n"
               + "système et requiert Java 8 ou plus. Merci de mettre à jour votre\n"
               + "version de Java ou de télécharger le programme d'installation\n"
-              + "depuis http://www.sweethome3d.com/fr/download.jsp"
-            : "Sweet Home 3D can't run with Java 6/7 under your system\n"
+              + "depuis https://github.com/laszukdawid/DobryDom3D/releases"
+            : "DobryDom3D can't run with Java 6/7 under your system\n"
               + "and requires Java 8 or above. Please, update you Java version\n"
               + "or download the installer version from\n"
-              + "http://www.sweethome3d.com/download.jsp";
+              + "https://github.com/laszukdawid/DobryDom3D/releases";
         JOptionPane.showMessageDialog(null, message);
         System.exit(1);
       } else { // Java > 1.7
