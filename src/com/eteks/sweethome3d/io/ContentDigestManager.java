@@ -31,9 +31,11 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Enumeration;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.WeakHashMap;
+import java.util.concurrent.CountDownLatch;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
 import java.util.zip.ZipInputStream;
@@ -54,12 +56,17 @@ public class ContentDigestManager {
   private static ContentDigestManager instance;
 
   private Map<Content, byte []>  contentDigestsCache;
+  // Digest computations currently in flight. Entries exist only while a
+  // digest is being computed; they let threads racing on the same content
+  // share one computation while different contents are computed concurrently
+  private Map<Content, ContentDigestComputation> contentDigestComputations;
 
   private Map<URLContent, URL>   zipUrlsCache;
   private Map<URL, List<ZipEntryData>> zipUrlEntriesCache;
 
   private ContentDigestManager() {
     this.contentDigestsCache = new WeakHashMap<Content, byte[]>();
+    this.contentDigestComputations = new HashMap<Content, ContentDigestComputation>();
     this.zipUrlsCache = new WeakHashMap<URLContent, URL>();
     this.zipUrlEntriesCache = new WeakHashMap<URL, List<ZipEntryData>>();
   }
@@ -115,35 +122,94 @@ public class ContentDigestManager {
 
   /**
    * Returns the SHA-1 digest of the given <code>content</code>, computing it
-   * if it wasn't set.
+   * if it wasn't set. The digest of different contents may be computed
+   * concurrently; threads racing on the same content share one computation.
    */
-  public synchronized byte [] getContentDigest(Content content) {
-    byte [] digest = this.contentDigestsCache.get(content);
-    if (digest == null) {
-      try {
-        if (content instanceof ResourceURLContent) {
-          digest = getResourceContentDigest((ResourceURLContent)content);
-        } else if (content instanceof URLContent
-                   && !(content instanceof SimpleURLContent)
-                   && ((URLContent)content).isJAREntry()) {
-          URLContent urlContent = (URLContent)content;
-          // If content comes from a home stream
-          if (urlContent instanceof HomeURLContent) {
-            digest = getHomeContentDigest((HomeURLContent)urlContent);
-          } else {
-            digest = getZipContentDigest(urlContent);
-          }
-        } else {
-          digest = computeContentDigest(content);
-        }
-      } catch (NoSuchAlgorithmException ex) {
-        throw new InternalError("No SHA-1 message digest is available");
-      } catch (IOException ex) {
-        digest = INVALID_CONTENT_DIGEST;
+  public byte [] getContentDigest(Content content) {
+    ContentDigestComputation computation;
+    boolean computeDigest;
+    synchronized (this) {
+      // Cache lookups and publications stay guarded by this monitor to keep
+      // the WeakHashMap safe, but the computation below runs outside of it so
+      // unrelated contents aren't serialized on a single lock
+      byte [] digest = this.contentDigestsCache.get(content);
+      if (digest != null) {
+        return digest;
       }
-      this.contentDigestsCache.put(content, digest);
+      computation = this.contentDigestComputations.get(content);
+      if (computation == null) {
+        computation = new ContentDigestComputation();
+        this.contentDigestComputations.put(content, computation);
+        computeDigest = true;
+      } else {
+        computeDigest = false;
+      }
     }
-    return digest;
+    if (computeDigest) {
+      byte [] digest = INVALID_CONTENT_DIGEST;
+      try {
+        try {
+          digest = computeUncachedContentDigest(content);
+        } catch (NoSuchAlgorithmException ex) {
+          throw new InternalError("No SHA-1 message digest is available");
+        } catch (IOException ex) {
+          // Keep INVALID_CONTENT_DIGEST as the digest of unreadable content
+        }
+        synchronized (this) {
+          // Publish before waking up threads waiting for this computation
+          this.contentDigestsCache.put(content, digest);
+          this.contentDigestComputations.remove(content);
+        }
+        computation.complete(digest);
+      } catch (Throwable failure) {
+        // Don't cache anything after an unexpected failure, but always wake
+        // up the threads waiting for this computation before rethrowing
+        synchronized (this) {
+          this.contentDigestComputations.remove(content);
+        }
+        computation.fail(failure);
+        throw failure;
+      }
+      return digest;
+    } else {
+      boolean interrupted = false;
+      try {
+        while (true) {
+          try {
+            return computation.waitForDigest();
+          } catch (InterruptedException ex) {
+            interrupted = true;
+          }
+        }
+      } finally {
+        if (interrupted) {
+          Thread.currentThread().interrupt();
+        }
+      }
+    }
+  }
+
+  /**
+   * Computes the digest of the given <code>content</code> without looking at
+   * the cache. This method must not be called while holding the monitor of
+   * this manager because it may open streams for a long time.
+   */
+  private byte [] computeUncachedContentDigest(Content content) throws IOException, NoSuchAlgorithmException {
+    if (content instanceof ResourceURLContent) {
+      return getResourceContentDigest((ResourceURLContent)content);
+    } else if (content instanceof URLContent
+               && !(content instanceof SimpleURLContent)
+               && ((URLContent)content).isJAREntry()) {
+      URLContent urlContent = (URLContent)content;
+      // If content comes from a home stream
+      if (urlContent instanceof HomeURLContent) {
+        return getHomeContentDigest((HomeURLContent)urlContent);
+      } else {
+        return getZipContentDigest(urlContent);
+      }
+    } else {
+      return computeContentDigest(content);
+    }
   }
 
   /**
@@ -468,6 +534,39 @@ public class ContentDigestManager {
       } else {
         return 0;
       }
+    }
+  }
+
+  /**
+   * The computation in flight for one content. It lets the thread computing
+   * the digest publish it once to the threads racing on the same content.
+   */
+  private static final class ContentDigestComputation {
+    private final CountDownLatch completed = new CountDownLatch(1);
+    private byte []     digest;
+    private Throwable   failure;
+
+    /**
+     * Waits until <code>complete</code> or <code>fail</code> is called.
+     */
+    byte [] waitForDigest() throws InterruptedException {
+      this.completed.await();
+      if (this.failure instanceof RuntimeException) {
+        throw (RuntimeException)this.failure;
+      } else if (this.failure instanceof Error) {
+        throw (Error)this.failure;
+      }
+      return this.digest;
+    }
+
+    void complete(byte [] digest) {
+      this.digest = digest;
+      this.completed.countDown();
+    }
+
+    void fail(Throwable failure) {
+      this.failure = failure;
+      this.completed.countDown();
     }
   }
 
