@@ -36,3 +36,8 @@ Thumbs.db
 
 # Local ticketing
 issues.md
+
+# Generated furniture library output (regenerate with task furniture:*)
+/tools/furniture/importable/
+__pycache__/
+*.pyc
