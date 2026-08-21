@@ -1,0 +1,122 @@
+name: Release
+
+# Release-readiness pipeline: builds, tests and packages the Linux x64
+# release archive for a version tag, validates the artifact structure, and
+# attaches it to a DRAFT GitHub release (never published automatically).
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  linux-x64-archive:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    # Write is required only to attach artifacts to a DRAFT GitHub release
+    # via the built-in GITHUB_TOKEN; nothing is published automatically.
+    permissions:
+      contents: write
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - name: Cache fetched test dependencies
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: ~/.cache/sweethome3d
+          key: junit-4.13.2-hamcrest-1.3
+
+      - name: Set up Java 21
+        uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5
+        with:
+          distribution: temurin
+          # Exact Adoptium release jdk-21.0.6+7; keep in sync with Taskfile.yml
+          # JAVA_VERSION / .tool-versions to avoid drift
+          java-version: "21.0.6+7"
+
+      - name: Install build and test tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes ant ant-optional xvfb
+
+      - name: Verify tag matches build.xml version
+        run: |
+          set -euo pipefail
+          version="$(sed -n 's/.*<property name="version" value="\([^"]*\)"\/>.*/\1/p' build.xml | head -n 1)"
+          if [ -z "$version" ]; then
+            echo "::error::Could not read version property from build.xml"
+            exit 1
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          if [ "${GITHUB_REF_NAME}" != "v${version}" ]; then
+            echo "::error::Tag ${GITHUB_REF_NAME} does not match build.xml version v${version}"
+            exit 1
+          fi
+        id: version
+
+      - name: Test and build
+        timeout-minutes: 35
+        run: xvfb-run -a -s "-screen 0 1920x1080x24 -ac +extension GLX +render -noreset" ant -noinput ci-full
+
+      - name: Build Java 21 Linux x64 archive
+        run: ant -noinput linux64Installer
+
+      - name: Validate release archive
+        run: |
+          set -euo pipefail
+          version="${{ steps.version.outputs.version }}"
+          archive_root="DobryDom3D-${version}"
+          archives=(install/DobryDom3D-*-linux-x64.tgz)
+          if [ "${#archives[@]}" -ne 1 ] || [ ! -f "${archives[0]}" ]; then
+            echo "::error::Expected exactly one linux-x64 tgz in install/, found: ${archives[*]:-none}"
+            exit 1
+          fi
+          archive="${archives[0]}"
+          gzip --test "$archive"
+          listing="$(tar -tzf "$archive")"
+          printf '%s\n' "$listing"
+          for required in \
+            "${archive_root}/bin/DobryDom3D" \
+            "${archive_root}/lib/app/DobryDom3D.jar"; do
+            if ! grep -Fxq "$required" <<<"$listing"; then
+              echo "::error::Archive is missing required entry: $required"
+              exit 1
+            fi
+          done
+          echo "archive=${archive}" >> "$GITHUB_ENV"
+
+      - name: Upload release archive
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: DobryDom3D-${{ steps.version.outputs.version }}-linux-x64-java-21
+          path: install/DobryDom3D-*-linux-x64.tgz
+          if-no-files-found: error
+
+      - name: Attach archive to draft GitHub release
+        run: |
+          set -euo pipefail
+          if gh release view "${GITHUB_REF_NAME}" > /dev/null 2>&1; then
+            draft="$(gh release view "${GITHUB_REF_NAME}" --json isDraft --jq '.isDraft')"
+            if [ "${draft}" != "true" ]; then
+              echo "::error::Release ${GITHUB_REF_NAME} already exists and is published; refusing to modify it"
+              exit 1
+            fi
+            echo "Draft release ${GITHUB_REF_NAME} exists; replacing the archive asset"
+            gh release upload "${GITHUB_REF_NAME}" "${archive}" --clobber
+          else
+            gh release create "${GITHUB_REF_NAME}" \
+              --draft --verify-tag \
+              --title "DobryDom3D ${{ steps.version.outputs.version }}" \
+              --generate-notes \
+              "${archive}"
+          fi
+        env:
+          GH_TOKEN: ${{ github.token }}

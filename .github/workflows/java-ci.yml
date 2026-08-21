@@ -11,6 +11,10 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   test-and-build:
     runs-on: ubuntu-latest
@@ -30,7 +34,9 @@ jobs:
         uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5
         with:
           distribution: temurin
-          java-version: "21"
+          # Exact Adoptium release jdk-21.0.6+7; keep in sync with Taskfile.yml
+          # JAVA_VERSION / .tool-versions to avoid drift
+          java-version: "21.0.6+7"
 
       - name: Install build and test tools
         run: |
@@ -38,6 +44,7 @@ jobs:
           sudo apt-get install --yes ant ant-optional xvfb
 
       - name: Test and build
+        timeout-minutes: 35
         run: xvfb-run -a -s "-screen 0 1920x1080x24 -ac +extension GLX +render -noreset" ant -noinput ci-full
 
       - name: Build Java 21 Linux archive
