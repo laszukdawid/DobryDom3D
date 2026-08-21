@@ -923,6 +923,7 @@
         <include name="jnlp.jar"/>
       </fileset>
       <fileset dir=".">
+        <include name="CREDITS.md"/>
         <include name="LICENSE.TXT"/>
         <include name="COPYING.TXT"/>
         <include name="THIRDPARTY-LICENSE-JAVA3D.TXT"/>
@@ -997,6 +998,7 @@
     <copy file="libtest/jnlp.jar" todir="${package.input.dir}"/>
     <copy todir="${package.input.dir}/licenses">
       <fileset dir=".">
+        <include name="CREDITS.md"/>
         <include name="COPYING.TXT"/>
         <include name="LICENSE.TXT"/>
         <include name="THIRDPARTY-LICENSE-OPENJDK.TXT"/>
@@ -1102,6 +1104,7 @@
   <target name="_copyPackageLicenses" depends="_publishNonMacAppImage,_publishMacAppImage">
     <copy todir="${package.published.image}">
       <fileset dir=".">
+        <include name="CREDITS.md"/>
         <include name="COPYING.TXT"/>
         <include name="LICENSE.TXT"/>
         <include name="THIRDPARTY-LICENSE-OPENJDK.TXT"/>
@@ -1378,6 +1381,7 @@
     <move file="${package.generated.image}" tofile="${package.dir}/DobryDom3D-${version}"/>
     <copy todir="${package.dir}/DobryDom3D-${version}">
       <fileset dir=".">
+        <include name="CREDITS.md"/>
         <include name="COPYING.TXT"/>
         <include name="LICENSE.TXT"/>
         <include name="THIRDPARTY-LICENSE-OPENJDK.TXT"/>
@@ -1414,6 +1418,7 @@
       <zipfileset dir="install/viewer"
                   includes="README.TXT"/>
       <zipfileset dir=".">
+        <include name="CREDITS.md"/>
         <include name="COPYING.TXT"/>
         <include name="LICENSE.TXT"/>
         <include name="THIRDPARTY-LICENSE-JAVA3D.TXT"/>
@@ -1432,6 +1437,7 @@
     <copy todir="install/source/DobryDom3D-${version}-src">
       <fileset dir=".">
         <include name="build.xml"/>
+        <include name="CREDITS.md"/>
         <include name="README.md"/>
         <include name="Taskfile.yml"/>
         <include name="*.TXT"/>

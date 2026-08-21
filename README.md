@@ -169,4 +169,5 @@ Home 3D 7.5 source snapshot.
 The application UI, documentation, and release artifacts use the
 **DobryDom3D** name. Source packages, public APIs, file formats, and persisted
 settings retain their upstream identifiers for compatibility. Original
-copyright, licensing, attribution, and third-party notices remain intact.
+copyright, licensing, attribution, and third-party notices remain intact; see
+[`CREDITS.md`](CREDITS.md) for project and upstream credits.
