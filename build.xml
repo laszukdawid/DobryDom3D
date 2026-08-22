@@ -71,6 +71,7 @@
     <include name="**/HomeController3DTest.java"/>
     <include name="**/HomeFileRecorderTest.java"/>
     <include name="**/HomeFileRecorderXmlSecurityTest.java"/>
+    <include name="**/HomeControllerUpdatesXmlSecurityTest.java"/>
     <include name="**/HomeXMLRoundTripTest.java"/>
     <include name="**/AutoRecoveryManagerTest.java"/>
     <include name="**/IconManagerTest.java"/>

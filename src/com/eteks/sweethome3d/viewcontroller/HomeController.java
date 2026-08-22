@@ -22,6 +22,7 @@ package com.eteks.sweethome3d.viewcontroller;
 import java.beans.PropertyChangeEvent;
 import java.beans.PropertyChangeListener;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.InterruptedIOException;
 import java.lang.ref.WeakReference;
 import java.net.MalformedURLException;
@@ -53,12 +54,15 @@ import javax.swing.undo.CompoundEdit;
 import javax.swing.undo.UndoManager;
 import javax.swing.undo.UndoableEdit;
 import javax.swing.undo.UndoableEditSupport;
+import javax.xml.XMLConstants;
 import javax.xml.parsers.ParserConfigurationException;
 import javax.xml.parsers.SAXParser;
 import javax.xml.parsers.SAXParserFactory;
 
 import org.xml.sax.Attributes;
 import org.xml.sax.SAXException;
+import org.xml.sax.SAXNotRecognizedException;
+import org.xml.sax.SAXNotSupportedException;
 import org.xml.sax.helpers.DefaultHandler;
 
 import com.eteks.sweethome3d.model.AspectRatio;
@@ -3294,17 +3298,20 @@ public class HomeController implements Controller {
    * Caution : this method is called from a separate thread.
    */
   private Map<Library, List<Update>> readAvailableUpdates(URL url, List<Library> libraries, Long minDate, int timeout) throws IOException, SAXException {
+    SAXParser saxParser = createSecureUpdatesSAXParser();
     try {
-      SAXParserFactory factory = SAXParserFactory.newInstance();
-      factory.setValidating(false);
-      SAXParser saxParser = factory.newSAXParser();
       UpdatesHandler updatesHandler = new UpdatesHandler(url);
       URLConnection connection = url.openConnection();
       if (timeout > 0) {
         connection.setConnectTimeout(timeout);
         connection.setReadTimeout(timeout);
       }
-      saxParser.parse(connection.getInputStream(), updatesHandler);
+      InputStream updatesStream = connection.getInputStream();
+      try {
+        saxParser.parse(updatesStream, updatesHandler);
+      } finally {
+        updatesStream.close();
+      }
 
       // Filter updates according to application version and libraries version
       Map<Library, List<Update>> availableUpdates = new LinkedHashMap<Library, List<Update>>();
@@ -3335,8 +3342,6 @@ public class HomeController implements Controller {
         }
       }
       return availableUpdates;
-    } catch (ParserConfigurationException ex) {
-      throw new SAXException(ex);
     } catch (SAXException ex) {
       // If task was interrupted (see UpdatesHandler implementation), report the interruption
       if (ex.getCause() instanceof InterruptedIOException) {
@@ -3344,6 +3349,47 @@ public class HomeController implements Controller {
       } else {
         throw ex;
       }
+    }
+  }
+
+  /**
+   * Returns a SAX parser hardened against XML attacks in the update feed:
+   * DOCTYPE declarations (and with them external DTD loading and entity
+   * expansion attacks) are rejected, external general and parameter entities
+   * are not resolved, external DTD and schema access is disabled where the
+   * JAXP implementation supports it, and secure processing is enabled.
+   * If one of the required hardening features can't be configured on the
+   * current JAXP implementation, a <code>SAXException</code> is thrown so
+   * that no update feed is ever parsed by an unhardened parser.
+   */
+  private SAXParser createSecureUpdatesSAXParser() throws SAXException {
+    SAXParserFactory factory = SAXParserFactory.newInstance();
+    factory.setValidating(false);
+    try {
+      // Required hardening, the parser can't be used if it isn't supported
+      factory.setFeature(XMLConstants.FEATURE_SECURE_PROCESSING, true);
+      factory.setFeature("http://apache.org/xml/features/disallow-doctype-decl", true);
+      factory.setFeature("http://xml.org/sax/features/external-general-entities", false);
+      factory.setFeature("http://xml.org/sax/features/external-parameter-entities", false);
+      try {
+        // Optional hardening, ignored on implementations that don't support it:
+        // DOCTYPE declarations and external entities are already rejected
+        factory.setFeature("http://apache.org/xml/features/nonvalidating/load-external-dtd", false);
+      } catch (ParserConfigurationException ex) {
+        // Ignore unsupported optional feature
+      } catch (SAXNotRecognizedException | SAXNotSupportedException ex) {
+        // Ignore unsupported optional feature
+      }
+      SAXParser saxParser = factory.newSAXParser();
+      try {
+        saxParser.setProperty(XMLConstants.ACCESS_EXTERNAL_DTD, "");
+        saxParser.setProperty(XMLConstants.ACCESS_EXTERNAL_SCHEMA, "");
+      } catch (SAXNotRecognizedException | SAXNotSupportedException ex) {
+        // Ignore unsupported optional property: DOCTYPE declarations are already rejected
+      }
+      return saxParser;
+    } catch (ParserConfigurationException | SAXNotRecognizedException | SAXNotSupportedException ex) {
+      throw new SAXException("Can't configure secure update feed XML parser", ex);
     }
   }
 
