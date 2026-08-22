@@ -97,15 +97,18 @@ public class TextStyle implements Serializable {
    */
   private TextStyle getInstance(String fontName, float fontSize, boolean bold, boolean italic, Alignment alignment) {
     TextStyle textStyle = new TextStyle(fontName, fontSize, bold, italic, alignment, false);
-    for (int i = textStylesCache.size() - 1; i >= 0; i--) {
-      TextStyle cachedTextStyle = textStylesCache.get(i).get();
-      if (cachedTextStyle == null) {
-        textStylesCache.remove(i);
-      } else if (cachedTextStyle.equals(textStyle)) {
-        return textStyle;
+    synchronized (textStylesCache) {
+      for (int i = textStylesCache.size() - 1; i >= 0; i--) {
+        TextStyle cachedTextStyle = textStylesCache.get(i).get();
+        if (cachedTextStyle == null) {
+          textStylesCache.remove(i);
+        } else if (cachedTextStyle.equals(textStyle)) {
+          // Return the live cached instance so equal styles stay interned
+          return cachedTextStyle;
+        }
       }
+      textStylesCache.add(new WeakReference<TextStyle>(textStyle));
     }
-    textStylesCache.add(new WeakReference<TextStyle>(textStyle));
     return textStyle;
   }
 

@@ -71,6 +71,7 @@
     <include name="**/CatalogTreeTest.java"/>
     <include name="**/CatalogIdDeduplicationTest.java"/>
     <include name="**/ConcurrentContentDigestTest.java"/>
+    <include name="**/ValueObjectInterningTest.java"/>
     <include name="**/FurnitureTableTest.java"/>
     <include name="**/PlanComponentCullingTest.java"/>
     <include name="**/PlanComponentGridPaintingTest.java"/>
