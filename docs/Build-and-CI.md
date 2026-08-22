@@ -54,35 +54,49 @@ asdf.
 
 - `JAVA_VERSION: temurin-21.0.6+7.0.LTS` is hardcoded in Taskfile.yml:4;
   `JAVA_HOME` derived via `asdf where java`.
-- **Risk: there is no `.tool-versions` file in the repo** despite documentation
-  referring to one — the pin lives only inside Taskfile.yml, so asdf users get
-  no automatic version selection and the pin can drift from CI's floating
-  "21" (`actions/setup-java`) and from Eclipse metadata.
+- `.tool-versions` pins the same temurin build for asdf/mise users (the
+  asdf-plugin spelling of Adoptium release `jdk-21.0.6+7`); keep it in sync
+  with `JAVA_VERSION` and CI's setup-java pin.
 - Caching via go-task `sources/generates/method: timestamp`, only for
   `build:executable`.
 - `task test` = `xvfb-run -a -s "-screen 0 1920x1080x24 -ac +extension GLX
   +render -noreset" ant clean test-all`.
 
-## GitHub Actions (.github/workflows/java-ci.yml)
+## GitHub Actions (.github/workflows/)
 
-Exactly one workflow, single job `test-and-build` on `ubuntu-latest`, triggered
-on push/PR to `main`.
+Two workflows plus Dependabot:
+
+- **`java-ci.yml`** — push/PR to `main`. Single job `test-and-build` on
+  `ubuntu-latest`: runs `ant ci-full` under `xvfb-run`, then
+  `linux64Installer`, `coverage`, `spotbugs`, an env-leak scan gate before
+  artifact upload.
+- **`release.yml`** — tag push `v*`. Refuses tags that don't match the
+  `version` property in build.xml, runs `ci-full` under xvfb, builds
+  `linux64Installer`, validates the tgz (exactly one archive, gzip
+  integrity, launcher + application jar entries present), uploads it as a
+  workflow artifact, and attaches it to a **draft** GitHub release via the
+  built-in `GITHUB_TOKEN`. Rerun-safe: an existing draft gets its archive
+  asset replaced (`--clobber`); a published release is never modified and
+  fails the run instead. Nothing is auto-published; no external secrets.
 
 | Aspect | Status |
 |---|---|
-| Permissions | ✅ top-level `permissions: contents: read` |
-| Action pinning | ⚠️ tag-pinned (`actions/checkout@v4`, `setup-java@v4`, `upload-artifact@v4`) — not SHA-pinned |
+| Permissions | ✅ top-level `permissions: contents: read`; the release job alone elevates to `contents: write` for draft-release attachment |
+| Action pinning | ✅ all actions pinned by SHA with version comment |
+| Concurrency | ✅ per-ref group; superseded PR runs cancelled (tag/release runs never cancelled) |
+| Java pin | ✅ exact temurin release `21.0.6+7`, matching Taskfile.yml / .tool-versions |
+| Caching | ✅ `~/.cache/sweethome3d` (checksum-pinned JUnit/Hamcrest/JaCoCo/SpotBugs) |
+| Artifacts | ✅ JUnit reports, app JAR, linux x64 tgz, coverage, SpotBugs; env-leak scan gate before upload |
+| Timeouts | ✅ job-level (40 min) plus step-level on the long ant steps |
 | Matrix | ❌ none (Java 21 Linux only) |
-| Caching | ❌ none (`apt-get install ant ant-optional xvfb` every run; no setup-java cache) |
-| Artifacts | ✅ JUnit reports, app JAR, linux x64 tgz; env-leak scan gate before upload |
-| Timeout | ✅ 20 min |
 
-Runs `ant ci` under xvfb then `ant linux64Installer`. Consequences:
+Consequences still true:
 
+- Runs `ant ci-full` under xvfb then `ant linux64Installer`.
 - **Windows/macOS installer targets have never executed in CI**, although they
   are release targets requiring host-native runs.
-- No release-publishing workflow; signing exists as manual Ant targets only.
-- No Dependabot/renovate configuration anywhere in the repo.
+- Signing remains manual Ant targets only; the release workflow stops at a
+  validated draft release by design (no deployment secrets configured).
 
 ## Vendored dependencies (`lib/`, ~85 MB with natives)
 
@@ -147,10 +161,12 @@ javaAwtDesktop, jdepend-2.10 (rebuilt `--release 11`), **jdom-1.1.1**
 
 ## Dependency update strategy
 
-**None.** No dependabot.yml, no renovate.json, no SBOM, no OWASP
-dependency-check, no manifest of jar coordinates/hashes for vendored libs
-(only JUnit/Hamcrest carry pinned checksums). Upgrades require manually
-replacing binaries in `lib/`.
+**GitHub Actions only.** Dependabot keeps the pinned actions up to date
+(weekly, grouped). It does **not** cover the vendored Java jars in `lib/` /
+`libtest/` — no SBOM, no OWASP dependency-check, no manifest of jar
+coordinates/hashes for vendored libs (only JUnit/Hamcrest carry pinned
+checksums). Upgrades of runtime jars require manually replacing binaries in
+`lib/`.
 
 ## Ranked risks
 
@@ -159,21 +175,24 @@ replacing binaries in `lib/`.
    [iText Retirement](iText-Retirement.md).
 2. **No dependency update mechanism or vulnerability scanning**; 7+ EOL
    runtime jars without checksums/provenance.
-3. **Actions tag-pinned, not SHA-pinned**; single Linux-only workflow means
-   Windows/macOS packaging paths are untested in CI.
-4. **Toolchain drift**: Taskfile pins temurin 21.0.6 inline, CI floats "21",
-   Eclipse `.classpath` says JavaSE-25, `.tool-versions` missing.
+3. ~~**Actions tag-pinned, not SHA-pinned**;~~ single Linux-only workflow means
+   Windows/macOS packaging paths are untested in CI (resolved: actions are
+   SHA-pinned; a `release.yml` tag pipeline validates the Linux archive and
+   produces a draft release).
+4. **Toolchain drift (partially resolved)**: CI and `.tool-versions` now pin
+   temurin `21.0.6+7` in step with Taskfile's inline pin; the Eclipse
+   `.classpath` still says JavaSE-25.
 5. Legacy attack surface kept alive: Web Start/applet/JNLP targets with
    `Permissions: all-permissions` manifests and a hardcoded PKCS#11 storepass
    `0000` (build.xml:727 et al.) — mostly inert but confusing and sign-capable.
 
 ## Quick wins
 
-- Add `.github/dependabot.yml` (at minimum for Actions); SHA-pin the three
-  actions.
-- Enable `setup-java` `cache:` or cache `~/.cache/sweethome3d`.
-- Commit a `.tool-versions` matching the Taskfile temurin pin; align
-  `.classpath` to 21.
+- ~~Add `.github/dependabot.yml` (at minimum for Actions); SHA-pin the three
+  actions.~~ Done.
+- ~~Enable `setup-java` `cache:` or cache `~/.cache/sweethome3d`.~~ Done.
+- ~~Commit a `.tool-versions` matching the Taskfile temurin pin.~~ Done
+  (`java temurin-21.0.6+7.0.LTS`); align `.classpath` to 21 still pending.
 - Plan iText replacement (OpenPDF 1.x is the GPL-compatible continuation);
   document a Batik/JMF/sunflow retirement plan.
 - Move the two `-src-diff.zip` files out of the repo root; delete dead
