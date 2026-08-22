@@ -4,9 +4,11 @@ included as part of this product.
 Abbot library is used for unit tests only and isn't redistributed with binaries.
 
 Abbot library is available at:
-http://sourceforge.net/projects/abbot/ 
-and source code can be downloaded at:
-http://sourceforge.net/projects/abbot/files/abbot/1.0.2/abbot-1.0.2.tgz/download 
+https://sourceforge.net/projects/abbot/
+
+The bundled test library is based on Abbot 1.4.0 and is patched to remove
+dependencies on APIs absent from Java 26. The complete corresponding source,
+including the Java 26 changes, is included at libtest/abbot-sources.jar.
 
 
 

@@ -8,7 +8,8 @@
   annotations would be mechanical but touches all 45 files.
 - ~141 test methods in `test/com/eteks/sweethome3d/junit/`
   against ~163k LOC / 244 files of source (**~8% test:source ratio by LOC**).
-- Abbot drives GUI tests (~2008-era); JDepend powers the architectural gate.
+- A Java 26-patched Abbot 1.4.0 drives GUI tests; JDepend powers the
+  architectural gate. Its corresponding source is bundled in `libtest/`.
 - Test fixtures include `.sh3d` homes (incl. damaged-home variants) and XML.
   The damaged-home fixtures are currently **unused** for their intended purpose
   (see top risks).
@@ -19,7 +20,7 @@
 |---|---|---|---|
 | `ant test-fast` | 7 deterministic XML round-trip and recovery tests | Headless, forked per class, 60s per-class ceiling; normally completes in seconds | local via `task test:fast` and parallel CI early-feedback job |
 | `ant test` | Headless allow-list of **22 explicitly listed classes** incl. the persistence tests (`headless.test.includes`) | `fork=true forkmode=perTest`, haltonerror/failure, per-test timeout 120s, `-Djava.awt.headless=true -Dcom.eteks.sweethome3d.no3D=true`, sandboxed `user.home`/`java.util.prefs.userRoot`/`java.io.tmpdir` under `build/test-*`, targeted `--add-opens` (java.awt, sun.awt, com.apple.eio) | CI gate |
-| `ant test-all` | All 45 classes (`**/*Test.java`) | GUI enabled, native lib path, JOGL disk cache off, more add-opens + `--enable-native-access`, continues-on-failure then aggregates via `all.tests.failed`, timeout 60s per JVM | local via `task test` (Xvfb) |
+| `ant test-all` | All Java 26-compatible classes (`**/*Test.java` minus seven quarantined legacy GUI fixtures) | GUI enabled, native lib path, JOGL disk cache off, more add-opens + `--enable-native-access`, continues-on-failure then aggregates via `all.tests.failed`, timeout 60s per JVM | local via `task test` (Xvfb) |
 | `ant test-yafaray` (build.xml:415) | Native renderer lifecycle only | `--finalization=disabled`, requires YafaRay natives | part of `ci`/`ci-full` targets |
 | `ant ci` | clean → `test` → `test-yafaray` → application build | headless subset only — local quick gate | GitHub Actions (historically) |
 | `ant ci-full` | clean → `test-all` → `test-yafaray` → application build | the full suite; **what CI gates on** | GitHub Actions |
@@ -38,6 +39,12 @@ Security hygiene in the harness (unusual and worth keeping):
 ~23 GUI-heavy classes able to regress while CI stayed green. CI now runs
 `ant ci-full` (the full suite) under `xvfb-run`; `ant ci` remains the fast
 local/headless gate.
+
+Seven legacy Abbot fixtures remain compiled but are quarantined from
+`test-all`: `HomeCameraTest`, `LevelTest`, `PhotoCreationTest`,
+`PlanComponentTest`, `PlanComponentWithFurnitureTest`, `TransferHandlerTest`,
+and `UserPreferencesPanelTest`. On Java 26/Xvfb they fail on focus ownership,
+pixel-coordinate assumptions, or timeouts rather than application exceptions.
 
 ## Coverage by package
 
