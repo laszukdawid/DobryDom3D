@@ -42,6 +42,7 @@ import java.util.zip.ZipFile;
 import java.util.zip.ZipInputStream;
 import java.util.zip.ZipOutputStream;
 
+import javax.xml.XMLConstants;
 import javax.xml.parsers.ParserConfigurationException;
 import javax.xml.parsers.SAXParser;
 import javax.xml.parsers.SAXParserFactory;
@@ -370,18 +371,37 @@ public class DefaultHomeInputStream extends FilterInputStream {
       // Non zipped streams can be read only as XML homes
       throw new IOException("Can't parse home stream without XML handler");
     }
+    SAXParser saxParser = createSecureHomeSAXParser();
     try {
-      SAXParserFactory factory = SAXParserFactory.newInstance();
-      SAXParser saxParser = factory.newSAXParser();
       this.xmlHandler.setContentContext(contentContext);
       saxParser.parse(in, this.xmlHandler);
       return this.xmlHandler.getHome();
-    } catch (ParserConfigurationException ex) {
+    } catch (SAXException ex) {
       IOException ex2 = new IOException("Can't parse home XML stream");
       ex2.initCause(ex);
       throw ex2;
-    } catch (SAXException ex) {
-      IOException ex2 = new IOException("Can't parse home XML stream");
+    }
+  }
+
+  /**
+   * Returns a SAX parser hardened against XML attacks:
+   * DOCTYPE declarations (and with them external DTD loading, external
+   * general entities and entity expansion attacks) are rejected, entity
+   * references are not expanded and secure processing is enabled.
+   * If one of the required hardening features can't be configured on the
+   * current JAXP implementation, an <code>IOException</code> is thrown so
+   * that no home is ever parsed by an unhardened parser.
+   */
+  private SAXParser createSecureHomeSAXParser() throws IOException {
+    SAXParserFactory factory = SAXParserFactory.newInstance();
+    try {
+      factory.setFeature(XMLConstants.FEATURE_SECURE_PROCESSING, true);
+      factory.setFeature("http://apache.org/xml/features/disallow-doctype-decl", true);
+      factory.setFeature("http://xml.org/sax/features/external-general-entities", false);
+      factory.setFeature("http://xml.org/sax/features/external-parameter-entities", false);
+      return factory.newSAXParser();
+    } catch (ParserConfigurationException | SAXException ex) {
+      IOException ex2 = new IOException("Can't configure secure home XML parser");
       ex2.initCause(ex);
       throw ex2;
     }
