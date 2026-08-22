@@ -26,12 +26,12 @@ import java.awt.RenderingHints;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.io.InputStream;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.WeakHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.RejectedExecutionException;
 
 import javax.imageio.ImageIO;
 import javax.swing.Icon;
@@ -45,30 +45,37 @@ import com.eteks.sweethome3d.tools.ResourceURLContent;
  * @author Emmanuel Puybaret
  */
 public class IconManager {
-  private static IconManager                     instance;
   // Icon used if an image content couldn't be loaded
   private final Content                          errorIconContent;
   // Icon used while an image content is loaded
   private final Content                          waitIconContent;
-  // Map storing loaded icons
+  // Map storing loaded icons. Guarded by its own monitor for structural changes,
+  // while each inner per-content map is guarded by the monitor of that map.
   private final Map<Content, Map<Integer, Icon>> icons;
+  // Lock ensuring atomic creation and shutdown of iconsLoader
+  private final Object                           iconsLoaderLock = new Object();
   // Executor used by IconProxy to load images
   private ExecutorService                        iconsLoader;
 
   private IconManager() {
     this.errorIconContent = new ResourceURLContent(IconManager.class, "resources/error.png");
     this.waitIconContent = new ResourceURLContent(IconManager.class, "resources/wait.png");
-    this.icons = Collections.synchronizedMap(new WeakHashMap<Content, Map<Integer, Icon>>());
+    this.icons = new WeakHashMap<Content, Map<Integer, Icon>>();
+  }
+
+  /**
+   * Holder deferring singleton construction until first use and guaranteeing
+   * its safe publication to all threads.
+   */
+  private static class InstanceHolder {
+    static final IconManager instance = new IconManager();
   }
 
   /**
    * Returns an instance of this singleton.
    */
   public static IconManager getInstance() {
-    if (instance == null) {
-      instance = new IconManager();
-    }
-    return instance;
+    return InstanceHolder.instance;
   }
 
   /**
@@ -76,11 +83,17 @@ public class IconManager {
    * that loads icons.
    */
   public void clear() {
-    if (this.iconsLoader != null) {
-      this.iconsLoader.shutdownNow();
+    ExecutorService loader;
+    synchronized (this.iconsLoaderLock) {
+      loader = this.iconsLoader;
       this.iconsLoader = null;
     }
-    this.icons.clear();
+    if (loader != null) {
+      loader.shutdownNow();
+    }
+    synchronized (this.icons) {
+      this.icons.clear();
+    }
   }
 
   /**
@@ -102,11 +115,7 @@ public class IconManager {
    * used by this manager to indicate it couldn't load an icon.
    */
   public boolean isErrorIcon(Icon icon) {
-    Map<Integer, Icon> errorIcons = this.icons.get(this.errorIconContent);
-    return errorIcons != null
-        && (errorIcons.containsValue(icon)
-            || icon instanceof IconProxy
-                && errorIcons.containsValue(((IconProxy)icon).getIcon()));
+    return isCachedIcon(this.errorIconContent, icon);
   }
 
   /**
@@ -128,11 +137,26 @@ public class IconManager {
    * used by this manager to indicate it's currently loading an icon.
    */
   public boolean isWaitIcon(Icon icon) {
-    Map<Integer, Icon> waitIcons = this.icons.get(this.waitIconContent);
-    return waitIcons != null
-        && (waitIcons.containsValue(icon)
-            || icon instanceof IconProxy
-                && waitIcons.containsValue(((IconProxy)icon).getIcon()));
+    return isCachedIcon(this.waitIconContent, icon);
+  }
+
+  /**
+   * Returns <code>true</code> if <code>icon</code>, or the icon hidden behind it
+   * in case of a proxy, is stored in cache for <code>content</code>.
+   */
+  private boolean isCachedIcon(Content content, Icon icon) {
+    Map<Integer, Icon> contentIcons;
+    synchronized (this.icons) {
+      contentIcons = this.icons.get(content);
+    }
+    if (contentIcons == null) {
+      return false;
+    }
+    synchronized (contentIcons) {
+      return contentIcons.containsValue(icon)
+          || icon instanceof IconProxy
+              && contentIcons.containsValue(((IconProxy)icon).getIcon());
+    }
   }
 
   /**
@@ -153,46 +177,63 @@ public class IconManager {
    *            be read immediately in the current thread.
    */
   public Icon getIcon(Content content, final int height, Component waitingComponent) {
-    Map<Integer, Icon> contentIcons = this.icons.get(content);
-    if (contentIcons == null) {
-      contentIcons = Collections.synchronizedMap(new HashMap<Integer, Icon>());
-      this.icons.put(content, contentIcons);
-    }
-    Icon icon = contentIcons.get(height);
-    if (icon == null) {
-      // Tolerate null content
-      if (content == null) {
-        icon = new Icon() {
-          public void paintIcon(Component c, Graphics g, int x, int y) {
-          }
-
-          public int getIconWidth() {
-            return Math.max(0, height);
-          }
-
-          public int getIconHeight() {
-            return Math.max(0, height);
-          }
-        };
-      } else if (content == this.errorIconContent ||
-                 content == this.waitIconContent) {
-        // Load error and wait icons immediately in this thread
-        icon = createIcon(content, height, null);
-      } else if (waitingComponent == null) {
-        // Load icon immediately in this thread
-        icon = createIcon(content, height,
-            getIcon(this.errorIconContent, height, null));
-      } else {
-        // For content different from error icon and wait icon,
-        // load it in a different thread with a virtual proxy
-        icon = new IconProxy(content, height, waitingComponent,
-                 getIcon(this.errorIconContent, height, null),
-                 getIcon(this.waitIconContent, height, null));
+    // Get or create atomically the per-content icons map, so concurrent requests
+    // for the same content always share the same cache entry
+    Map<Integer, Icon> contentIcons;
+    synchronized (this.icons) {
+      contentIcons = this.icons.get(content);
+      if (contentIcons == null) {
+        contentIcons = new HashMap<Integer, Icon>();
+        this.icons.put(content, contentIcons);
       }
-      // Store the icon in icons map
-      contentIcons.put(height, icon);
     }
-    return icon;
+
+    // Resolve the error and wait icons before locking contentIcons to avoid
+    // holding one content lock while acquiring another
+    Icon errorIcon = null;
+    Icon waitIcon = null;
+    if (content != null && content != this.errorIconContent && content != this.waitIconContent) {
+      errorIcon = getIcon(this.errorIconContent, height, null);
+      if (waitingComponent != null) {
+        waitIcon = getIcon(this.waitIconContent, height, null);
+      }
+    }
+
+    synchronized (contentIcons) {
+      Icon icon = contentIcons.get(height);
+      if (icon == null) {
+        if (content == null) {
+          // Tolerate null content
+          icon = new Icon() {
+              public void paintIcon(Component c, Graphics g, int x, int y) {
+              }
+
+              public int getIconWidth() {
+                return Math.max(0, height);
+              }
+
+              public int getIconHeight() {
+                return Math.max(0, height);
+              }
+            };
+        } else if (content == this.errorIconContent ||
+                   content == this.waitIconContent) {
+          // Load error and wait icons immediately in this thread
+          icon = createIcon(content, height, null);
+        } else if (waitingComponent == null) {
+          // Load icon immediately in this thread
+          icon = createIcon(content, height, errorIcon);
+        } else {
+          // For content different from error icon and wait icon,
+          // load it in a different thread with a virtual proxy
+          icon = new IconProxy(content, height, waitingComponent,
+                   errorIcon, waitIcon);
+        }
+        // Store the icon in icons map
+        contentIcons.put(height, icon);
+      }
+      return icon;
+    }
   }
 
   /**
@@ -203,27 +244,27 @@ public class IconManager {
    */
   private Icon createIcon(Content content, int height, Icon errorIcon) {
     try {
-      // Read the icon of the piece
-      InputStream contentStream = content.openStream();
-      BufferedImage image = ImageIO.read(contentStream);
-      contentStream.close();
-      if (image != null) {
-        if (height != -1 && height != image.getHeight()) {
-          int width = Math.max(1, image.getWidth() * height / image.getHeight());
-          // Halve the image while it's more than twice the requested size, a single
-          // bilinear step sampling too few pixels to downscale that much smoothly
-          BufferedImage reducedImage = image;
-          int reducedWidth = image.getWidth();
-          int reducedHeight = image.getHeight();
-          while (reducedWidth > width * 2 || reducedHeight > height * 2) {
-            reducedWidth = Math.max(width, reducedWidth / 2);
-            reducedHeight = Math.max(height, reducedHeight / 2);
-            reducedImage = getScaledImage(reducedImage, reducedWidth, reducedHeight);
+      // Read the icon of the piece, closing the stream even if reading fails
+      try (InputStream contentStream = content.openStream()) {
+        BufferedImage image = ImageIO.read(contentStream);
+        if (image != null) {
+          if (height != -1 && height != image.getHeight()) {
+            int width = Math.max(1, image.getWidth() * height / image.getHeight());
+            // Halve the image while it's more than twice the requested size, a single
+            // bilinear step sampling too few pixels to downscale that much smoothly
+            BufferedImage reducedImage = image;
+            int reducedWidth = image.getWidth();
+            int reducedHeight = image.getHeight();
+            while (reducedWidth > width * 2 || reducedHeight > height * 2) {
+              reducedWidth = Math.max(width, reducedWidth / 2);
+              reducedHeight = Math.max(height, reducedHeight / 2);
+              reducedImage = getScaledImage(reducedImage, reducedWidth, reducedHeight);
+            }
+            // Create a scaled image not bound to original image to let the original image being garbage collected
+            return new ImageIcon(getScaledImage(reducedImage, width, height));
+          } else {
+            return new ImageIcon(image);
           }
-          // Create a scaled image not bound to original image to let the original image being garbage collected
-          return new ImageIcon(getScaledImage(reducedImage, width, height));
-        } else {
-          return new ImageIcon(image);
         }
       }
     } catch (IOException ex) {
@@ -254,22 +295,37 @@ public class IconManager {
    * image loading completion.
    */
   private class IconProxy implements Icon {
-    private Icon icon;
+    // Volatile so the icon loaded by a background thread is safely and
+    // promptly published to the threads painting or reading this proxy
+    private volatile Icon icon;
 
     public IconProxy(final Content content, final int height,
                      final Component waitingComponent,
                      final Icon errorIcon, Icon waitIcon) {
       this.icon = waitIcon;
-      if (iconsLoader == null) {
-        iconsLoader = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors() * 2);
+      // Get or create atomically the executor used to load images
+      ExecutorService loader;
+      synchronized (IconManager.this.iconsLoaderLock) {
+        if (iconsLoader == null) {
+          iconsLoader = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors() * 2);
+        }
+        loader = iconsLoader;
       }
-      // Load the icon in a different thread
-      iconsLoader.execute(new Runnable () {
+      Runnable iconLoader = new Runnable () {
           public void run() {
-            icon = createIcon(content, height, errorIcon);
+            Icon loadedIcon = createIcon(content, height, errorIcon);
+            IconProxy.this.icon = loadedIcon;
             waitingComponent.repaint();
           }
-        });
+        };
+      try {
+        // Load the icon in a different thread
+        loader.execute(iconLoader);
+      } catch (RejectedExecutionException ex) {
+        // The loader was shut down concurrently by clear(): fall back
+        // to loading the icon in this thread so it's still displayed
+        iconLoader.run();
+      }
     }
 
     public int getIconWidth() {
