@@ -124,6 +124,9 @@ public class ContentDigestManager {
    * Returns the SHA-1 digest of the given <code>content</code>, computing it
    * if it wasn't set. The digest of different contents may be computed
    * concurrently; threads racing on the same content share one computation.
+   * A digest set explicitly with <code>setContentDigest</code> while a
+   * computation is in flight wins over the computed result: the computing
+   * thread, the threads waiting for it and all later lookups return it.
    */
   public byte [] getContentDigest(Content content) {
     ContentDigestComputation computation;
@@ -156,21 +159,31 @@ public class ContentDigestManager {
           // Keep INVALID_CONTENT_DIGEST as the digest of unreadable content
         }
         synchronized (this) {
-          // Publish before waking up threads waiting for this computation
-          this.contentDigestsCache.put(content, digest);
-          this.contentDigestComputations.remove(content);
+          // Publish with put-if-absent semantics so a digest set explicitly
+          // by setContentDigest while this computation was in flight always
+          // wins, as it did when lookup and publication shared one lock.
+          // The final cached digest is returned and given to waiting threads
+          byte [] cachedDigest = this.contentDigestsCache.get(content);
+          if (cachedDigest == null) {
+            this.contentDigestsCache.put(content, digest);
+            cachedDigest = digest;
+          }
+          digest = cachedDigest;
         }
         computation.complete(digest);
+        return digest;
       } catch (Throwable failure) {
         // Don't cache anything after an unexpected failure, but always wake
         // up the threads waiting for this computation before rethrowing
+        computation.fail(failure);
+        throw failure;
+      } finally {
+        // Structurally guarantee that the in-flight entry can never leak,
+        // whatever outcome the block above has
         synchronized (this) {
           this.contentDigestComputations.remove(content);
         }
-        computation.fail(failure);
-        throw failure;
       }
-      return digest;
     } else {
       boolean interrupted = false;
       try {

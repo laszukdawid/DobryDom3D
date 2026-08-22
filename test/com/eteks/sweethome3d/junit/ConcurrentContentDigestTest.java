@@ -163,6 +163,48 @@ public class ConcurrentContentDigestTest extends TestCase {
         0, content.getOpenCount());
   }
 
+  /**
+   * Checks that a digest set explicitly with setContentDigest while a
+   * computation is in flight wins: the computing thread, threads waiting for
+   * the computation and all later lookups observe it, and nothing is
+   * recomputed. The assertions hold whichever path each racing caller takes
+   * (joining the computation or hitting the published cache), so the test
+   * stays deterministic without timing-based waits.
+   */
+  public void testSetContentDigestDuringComputationWins() throws Exception {
+    CountDownLatch streamEntered = new CountDownLatch(1);
+    CountDownLatch releaseStream = new CountDownLatch(1);
+    GatedContent content = new GatedContent("computed content data",
+        streamEntered, releaseStream);
+    byte [] explicitDigest = sha1Bytes("explicit override");
+    ContentDigestManager manager = ContentDigestManager.getInstance();
+    ExecutorService executor = Executors.newFixedThreadPool(3);
+    try {
+      Future<byte []> owner = executor.submit(digestCall(manager, content));
+      assertTrue("Computing thread should reach the content stream",
+          streamEntered.await(FUTURE_TIMEOUT_SECONDS, TimeUnit.SECONDS));
+      // Override the digest while the owner is blocked in its computation
+      manager.setContentDigest(content, explicitDigest);
+      Future<byte []> waiter1 = executor.submit(digestCall(manager, content));
+      Future<byte []> waiter2 = executor.submit(digestCall(manager, content));
+      releaseStream.countDown();
+      assertSame("Computing caller must return the explicit final cached digest",
+          explicitDigest, owner.get(FUTURE_TIMEOUT_SECONDS, TimeUnit.SECONDS));
+      assertSame("Waiting caller 1 must return the explicit final cached digest",
+          explicitDigest, waiter1.get(FUTURE_TIMEOUT_SECONDS, TimeUnit.SECONDS));
+      assertSame("Waiting caller 2 must return the explicit final cached digest",
+          explicitDigest, waiter2.get(FUTURE_TIMEOUT_SECONDS, TimeUnit.SECONDS));
+      assertEquals("The overridden computation should run exactly once",
+          1, content.getOpenCount());
+      assertSame("Future lookups must see the explicit digest",
+          explicitDigest, manager.getContentDigest(content));
+      assertEquals("Future lookup shouldn't reopen the content",
+          1, content.getOpenCount());
+    } finally {
+      executor.shutdownNow();
+    }
+  }
+
   private static Callable<byte []> digestCall(final ContentDigestManager manager,
                                               final Content content) {
     return new Callable<byte []>() {
@@ -223,6 +265,41 @@ public class ConcurrentContentDigestTest extends TestCase {
 
     public InputStream openStream() {
       this.openCount++;
+      return new ByteArrayInputStream(this.data);
+    }
+
+    int getOpenCount() {
+      return this.openCount;
+    }
+  }
+
+  /**
+   * A content whose stream blocks on a latch until it is released, counting
+   * how many times it was opened.
+   */
+  private static class GatedContent implements Content {
+    private final byte []              data;
+    private final CountDownLatch       streamEntered;
+    private final CountDownLatch       releaseStream;
+    private int                        openCount;
+
+    GatedContent(String data, CountDownLatch streamEntered, CountDownLatch releaseStream) {
+      this.data = data.getBytes();
+      this.streamEntered = streamEntered;
+      this.releaseStream = releaseStream;
+    }
+
+    public InputStream openStream() throws IOException {
+      this.openCount++;
+      this.streamEntered.countDown();
+      try {
+        if (!this.releaseStream.await(BARRIER_TIMEOUT_SECONDS, TimeUnit.SECONDS)) {
+          throw new IOException("Stream gate wasn't released");
+        }
+      } catch (InterruptedException ex) {
+        Thread.currentThread().interrupt();
+        throw new IOException("Interrupted while waiting for stream release", ex);
+      }
       return new ByteArrayInputStream(this.data);
     }
 
