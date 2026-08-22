@@ -565,6 +565,8 @@
         <classpath>
           <pathelement location="build/test-classes"/>
           <pathelement location="build/DobryDom3D.jar"/>
+          <pathelement location="src"/>
+          <pathelement location="test"/>
           <path refid="test.dependencies"/>
         </classpath>
         <jvmarg value="--add-opens=java.desktop/java.awt=ALL-UNNAMED"/>
@@ -599,7 +601,7 @@
           </fileset>
         </sourcefiles>
       </structure>
-      <xml destdir="build/coverage"/>
+      <xml destfile="build/coverage/jacoco.xml"/>
       <html destdir="build/coverage/html"/>
     </report>
     <delete dir="build/coverage/classes"/>
