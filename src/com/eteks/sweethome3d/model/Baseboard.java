@@ -74,15 +74,18 @@ public class Baseboard implements Serializable {
   public static Baseboard getInstance(float thickness, float height,
                                       Integer color, HomeTexture texture) {
     Baseboard baseboard = new Baseboard(thickness, height, color, texture, false);
-    for (int i = baseboardsCache.size() - 1; i >= 0; i--) {
-      Baseboard cachedBaseboard = baseboardsCache.get(i).get();
-      if (cachedBaseboard == null) {
-        baseboardsCache.remove(i);
-      } else if (cachedBaseboard.equals(baseboard)) {
-        return baseboard;
+    synchronized (baseboardsCache) {
+      for (int i = baseboardsCache.size() - 1; i >= 0; i--) {
+        Baseboard cachedBaseboard = baseboardsCache.get(i).get();
+        if (cachedBaseboard == null) {
+          baseboardsCache.remove(i);
+        } else if (cachedBaseboard.equals(baseboard)) {
+          // Return the live cached instance so equal baseboards stay interned
+          return cachedBaseboard;
+        }
       }
+      baseboardsCache.add(new WeakReference<Baseboard>(baseboard));
     }
-    baseboardsCache.add(new WeakReference<Baseboard>(baseboard));
     return baseboard;
   }
 
