@@ -18,7 +18,7 @@ live in the repository README.
 
 | | |
 |---|---|
-| Language | Java (Swing + Java 3D), pinned to JDK 21 |
+| Language | Java (Swing + Java 3D), pinned to JDK 26 |
 | Build | Apache Ant (`build.xml`), Task runner (`Taskfile.yml`) |
 | Tests | JUnit 4.13.2 (+ Abbot for GUI), `ant test` / `ant test-all` |
 | CI | GitHub Actions: `.github/workflows/java-ci.yml` |

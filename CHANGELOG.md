@@ -6,6 +6,24 @@ This changelog records changes made in DobryDom3D after the upstream Sweet Home
 
 ## [Unreleased]
 
+### Changed
+
+- Upgraded the build from Java 21 to **Java 26** (Adoptium Temurin
+  `jdk-26.0.2+10`, verified as the latest GA release via the Adoptium API)
+  across `build.xml` (`java.release=26`), `Taskfile.yml`, `.tool-versions`,
+  both GitHub Actions workflows (including artifact labels), the Eclipse
+  `.classpath`/`.settings` metadata, and the docs. The tree compiles and its
+  headless suite passes under `--release 26`. This drops compatibility with
+  older JDKs; the known JDK 22+ X11 menu-popup regression documented in
+  `README.md` remains accepted and tracked in issue #24.
+- Removed the obsolete `com.eteks.sweethome3d.applet` package and the
+  `javaWebStart`, `applet`, `viewer`, and `viewerInstaller` Ant targets with
+  their deploy-only helper targets: Java 26 removed the Java Applet API
+  (`JApplet` et al.), so this Web Start/applet deployment code could no longer
+  compile or run.
+- Dropped an applet-and-Java-7-era tooltip workaround in `PlanComponent`
+  that referenced the removed `JApplet` API.
+
 ### Added
 
 - Added a standalone reproducer and an upstream JDK bug-report draft for the

@@ -65,7 +65,7 @@ default. Select another FlatLaf theme with the existing `swing.defaultlaf`
 system property, for example:
 
 ```sh
-JAVA_HOME=/home/dawid/.asdf/installs/java/temurin-21.0.6+7.0.LTS
+JAVA_HOME=/home/dawid/.asdf/installs/java/temurin-26.0.2+10
 "$JAVA_HOME/bin/java" \
   -Dswing.defaultlaf=com.formdev.flatlaf.FlatDarkLaf \
   -jar install/DobryDom3D-0.1.0.jar
@@ -129,13 +129,14 @@ the stable non-GUI suite used by CI.
 
 ## JDK Version Pin
 
-The build is pinned to **JDK 21 (LTS)**. This is deliberate and enforced across
-`build.xml` (`java.release=21`), `Taskfile.yml`
-(`JAVA_VERSION=temurin-21.0.6+7.0.LTS`), CI (`actions/setup-java`, version 21),
+The build is pinned to **JDK 26** (the latest GA feature release), enforced
+across `build.xml` (`java.release=26`), `Taskfile.yml`
+(`JAVA_VERSION=temurin-26.0.2+10`), CI (`actions/setup-java`, version 26),
 and Eclipse metadata.
 
-**Why 21 and not newer:** JDK 22+ regresses the placement of top-level menu
-dropdowns on ultra-wide and multi-monitor X11/XWayland desktops. On this fork's
+**Known X11 menu-popup regression on JDK 22+:** newer JDKs regress the
+placement of top-level menu dropdowns on ultra-wide and multi-monitor
+X11/XWayland desktops. On this fork's
 development setup (an ultra-wide monitor next to a laptop with a left dock),
 clicking `File`, `Edit`, or `Plan` renders every popup at the same
 `x = screenInsets.left` — hundreds of pixels right of the menu title — because:
@@ -152,14 +153,15 @@ Bisecting across asdf JDK builds confirmed the boundary: JDK 21 renders popups
 under their menu, while JDK 22, 23, 24, 25, and 26 snap them to the inset edge.
 There is no clean application workaround — the displacement happens inside
 `getPopupMenuOrigin()`, before `adjustPopupLocationToFitScreen`, so the documented
-`-Djavax.swing.adjustPopupLocationToFit=false` does not help. Moving to a newer
-JDK is tracked in [issue #24](https://github.com/laszukdawid/DobryDom3D/issues/24);
+`-Djavax.swing.adjustPopupLocationToFit=false` does not help. The upgrade to
+JDK 26 was made accepting this known cosmetic regression, which remains tracked
+in [issue #24](https://github.com/laszukdawid/DobryDom3D/issues/24);
 a self-contained reproducer and a ready-to-file upstream report live under
 [`test/jbs/`](test/jbs/).
 
 **Note on `libtest/jdepend-2.10.jar`:** it is rebuilt from the upstream JDepend
 2.10 source with `--release 11` so it remains readable when compiling with the
-pinned JDK 21 while still parsing modern class files.
+pinned JDK while still parsing modern class files.
 
 ## Project Status
 

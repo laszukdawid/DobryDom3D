@@ -2,7 +2,9 @@
 version: "3"
 
 vars:
-  JAVA_VERSION: temurin-21.0.6+7.0.LTS
+  # mise/asdf spelling of Adoptium release jdk-26.0.2+10 (non-LTS releases
+  # carry no GA/LTS suffix); keep in sync with .tool-versions and CI.
+  JAVA_VERSION: temurin-26.0.2+10
   APP_JAR: install/DobryDom3D-0.1.0.jar
   JAVA_HOME:
     sh: asdf where java "{{.JAVA_VERSION}}"
@@ -45,7 +47,7 @@ tasks:
       - '"{{.JAVA_HOME}}/bin/java" -jar "{{.APP_JAR}}"'
 
   package:image:
-    desc: Build a self-contained Java 21 app image for this platform
+    desc: Build a self-contained Java 26 app image for this platform
     deps: [check-java]
     cmds:
       - ant clean packageAppImage

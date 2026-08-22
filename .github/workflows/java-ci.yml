@@ -30,11 +30,13 @@ jobs:
           path: ~/.cache/sweethome3d
           key: junit-4.13.2-hamcrest-1.3
 
-      - name: Set up Java 21
+      - name: Set up Java 26
         uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5
         with:
           distribution: temurin
-          java-version: "21.0.6+7"
+          # Exact Adoptium release jdk-26.0.2+10; keep in sync with Taskfile.yml
+          # JAVA_VERSION / .tool-versions to avoid drift
+          java-version: "26.0.2+10"
 
       - name: Install Ant
         run: |
@@ -59,13 +61,13 @@ jobs:
           path: ~/.cache/sweethome3d
           key: junit-4.13.2-hamcrest-1.3
 
-      - name: Set up Java 21
+      - name: Set up Java 26
         uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5
         with:
           distribution: temurin
-          # Exact Adoptium release jdk-21.0.6+7; keep in sync with Taskfile.yml
+          # Exact Adoptium release jdk-26.0.2+10; keep in sync with Taskfile.yml
           # JAVA_VERSION / .tool-versions to avoid drift
-          java-version: "21.0.6+7"
+          java-version: "26.0.2+10"
 
       - name: Install build and test tools
         run: |
@@ -76,7 +78,7 @@ jobs:
         timeout-minutes: 35
         run: xvfb-run -a -s "-screen 0 1920x1080x24 -ac +extension GLX +render -noreset" ant -noinput ci-full
 
-      - name: Build Java 21 Linux archive
+      - name: Build Java 26 Linux archive
         run: ant -noinput linux64Installer
 
       - name: Coverage report (headless suite)
@@ -108,21 +110,21 @@ jobs:
         if: always() && steps.report-safety.outcome == 'success'
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
-          name: junit-reports-java-21
+          name: junit-reports-java-26
           path: build/test-reports/
           if-no-files-found: warn
 
       - name: Upload application JAR
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
-          name: DobryDom3D-java-21
+          name: DobryDom3D-java-26
           path: build/DobryDom3D.jar
           if-no-files-found: error
 
       - name: Upload Linux archive
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
-          name: DobryDom3D-linux-x64-java-21
+          name: DobryDom3D-linux-x64-java-26
           path: install/DobryDom3D-*-linux-x64.tgz
           if-no-files-found: error
 
@@ -130,7 +132,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
-          name: coverage-reports-java-21
+          name: coverage-reports-java-26
           path: |
             build/coverage/jacoco.xml
             build/coverage/html/
@@ -140,6 +142,6 @@ jobs:
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
-          name: spotbugs-report-java-21
+          name: spotbugs-report-java-26
           path: build/spotbugs/spotbugs.xml
           if-no-files-found: warn

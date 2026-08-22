@@ -58,9 +58,9 @@ breakage path on modern JDKs. Fix before any runtime JDK bump, not after.
 
 Iterate JDepend's `analyze()` results and report which edges mismatch instead
 of one monolithic "Dependency mismatch" failure; revisit the odd
-`viewcontroller → swing.text/html` allowance. Also add the missing
-`.tool-versions` file and align Eclipse `.classpath` (currently JavaSE-25)
-with release 21.
+`viewcontroller → swing.text/html` allowance. ~~Also add the missing
+`.tool-versions` file and align Eclipse `.classpath` with the compiler
+release.~~ Done; both now use Temurin / Java 26.
 
 ## P2 — strategic (quarters)
 

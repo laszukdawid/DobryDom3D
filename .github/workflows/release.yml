@@ -34,13 +34,13 @@ jobs:
           path: ~/.cache/sweethome3d
           key: junit-4.13.2-hamcrest-1.3
 
-      - name: Set up Java 21
+      - name: Set up Java 26
         uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5
         with:
           distribution: temurin
-          # Exact Adoptium release jdk-21.0.6+7; keep in sync with Taskfile.yml
+          # Exact Adoptium release jdk-26.0.2+10; keep in sync with Taskfile.yml
           # JAVA_VERSION / .tool-versions to avoid drift
-          java-version: "21.0.6+7"
+          java-version: "26.0.2+10"
 
       - name: Install build and test tools
         run: |
@@ -66,7 +66,7 @@ jobs:
         timeout-minutes: 35
         run: xvfb-run -a -s "-screen 0 1920x1080x24 -ac +extension GLX +render -noreset" ant -noinput ci-full
 
-      - name: Build Java 21 Linux x64 archive
+      - name: Build Java 26 Linux x64 archive
         run: ant -noinput linux64Installer
 
       - name: Validate release archive
@@ -96,7 +96,7 @@ jobs:
       - name: Upload release archive
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
-          name: DobryDom3D-${{ steps.version.outputs.version }}-linux-x64-java-21
+          name: DobryDom3D-${{ steps.version.outputs.version }}-linux-x64-java-26
           path: install/DobryDom3D-*-linux-x64.tgz
           if-no-files-found: error
 

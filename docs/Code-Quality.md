@@ -35,7 +35,7 @@ Known warts, fix opportunistically when touching nearby code:
 - ~65 `printStackTrace()` calls and ~42 broad `catch (Exception)` blocks.
 - Reflection-as-compatibility-fossil in 21 files — e.g. `File.getUsableSpace`
   via reflection (`HomeFileRecorder.java:214–215`), a Java 1.6-era workaround
-  that is no longer needed on JDK 21. Worst instance is the
+  that is no longer needed on JDK 26. Worst instance is the
   `sun.awt.AppContext` reflection hack in `VideoPanel.java:1802–1814`, which
   targets removed internal API (tracked in
   [Engineering Priorities](Engineering-Priorities.md)).
