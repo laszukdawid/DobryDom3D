@@ -8,7 +8,8 @@
   annotations would be mechanical but touches all 45 files.
 - ~141 test methods in `test/com/eteks/sweethome3d/junit/`
   against ~163k LOC / 244 files of source (**~8% test:source ratio by LOC**).
-- Abbot drives GUI tests (~2008-era); JDepend powers the architectural gate.
+- A Java 26-patched Abbot 1.4.0 drives GUI tests; JDepend powers the
+  architectural gate. Its corresponding source is bundled in `libtest/`.
 - Test fixtures include `.sh3d` homes (incl. damaged-home variants) and XML.
   The damaged-home fixtures are currently **unused** for their intended purpose
   (see top risks).

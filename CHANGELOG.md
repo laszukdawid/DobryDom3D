@@ -23,6 +23,10 @@ This changelog records changes made in DobryDom3D after the upstream Sweet Home
   compile or run.
 - Dropped an applet-and-Java-7-era tooltip workaround in `PlanComponent`
   that referenced the removed `JApplet` API.
+- Updated the test-only Abbot library to 1.4.0 and removed its applet context,
+  JAX-WS holder, and obsolete `SunToolkit` exception dependencies so the GUI
+  regression suite can run on Java 26. The patched source is bundled beside
+  the test library.
 
 ### Added
 
