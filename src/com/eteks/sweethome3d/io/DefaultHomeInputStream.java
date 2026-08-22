@@ -366,6 +366,10 @@ public class DefaultHomeInputStream extends FilterInputStream {
    * Returns the home read from the given XML input stream.
    */
   private Home readHomeXML(InputStream in, HomeContentContext contentContext) throws IOException {
+    if (this.xmlHandler == null) {
+      // Non zipped streams can be read only as XML homes
+      throw new IOException("Can't parse home stream without XML handler");
+    }
     try {
       SAXParserFactory factory = SAXParserFactory.newInstance();
       SAXParser saxParser = factory.newSAXParser();
