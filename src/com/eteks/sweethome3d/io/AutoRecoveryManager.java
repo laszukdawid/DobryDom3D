@@ -188,8 +188,11 @@ public class AutoRecoveryManager {
     FileOutputStream out = null;
     try {
       // Check file lock is free
-      out = new FileOutputStream(file, true); 
+      out = new FileOutputStream(file, true);
       return out.getChannel().tryLock() == null;
+    } catch (OverlappingFileLockException ex) {
+      // The file is already locked by this process
+      return true;
     } catch (IOException ex) {
       // Forget this file
       return true;

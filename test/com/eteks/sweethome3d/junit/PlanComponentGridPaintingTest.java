@@ -33,6 +33,7 @@ import junit.framework.TestCase;
 
 import com.eteks.sweethome3d.io.DefaultUserPreferences;
 import com.eteks.sweethome3d.model.Home;
+import com.eteks.sweethome3d.model.LengthUnit;
 import com.eteks.sweethome3d.model.UserPreferences;
 import com.eteks.sweethome3d.model.Wall;
 import com.eteks.sweethome3d.swing.PlanComponent;
@@ -103,6 +104,9 @@ public class PlanComponentGridPaintingTest extends TestCase {
   private void checkGridLinesStayDistinctFarFromOrigin() {
     UserPreferences preferences = new DefaultUserPreferences();
     preferences.setFurnitureViewedFromTop(false);
+    // The grid increment follows the preferences unit, which defaults from the locale:
+    // pin it to centimeters so the expected 1 cm line spacing holds on every system
+    preferences.setUnit(LengthUnit.CENTIMETER);
     assertTrue("The grid should be visible for this test to check anything",
         preferences.isGridVisible());
     Home home = new Home();

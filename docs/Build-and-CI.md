@@ -15,11 +15,9 @@ Target graph:
 - Test chain: `fetch-junit` → `compile-tests` → `test` / `test-all` /
   `test-yafaray`; aggregate target `ci` = `clean,test,test-yafaray,application`.
 - Packaging: `packageAppImage`, `windowsInstaller`(+Signed),
-  `macosxInstaller`(+Signed), `linux64Installer`, `viewerInstaller`,
-  `sourceArchive`, `javadoc`.
-- **Legacy Web Start/applet targets retained**: `javaWebStart`, `applet`,
-  `viewer`, `java3dLibraries` — dead weight since Web Start removal (see
-  risks).
+  `macosxInstaller`(+Signed), `linux64Installer`, `sourceArchive`, `javadoc`.
+- Legacy Web Start, applet, and viewer deployment targets were removed with
+  the Java 26 upgrade because the Applet API no longer exists.
 
 Dependency management: fully vendored jars in `lib/`/`libtest/`. Only external
 downloads are JUnit 4.13.2 / Hamcrest Core 1.3 via `fetch-junit` (build.xml:222)
@@ -29,7 +27,7 @@ checksums or provenance manifest.
 
 Compiler settings:
 
-- Two-stage javac (applet entry points compiled first).
+- Desktop application sources are compiled with `javac` in the `build` target.
 - `release="26"` via property `java.release=26` (build.xml:42, 183–190).
 - Encoding ISO-8859-1.
 - **No `-Xlint`, no deprecation warnings enabled; `debug=false`** for
@@ -182,9 +180,8 @@ checksums). Upgrades of runtime jars require manually replacing binaries in
 4. ~~**Toolchain drift**~~ resolved: CI, `.tool-versions`, and Taskfile's
    inline pin all track temurin `26.0.2+10`, and the Eclipse `.classpath`
    container (`JavaSE-26`) matches the compile release.
-5. Legacy attack surface kept alive: Web Start/applet/JNLP targets with
-   `Permissions: all-permissions` manifests and a hardcoded PKCS#11 storepass
-   `0000` (build.xml:727 et al.) — mostly inert but confusing and sign-capable.
+5. Legacy `deploy/` Web Start and applet assets remain as inert repository
+   files, although their source package and build targets were removed.
 
 ## Quick wins
 

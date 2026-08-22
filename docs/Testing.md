@@ -2,11 +2,11 @@
 
 ## Inventory
 
-- **43 test classes** (+ `TestUtilities.java` helper), JUnit 4.13.2 runner,
-  JUnit 3-style `TestCase` API (31 classes extend `TestCase`, 12 extend
+- **45 test classes** (+ `TestUtilities.java` helper), JUnit 4.13.2 runner,
+  JUnit 3-style `TestCase` API (33 classes extend `TestCase`, 12 extend
   Abbot's `ComponentTestFixture`). **Zero `@Test` annotations** — migration to
-  annotations would be mechanical but touches all 43 files.
-- ~134 test methods, ~13.5k LOC in `test/com/eteks/sweethome3d/junit/`
+  annotations would be mechanical but touches all 45 files.
+- ~141 test methods in `test/com/eteks/sweethome3d/junit/`
   against ~163k LOC / 244 files of source (**~8% test:source ratio by LOC**).
 - Abbot drives GUI tests (~2008-era); JDepend powers the architectural gate.
 - Test fixtures include `.sh3d` homes (incl. damaged-home variants) and XML.
@@ -17,8 +17,9 @@
 
 | Target | What runs | Key settings | Where |
 |---|---|---|---|
-| `ant test` (build.xml:325) | Headless allow-list of **20 explicitly listed classes** (build.xml:349–372) | `fork=true forkmode=perTest`, haltonerror/failure, per-test timeout 120s, `-Djava.awt.headless=true -Dcom.eteks.sweethome3d.no3D=true`, sandboxed `user.home`/`java.util.prefs.userRoot`/`java.io.tmpdir` under `build/test-*`, targeted `--add-opens` (java.awt, sun.awt, com.apple.eio) | CI gate |
-| `ant test-all` (build.xml:377) | All 43 classes (`**/*Test.java`) | GUI enabled, native lib path, JOGL disk cache off, more add-opens + `--enable-native-access`, continues-on-failure then aggregates via `all.tests.failed`, timeout 60s per JVM | local via `task test` (Xvfb) |
+| `ant test-fast` | 7 deterministic XML round-trip and recovery tests | Headless, forked per class, 60s per-class ceiling; normally completes in seconds | local via `task test:fast` and parallel CI early-feedback job |
+| `ant test` | Headless allow-list of **22 explicitly listed classes** incl. the persistence tests (`headless.test.includes`) | `fork=true forkmode=perTest`, haltonerror/failure, per-test timeout 120s, `-Djava.awt.headless=true -Dcom.eteks.sweethome3d.no3D=true`, sandboxed `user.home`/`java.util.prefs.userRoot`/`java.io.tmpdir` under `build/test-*`, targeted `--add-opens` (java.awt, sun.awt, com.apple.eio) | CI gate |
+| `ant test-all` | All 45 classes (`**/*Test.java`) | GUI enabled, native lib path, JOGL disk cache off, more add-opens + `--enable-native-access`, continues-on-failure then aggregates via `all.tests.failed`, timeout 60s per JVM | local via `task test` (Xvfb) |
 | `ant test-yafaray` (build.xml:415) | Native renderer lifecycle only | `--finalization=disabled`, requires YafaRay natives | part of `ci`/`ci-full` targets |
 | `ant ci` | clean → `test` → `test-yafaray` → application build | headless subset only — local quick gate | GitHub Actions (historically) |
 | `ant ci-full` | clean → `test-all` → `test-yafaray` → application build | the full suite; **what CI gates on** | GitHub Actions |
@@ -54,11 +55,10 @@ Classes referenced by *any* test file — an upper bound on coverage:
 
 ### Class-level dark spots that matter most
 
-- `io/`: **`HomeXMLHandler` (2,038 lines), `HomeXMLExporter`,
-  `AutoRecoveryManager`, `ContentDigestManager`, `DefaultHomeInput/OutputStream`,
-  `XMLWriter`, `ObjectXMLExporter`, `Base64`, `DefaultTexturesCatalog`** — i.e.
-  the home file format and crash recovery are untested despite being the
-  highest-consequence code in the repo.
+- `io/`: XML export/import round trips and crash recovery now have focused
+  smoke coverage. **`ContentDigestManager`, `DefaultHomeOutputStream`,
+  `ObjectXMLExporter`, `Base64`, and `DefaultTexturesCatalog`** remain notable
+  dark areas.
 - `swing/`: all 6 `*TransferHandler`s, `AutoComplete*`, `NullableSpinner`,
   `CalculatorFormat`, `ProportionalLayout`, `HelpPane`, most panels,
   `HomePDFPrinter`, `JPEGImagesToVideo`.
@@ -66,9 +66,9 @@ Classes referenced by *any* test file — an upper bound on coverage:
   `*3D` scene-graph classes, `ShapeTools`.
 - `plugin/`: everything.
 
-Coverage measurement tooling does not exist yet (no JaCoCo/Cobertura/Clover in
-`build.xml`) — these tables are manual mappings. Adding JaCoCo is a tracked
-priority so the dark areas become quantified automatically.
+JaCoCo now produces XML and HTML reports through `ant coverage`; the package
+table above remains a manual class-reference map rather than measured line
+coverage. CI uploads reports but does not enforce a percentage threshold yet.
 
 ## Test quality
 
@@ -162,15 +162,12 @@ string normalization in `tools.Architecture`).
 
 ## Top untested risks (priority order)
 
-1. `io/HomeXMLHandler` + `io/HomeXMLExporter` — no export→parse→compare
-   round-trip test exists for the format new development targets.
-2. `io/AutoRecoveryManager` — crash recovery; untested data-loss guard.
-3. `io/ContentDigestManager` / `Base64` — integrity code with damaged-home
+1. `io/ContentDigestManager` / `Base64` — integrity code with damaged-home
    fixtures already in test resources but unused for this purpose.
-4. `plugin/*` — whole package dark.
-5. Drag-and-drop `*TransferHandler` classes — all untested.
-6. `j3d/TextureManager` — caching/loading logic untested.
-7. `LocalizedUndoableEdit` and per-controller undo coverage.
+2. `plugin/*` — whole package dark.
+3. Drag-and-drop `*TransferHandler` classes — all untested.
+4. `j3d/TextureManager` — caching/loading logic untested.
+5. `LocalizedUndoableEdit` and per-controller undo coverage.
 
 ## Conventions for new tests
 
