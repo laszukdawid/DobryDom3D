@@ -35,10 +35,12 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Locale;
+import java.util.HashSet;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.MissingResourceException;
 import java.util.ResourceBundle;
+import java.util.Set;
 import java.util.WeakHashMap;
 
 import com.eteks.sweethome3d.model.BoxBounds;
@@ -435,7 +437,7 @@ public class DefaultFurnitureCatalog extends FurnitureCatalog {
    */
   public DefaultFurnitureCatalog(final UserPreferences preferences,
                                  File [] furniturePluginFolders) {
-    List<String> identifiedFurniture = new ArrayList<String>();
+    Set<String> identifiedFurniture = new HashSet<String>();
 
     readDefaultFurnitureCatalogs(preferences, identifiedFurniture);
 
@@ -474,7 +476,7 @@ public class DefaultFurnitureCatalog extends FurnitureCatalog {
    */
   public DefaultFurnitureCatalog(URL [] pluginFurnitureCatalogUrls,
                                  URL    furnitureResourcesUrlBase) {
-    List<String> identifiedFurniture = new ArrayList<String>();
+    Set<String> identifiedFurniture = new HashSet<String>();
     for (URL pluginFurnitureCatalogUrl : pluginFurnitureCatalogUrls) {
       try {
         ResourceBundle resource = ResourceBundleTools.getBundle(pluginFurnitureCatalogUrl, PLUGIN_FURNITURE_CATALOG_FAMILY);
@@ -501,7 +503,7 @@ public class DefaultFurnitureCatalog extends FurnitureCatalog {
    * Reads plug-in furniture catalog from the <code>pluginFurnitureCatalogFile</code> file.
    */
   private void readPluginFurnitureCatalog(File pluginFurnitureCatalogFile,
-                                          List<String> identifiedFurniture) {
+                                          Set<String> identifiedFurniture) {
     try {
       final URL pluginFurnitureCatalogUrl;
       long urlModificationDate = pluginFurnitureCatalogFile.lastModified();
@@ -540,7 +542,7 @@ public class DefaultFurnitureCatalog extends FurnitureCatalog {
    * Reads the default furniture described in properties files accessible through classpath.
    */
   private void readDefaultFurnitureCatalogs(UserPreferences preferences,
-                                            List<String> identifiedFurniture) {
+                                            Set<String> identifiedFurniture) {
     // Try to load com.eteks.sweethome3d.io.DefaultFurnitureCatalog property file from classpath
     String defaultFurnitureCatalogFamily = DefaultFurnitureCatalog.class.getName();
     readFurnitureCatalog(defaultFurnitureCatalogFamily,
@@ -561,7 +563,7 @@ public class DefaultFurnitureCatalog extends FurnitureCatalog {
    */
   private void readFurnitureCatalog(final String furnitureCatalogFamily,
                                     final UserPreferences preferences,
-                                    List<String> identifiedFurniture) {
+                                    Set<String> identifiedFurniture) {
     ResourceBundle resource;
     if (preferences != null) {
       // Adapt getLocalizedString to ResourceBundle
@@ -608,7 +610,7 @@ public class DefaultFurnitureCatalog extends FurnitureCatalog {
   private void readFurniture(ResourceBundle resource,
                              URL furnitureCatalogUrl,
                              URL furnitureResourcesUrlBase,
-                             List<String> identifiedFurniture) {
+                             Set<String> identifiedFurniture) {
     int index = 0;
     while (true) {
       // Ignore furniture with a key ignored# set at true

@@ -69,6 +69,7 @@
     <include name="**/AutoRecoveryManagerTest.java"/>
     <include name="**/IconManagerTest.java"/>
     <include name="**/CatalogTreeTest.java"/>
+    <include name="**/CatalogIdDeduplicationTest.java"/>
     <include name="**/FurnitureTableTest.java"/>
     <include name="**/PlanComponentCullingTest.java"/>
     <include name="**/PlanComponentGridPaintingTest.java"/>

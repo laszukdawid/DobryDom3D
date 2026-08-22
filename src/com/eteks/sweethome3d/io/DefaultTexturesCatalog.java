@@ -29,11 +29,13 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.Enumeration;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.MissingResourceException;
 import java.util.ResourceBundle;
+import java.util.Set;
 
 import com.eteks.sweethome3d.model.CatalogTexture;
 import com.eteks.sweethome3d.model.Content;
@@ -149,7 +151,7 @@ public class DefaultTexturesCatalog extends TexturesCatalog {
    */
   public DefaultTexturesCatalog(final UserPreferences preferences,
                                 File [] texturesPluginFolders) {
-    List<String> identifiedTextures = new ArrayList<String>();
+    Set<String> identifiedTextures = new HashSet<String>();
 
     readDefaultTexturesCatalogs(preferences, identifiedTextures);
 
@@ -187,7 +189,7 @@ public class DefaultTexturesCatalog extends TexturesCatalog {
    */
   public DefaultTexturesCatalog(URL [] pluginTexturesCatalogUrls,
                                 URL    texturesResourcesUrlBase) {
-    List<String> identifiedTextures = new ArrayList<String>();
+    Set<String> identifiedTextures = new HashSet<String>();
     for (URL pluginTexturesCatalogUrl : pluginTexturesCatalogUrls) {
       try {
         ResourceBundle resource = ResourceBundleTools.getBundle(pluginTexturesCatalogUrl, PLUGIN_TEXTURES_CATALOG_FAMILY);
@@ -214,7 +216,7 @@ public class DefaultTexturesCatalog extends TexturesCatalog {
    * Reads plug-in textures catalog from the <code>pluginTexturesCatalogFile</code> file.
    */
   private void readPluginTexturesCatalog(File pluginTexturesCatalogFile,
-                                         List<String> identifiedTextures) {
+                                         Set<String> identifiedTextures) {
     try {
       final URL pluginTexturesCatalogUrl;;
       long urlModificationDate = pluginTexturesCatalogFile.lastModified();
@@ -249,7 +251,7 @@ public class DefaultTexturesCatalog extends TexturesCatalog {
    * Reads the default textures described in properties files accessible through classpath.
    */
   private void readDefaultTexturesCatalogs(final UserPreferences preferences,
-                                           List<String> identifiedTextures) {
+                                           Set<String> identifiedTextures) {
     // Try to load com.eteks.sweethome3d.io.DefaultTexturesCatalog property file from classpath
     final String defaultTexturesCatalogFamily = DefaultTexturesCatalog.class.getName();
     readTexturesCatalog(defaultTexturesCatalogFamily,
@@ -266,7 +268,7 @@ public class DefaultTexturesCatalog extends TexturesCatalog {
    */
   private void readTexturesCatalog(final String texturesCatalogFamily,
                                    final UserPreferences preferences,
-                                   List<String> identifiedTextures) {
+                                   Set<String> identifiedTextures) {
     ResourceBundle resource;
     if (preferences != null) {
       // Adapt getLocalizedString to ResourceBundle
@@ -305,7 +307,7 @@ public class DefaultTexturesCatalog extends TexturesCatalog {
   private void readTextures(ResourceBundle resource,
                             URL texturesCatalogUrl,
                             URL texturesResourcesUrlBase,
-                            List<String> identifiedTextures) {
+                            Set<String> identifiedTextures) {
     int index = 0;
     while (true) {
       // Ignore texture with a key ignored# set at true
