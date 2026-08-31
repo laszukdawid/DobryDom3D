@@ -55,7 +55,7 @@ public abstract class UserPreferences {
                         RECENT_HOMES, IGNORED_ACTION_TIP, FURNITURE_CATALOG_VIEWED_IN_TREE, NAVIGATION_PANEL_VISIBLE,
                         AERIAL_VIEW_CENTERED_ON_SELECTION_ENABLED, OBSERVER_CAMERA_SELECTED_AT_CHANGE, EDITING_IN_3D_VIEW_ENABLED, CHECK_UPDATES_ENABLED,
                         UPDATES_MINIMUM_DATE, AUTO_SAVE_DELAY_FOR_RECOVERY, AUTO_COMPLETION_STRINGS, RECENT_COLORS, RECENT_TEXTURES, HOME_EXAMPLES, PHOTO_RENDERER,
-                        PLAN_VIEW_3D_SPLIT_ORIENTATION}
+                        PLAN_VIEW_3D_SPLIT_ORIENTATION, OBJ_EXPORT_HIERARCHY_ENABLED, OBJ_EXPORT_HIERARCHY_PREFIXES_ENABLED, OBJ_EXPORT_HIERARCHY_SEPARATOR}
 
   public static final String FURNITURE_LIBRARY_TYPE = "Furniture library";
   public static final String TEXTURES_LIBRARY_TYPE  = "Textures library";
@@ -109,6 +109,9 @@ public abstract class UserPreferences {
   private boolean          magnetismEnabled    = true;
   private boolean          rulersVisible       = true;
   private boolean          gridVisible         = true;
+  private boolean          objExportHierarchyEnabled         = true;
+  private boolean          objExportHierarchyPrefixesEnabled = true;
+  private String           objExportHierarchySeparator       = "|";
   private String           defaultFontName;
   private boolean          drawingModeEnabled;
   private boolean          furnitureViewedFromTop;
@@ -781,6 +784,69 @@ public abstract class UserPreferences {
       this.gridVisible = gridVisible;
       this.propertyChangeSupport.firePropertyChange(Property.GRID_VISIBLE.name(),
           !gridVisible, gridVisible);
+    }
+  }
+
+  /**
+   * Returns <code>true</code> if OBJ export should write a separate <code>o</code>
+   * entry per furniture / wall / room item, forming an object hierarchy on import.
+   * @return <code>true</code> by default.
+   */
+  public boolean isObjExportHierarchyEnabled() {
+    return this.objExportHierarchyEnabled;
+  }
+
+  /**
+   * Sets whether OBJ export should write a hierarchy of <code>o</code> entries,
+   * and notifies listeners of this change.
+   */
+  public void setObjExportHierarchyEnabled(boolean objExportHierarchyEnabled) {
+    if (this.objExportHierarchyEnabled != objExportHierarchyEnabled) {
+      this.objExportHierarchyEnabled = objExportHierarchyEnabled;
+      this.propertyChangeSupport.firePropertyChange(Property.OBJ_EXPORT_HIERARCHY_ENABLED.name(),
+          !objExportHierarchyEnabled, objExportHierarchyEnabled);
+    }
+  }
+
+  /**
+   * Returns <code>true</code> if the names of the <code>o</code> entries written during
+   * OBJ export should be prefixed with their level and group hierarchy path.
+   * @return <code>true</code> by default.
+   */
+  public boolean isObjExportHierarchyPrefixesEnabled() {
+    return this.objExportHierarchyPrefixesEnabled;
+  }
+
+  /**
+   * Sets whether OBJ export item names should be prefixed with their hierarchy path,
+   * and notifies listeners of this change.
+   */
+  public void setObjExportHierarchyPrefixesEnabled(boolean objExportHierarchyPrefixesEnabled) {
+    if (this.objExportHierarchyPrefixesEnabled != objExportHierarchyPrefixesEnabled) {
+      this.objExportHierarchyPrefixesEnabled = objExportHierarchyPrefixesEnabled;
+      this.propertyChangeSupport.firePropertyChange(Property.OBJ_EXPORT_HIERARCHY_PREFIXES_ENABLED.name(),
+          !objExportHierarchyPrefixesEnabled, objExportHierarchyPrefixesEnabled);
+    }
+  }
+
+  /**
+   * Returns the character used to separate the segments of an OBJ export hierarchy path.
+   * @return <code>|</code> by default.
+   */
+  public String getObjExportHierarchySeparator() {
+    return this.objExportHierarchySeparator;
+  }
+
+  /**
+   * Sets the character used to separate the segments of an OBJ export hierarchy path,
+   * and notifies listeners of this change.
+   */
+  public void setObjExportHierarchySeparator(String objExportHierarchySeparator) {
+    if (!objExportHierarchySeparator.equals(this.objExportHierarchySeparator)) {
+      String oldSeparator = this.objExportHierarchySeparator;
+      this.objExportHierarchySeparator = objExportHierarchySeparator;
+      this.propertyChangeSupport.firePropertyChange(Property.OBJ_EXPORT_HIERARCHY_SEPARATOR.name(),
+          oldSeparator, objExportHierarchySeparator);
     }
   }
 

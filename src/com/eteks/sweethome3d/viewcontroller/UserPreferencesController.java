@@ -41,7 +41,8 @@ public class UserPreferencesController implements Controller {
       NEW_WALL_THICKNESS, NEW_WALL_HEIGHT, NEW_FLOOR_THICKNESS, FURNITURE_CATALOG_VIEWED_IN_TREE,
       NAVIGATION_PANEL_VISIBLE, EDITING_IN_3D_VIEW_ENABLED, AERIAL_VIEW_CENTERED_ON_SELECTION_ENABLED, OBSERVER_CAMERA_SELECTED_AT_CHANGE,
       PLAN_VIEW_3D_SPLIT_ORIENTATION,
-      CHECK_UPDATES_ENABLED, AUTO_SAVE_DELAY_FOR_RECOVERY, AUTO_SAVE_FOR_RECOVERY_ENABLED}
+      CHECK_UPDATES_ENABLED, AUTO_SAVE_DELAY_FOR_RECOVERY, AUTO_SAVE_FOR_RECOVERY_ENABLED,
+      OBJ_EXPORT_HIERARCHY_ENABLED, OBJ_EXPORT_HIERARCHY_PREFIXES_ENABLED, OBJ_EXPORT_HIERARCHY_SEPARATOR}
 
   private final UserPreferences         preferences;
   private final ViewFactory             viewFactory;
@@ -62,6 +63,9 @@ public class UserPreferencesController implements Controller {
   private boolean                       magnetismEnabled;
   private boolean                       rulersVisible;
   private boolean                       gridVisible;
+  private boolean                       objExportHierarchyEnabled;
+  private boolean                       objExportHierarchyPrefixesEnabled;
+  private String                        objExportHierarchySeparator;
   private String                        defaultFontName;
   private boolean                       furnitureViewedFromTop;
   private int                           furnitureModelIconSize;
@@ -148,6 +152,9 @@ public class UserPreferencesController implements Controller {
     setMagnetismEnabled(this.preferences.isMagnetismEnabled());
     setRulersVisible(this.preferences.isRulersVisible());
     setGridVisible(this.preferences.isGridVisible());
+    setObjExportHierarchyEnabled(this.preferences.isObjExportHierarchyEnabled());
+    setObjExportHierarchyPrefixesEnabled(this.preferences.isObjExportHierarchyPrefixesEnabled());
+    setObjExportHierarchySeparator(this.preferences.getObjExportHierarchySeparator());
     setDefaultFontName(this.preferences.getDefaultFontName());
     setFurnitureViewedFromTop(this.preferences.isFurnitureViewedFromTop());
     setFurnitureModelIconSize(this.preferences.getFurnitureModelIconSize());
@@ -405,6 +412,61 @@ public class UserPreferencesController implements Controller {
    */
   public boolean isRulersVisible() {
     return this.rulersVisible;
+  }
+
+  /**
+   * Sets whether OBJ export should write a hierarchy of <code>o</code> entries or not.
+   */
+  public void setObjExportHierarchyEnabled(boolean objExportHierarchyEnabled) {
+    if (objExportHierarchyEnabled != this.objExportHierarchyEnabled) {
+      this.objExportHierarchyEnabled = objExportHierarchyEnabled;
+      this.propertyChangeSupport.firePropertyChange(Property.OBJ_EXPORT_HIERARCHY_ENABLED.name(),
+          !objExportHierarchyEnabled, objExportHierarchyEnabled);
+    }
+  }
+
+  /**
+   * Returns whether OBJ export should write a hierarchy of <code>o</code> entries or not.
+   */
+  public boolean isObjExportHierarchyEnabled() {
+    return this.objExportHierarchyEnabled;
+  }
+
+  /**
+   * Sets whether OBJ export item names should be prefixed with their hierarchy path or not.
+   */
+  public void setObjExportHierarchyPrefixesEnabled(boolean objExportHierarchyPrefixesEnabled) {
+    if (objExportHierarchyPrefixesEnabled != this.objExportHierarchyPrefixesEnabled) {
+      this.objExportHierarchyPrefixesEnabled = objExportHierarchyPrefixesEnabled;
+      this.propertyChangeSupport.firePropertyChange(Property.OBJ_EXPORT_HIERARCHY_PREFIXES_ENABLED.name(),
+          !objExportHierarchyPrefixesEnabled, objExportHierarchyPrefixesEnabled);
+    }
+  }
+
+  /**
+   * Returns whether OBJ export item names should be prefixed with their hierarchy path or not.
+   */
+  public boolean isObjExportHierarchyPrefixesEnabled() {
+    return this.objExportHierarchyPrefixesEnabled;
+  }
+
+  /**
+   * Sets the character used to separate the segments of an OBJ export hierarchy path.
+   */
+  public void setObjExportHierarchySeparator(String objExportHierarchySeparator) {
+    if (!objExportHierarchySeparator.equals(this.objExportHierarchySeparator)) {
+      String oldSeparator = this.objExportHierarchySeparator;
+      this.objExportHierarchySeparator = objExportHierarchySeparator;
+      this.propertyChangeSupport.firePropertyChange(Property.OBJ_EXPORT_HIERARCHY_SEPARATOR.name(),
+          oldSeparator, objExportHierarchySeparator);
+    }
+  }
+
+  /**
+   * Returns the character used to separate the segments of an OBJ export hierarchy path.
+   */
+  public String getObjExportHierarchySeparator() {
+    return this.objExportHierarchySeparator;
   }
 
   /**
@@ -705,6 +767,9 @@ public class UserPreferencesController implements Controller {
     this.preferences.setMagnetismEnabled(isMagnetismEnabled());
     this.preferences.setRulersVisible(isRulersVisible());
     this.preferences.setGridVisible(isGridVisible());
+    this.preferences.setObjExportHierarchyEnabled(isObjExportHierarchyEnabled());
+    this.preferences.setObjExportHierarchyPrefixesEnabled(isObjExportHierarchyPrefixesEnabled());
+    this.preferences.setObjExportHierarchySeparator(getObjExportHierarchySeparator());
     this.preferences.setDefaultFontName(getDefaultFontName());
     this.preferences.setFurnitureViewedFromTop(isFurnitureViewedFromTop());
     this.preferences.setFurnitureModelIconSize(getFurnitureModelIconSize());

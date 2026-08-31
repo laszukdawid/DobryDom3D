@@ -152,12 +152,65 @@ public class OBJWriterTest extends TestCase {
     };
     HomeController homeController = new HomeController(home, preferences, viewFactory);
     homeController.getView().exportToOBJ(objFile.toString());
-    
-    assertEquals("Not same line count in OBJ file", 467, getLineCount(objFile.toURI().toURL()));
+
+    assertEquals("Not same line count in OBJ file", 481, getLineCount(objFile.toURI().toURL()));
     assertEquals("Not same line count in MTL file", 45, getLineCount(mtlFile.toURI().toURL()));
+    assertEquals("Not same o entry count in OBJ file", 14, getLineCountStartingWith(objFile.toURI().toURL(), "o "));
     // Read file to check if its content is correct
     new OBJLoader().load(objFile.getAbsolutePath());
-    
+
+    for (File file : dir.listFiles()) {
+      if (!file.delete()) {
+        fail("Couldn't delete test file " + file);
+      }
+    }
+    if (!dir.delete()) {
+      fail("Couldn't delete test dir");
+    }
+  }
+
+  /**
+   * Tests that disabling the OBJ export hierarchy preference restores the single-mesh
+   * output produced before the hierarchy feature existed (no <code>o</code> entries).
+   */
+  public void testExportToOBJContentWithHierarchyDisabled() throws RecorderException, IOException, URISyntaxException {
+    // 1. Read an existing file
+    String testFile = new File(OBJWriterTest.class.getResource("resources/holes.sh3d").toURI()).getAbsolutePath();
+    Home home = new HomeFileRecorder().readHome(testFile);
+
+    // 2. Export home to OBJ file with the hierarchy preference disabled
+    File dir = File.createTempFile("Tmp@#", ".obj3");
+    dir.delete();
+    assertTrue("Can't create temporary directory", dir.mkdir());
+    File objFile = new File(dir, "holes.obj");
+    File mtlFile = new File(dir, "holes.mtl");
+
+    ViewFactory viewFactory = new SwingViewFactory();
+    UserPreferences preferences = new DefaultUserPreferences() {
+      @Override
+      public String getLocalizedString(Class<?> resourceClass, String resourceKey, Object ... resourceParameters) {
+        if ("exportToOBJ.header".equals(resourceKey)) {
+          return ""; // Avoid header with a date to simplify comparison
+        } else {
+          return super.getLocalizedString(resourceClass, resourceKey, resourceParameters);
+        }
+      }
+
+      @Override
+      public boolean isObjExportHierarchyEnabled() {
+        return false;
+      }
+    };
+    HomeController homeController = new HomeController(home, preferences, viewFactory);
+    homeController.getView().exportToOBJ(objFile.toString());
+
+    assertEquals("Not same line count in OBJ file", 467, getLineCount(objFile.toURI().toURL()));
+    assertEquals("Not same line count in MTL file", 45, getLineCount(mtlFile.toURI().toURL()));
+    assertEquals("No o entry should be written when the hierarchy is disabled",
+        0, getLineCountStartingWith(objFile.toURI().toURL(), "o "));
+    // Read file to check if its content is correct
+    new OBJLoader().load(objFile.getAbsolutePath());
+
     for (File file : dir.listFiles()) {
       if (!file.delete()) {
         fail("Couldn't delete test file " + file);
@@ -177,5 +230,21 @@ public class OBJWriterTest extends TestCase {
     }
     in.close();
     return in.getLineNumber();
+  }
+
+  /**
+   * Returns the count of lines starting with <code>prefix</code> in the given URL.
+   */
+  private int getLineCountStartingWith(URL contentUrl, String prefix) throws IOException {
+    LineNumberReader in = new LineNumberReader(new InputStreamReader(contentUrl.openStream(), "ISO-8859-1"));
+    int count = 0;
+    String line;
+    while ((line = in.readLine()) != null) {
+      if (line.startsWith(prefix)) {
+        count++;
+      }
+    }
+    in.close();
+    return count;
   }
 }
