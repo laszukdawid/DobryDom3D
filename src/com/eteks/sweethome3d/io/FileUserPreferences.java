@@ -102,6 +102,9 @@ public class FileUserPreferences extends UserPreferences {
   private static final String MAGNETISM_ENABLED                         = "magnetismEnabled";
   private static final String RULERS_VISIBLE                            = "rulersVisible";
   private static final String GRID_VISIBLE                              = "gridVisible";
+  private static final String OBJ_EXPORT_HIERARCHY_ENABLED              = "objExportHierarchyEnabled";
+  private static final String OBJ_EXPORT_HIERARCHY_PREFIXES_ENABLED     = "objExportHierarchyPrefixesEnabled";
+  private static final String OBJ_EXPORT_HIERARCHY_SEPARATOR            = "objExportHierarchySeparator";
   private static final String DEFAULT_FONT_NAME                         = "defaultFontName";
   private static final String FURNITURE_VIEWED_FROM_TOP                 = "furnitureViewedFromTop";
   private static final String FURNITURE_MODEL_ICON_SIZE                 = "furnitureModelIconSize";
@@ -325,6 +328,12 @@ public class FileUserPreferences extends UserPreferences {
     setMagnetismEnabled(preferences.getBoolean(MAGNETISM_ENABLED, true));
     setRulersVisible(preferences.getBoolean(RULERS_VISIBLE, defaultPreferences.isRulersVisible()));
     setGridVisible(preferences.getBoolean(GRID_VISIBLE, defaultPreferences.isGridVisible()));
+    setObjExportHierarchyEnabled(preferences.getBoolean(
+        OBJ_EXPORT_HIERARCHY_ENABLED, defaultPreferences.isObjExportHierarchyEnabled()));
+    setObjExportHierarchyPrefixesEnabled(preferences.getBoolean(
+        OBJ_EXPORT_HIERARCHY_PREFIXES_ENABLED, defaultPreferences.isObjExportHierarchyPrefixesEnabled()));
+    setObjExportHierarchySeparator(preferences.get(
+        OBJ_EXPORT_HIERARCHY_SEPARATOR, defaultPreferences.getObjExportHierarchySeparator()));
     setDefaultFontName(preferences.get(DEFAULT_FONT_NAME,  defaultPreferences.getDefaultFontName()));
     setFurnitureViewedFromTop(preferences.getBoolean(FURNITURE_VIEWED_FROM_TOP,
         defaultPreferences.isFurnitureViewedFromTop()));
@@ -983,6 +992,9 @@ public class FileUserPreferences extends UserPreferences {
     preferences.putBoolean(MAGNETISM_ENABLED, isMagnetismEnabled());
     preferences.putBoolean(RULERS_VISIBLE, isRulersVisible());
     preferences.putBoolean(GRID_VISIBLE, isGridVisible());
+    preferences.putBoolean(OBJ_EXPORT_HIERARCHY_ENABLED, isObjExportHierarchyEnabled());
+    preferences.putBoolean(OBJ_EXPORT_HIERARCHY_PREFIXES_ENABLED, isObjExportHierarchyPrefixesEnabled());
+    preferences.put(OBJ_EXPORT_HIERARCHY_SEPARATOR, getObjExportHierarchySeparator());
     String defaultFontName = getDefaultFontName();
     if (defaultFontName == null) {
       preferences.remove(DEFAULT_FONT_NAME);

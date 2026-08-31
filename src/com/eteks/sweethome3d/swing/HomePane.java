@@ -96,9 +96,11 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Queue;
 import java.util.concurrent.Callable;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -176,6 +178,7 @@ import javax.swing.text.JTextComponent;
 import com.eteks.sweethome3d.j3d.Ground3D;
 import com.eteks.sweethome3d.j3d.OBJWriter;
 import com.eteks.sweethome3d.j3d.Object3DBranchFactory;
+import com.eteks.sweethome3d.j3d.Room3D;
 import com.eteks.sweethome3d.model.BackgroundImage;
 import com.eteks.sweethome3d.model.Camera;
 import com.eteks.sweethome3d.model.CatalogPieceOfFurniture;
@@ -5441,9 +5444,16 @@ public class HomePane extends JRootPane implements HomeView {
                                               "exportToOBJ.header", new Date())
         : "";
 
+    boolean hierarchyEnabled = this.preferences == null || this.preferences.isObjExportHierarchyEnabled();
+    boolean hierarchyPrefixesEnabled = this.preferences == null || this.preferences.isObjExportHierarchyPrefixesEnabled();
+    String hierarchySeparator = this.preferences != null
+        ? this.preferences.getObjExportHierarchySeparator()
+        : "|";
+
     // Use a clone of home to ignore selection and for thread safety
     OBJExporter.exportHomeToFile(cloneHomeInEventDispatchThread(this.home),
-        objFile, header, this.exportAllToOBJ, object3dFactory);
+        objFile, header, this.exportAllToOBJ, object3dFactory,
+        hierarchyEnabled, hierarchyPrefixesEnabled, hierarchySeparator);
   }
 
   /**
@@ -5474,11 +5484,14 @@ public class HomePane extends JRootPane implements HomeView {
    */
   private static class OBJExporter {
     public static void exportHomeToFile(Home home, String objFile, String header,
-                                        boolean exportAllToOBJ, Object3DFactory object3dFactory) throws RecorderException {
+                                        boolean exportAllToOBJ, Object3DFactory object3dFactory,
+                                        boolean hierarchyEnabled, boolean hierarchyPrefixesEnabled,
+                                        String hierarchySeparator) throws RecorderException {
       OBJWriter writer = null;
       boolean exportInterrupted = false;
       try {
         writer = new OBJWriter(objFile, header, -1);
+        writer.setWriteObjectHierarchy(hierarchyEnabled);
 
         List<Selectable> exportedItems = new ArrayList<Selectable>(exportAllToOBJ
             ? home.getSelectableViewableItems()
@@ -5498,6 +5511,21 @@ public class HomePane extends JRootPane implements HomeView {
         }
         exportedItems.addAll(furnitureInGroups);
 
+        // Create child parent mapping
+        Map<Selectable, Selectable> childToParent= new HashMap<Selectable, Selectable>();
+        Queue<HomePieceOfFurniture> furnitureQueue = new LinkedList<HomePieceOfFurniture>(home.getFurniture());
+        while (!(furnitureQueue.isEmpty())) {
+          HomePieceOfFurniture item = furnitureQueue.poll();
+          if (item instanceof HomeFurnitureGroup) {
+            for (HomePieceOfFurniture piece : ((HomeFurnitureGroup)item).getFurniture()) {
+              childToParent.put(piece, item);
+              if (piece instanceof HomeFurnitureGroup) {
+                furnitureQueue.add(piece);
+              }
+            }
+          }
+        }
+
         List<Selectable> emptySelection = Collections.emptyList();
         home.setSelectedItems(emptySelection);
         if (exportAllToOBJ) {
@@ -5507,7 +5535,7 @@ public class HomePane extends JRootPane implements HomeView {
             Ground3D groundNode = new Ground3D(home,
                 (float)homeBounds.getX(), (float)homeBounds.getY(),
                 (float)homeBounds.getWidth(), (float)homeBounds.getHeight(), true);
-            writer.writeNode(groundNode, "ground");
+            writer.writeNode(groundNode, "ground", "ground");
           }
         } else if (home.isAllLevelsSelection()) {
           // Make viewable levels visible when all levels are selected
@@ -5519,15 +5547,92 @@ public class HomePane extends JRootPane implements HomeView {
         }
 
         // Write 3D objects
-        int i = 0;
+        Integer i = 0;
         for (Selectable item : exportedItems) {
           // Create a not alive new node to be able to explore its coordinates without setting capabilities
           Node node = (Node)object3dFactory.createObject3D(home, item, true);
+          Integer nodeUID = ++i;
+          String fullName = "";
+          String fullNameStem = null;
           if (node != null) {
             if (item instanceof HomePieceOfFurniture) {
-              writer.writeNode(node);
-            } else if (!(item instanceof DimensionLine)) {
-              writer.writeNode(node, item.getClass().getSimpleName().toLowerCase() + "_" + ++i);
+              HomePieceOfFurniture furniture = (HomePieceOfFurniture)item;
+
+              if (hierarchyPrefixesEnabled) {
+                fullName += levelPrefix(furniture.getLevel(), hierarchySeparator)[2];
+
+                String groups = "";
+                Selectable child = item;
+                while (childToParent.containsKey(child)) {
+                  child = childToParent.get(child);
+                  String childName = ((HomePieceOfFurniture)child).getName();
+                  groups = childName + hierarchySeparator + groups;
+                }
+                fullName += groups;
+              }
+
+              fullName += furniture.getName();
+              fullName += "_" + nodeUID;
+
+              writer.writeNode(node, null, fullName);
+            } else if (item instanceof Room){
+              Room room = (Room)item;
+              Room3D room3D = new Room3D(room, home, false, true);
+              String[] levelInfo = new String[] {"", "", ""};
+              if (hierarchyPrefixesEnabled) {
+                levelInfo = levelPrefix(room.getLevel(), hierarchySeparator);
+                fullName += levelInfo[2];
+              }
+
+              // Output the floor part
+              if (room.isFloorVisible()) {
+                fullNameStem = fullName;
+                if (hierarchyPrefixesEnabled) {
+                  fullNameStem += "FLOORS " + levelInfo[0] + "-" + levelInfo[1] + hierarchySeparator;
+                }
+                String nodeName = "floor" + "_" + nodeUID;
+                String itemName = room.getName();
+                if (itemName == null || itemName.isEmpty()) {
+                  fullNameStem += nodeName;
+                } else {
+                  fullNameStem += "f_" + itemName;
+                }
+                fullNameStem += "_" + nodeUID;
+
+                Node floor = room3D.getChild(0);
+                writer.writeNode(floor, nodeName, fullNameStem);
+              }
+
+              // Output the ceiling part
+              if (room.isCeilingVisible()) {
+                fullNameStem = fullName;
+                if (hierarchyPrefixesEnabled) {
+                  fullNameStem += "CEILINGS " + levelInfo[0] + "-" + levelInfo[1] + hierarchySeparator;
+                }
+                String nodeName = "ceiling" + "_" + nodeUID;
+                String itemName = room.getName();
+                if (itemName == null || itemName.isEmpty()) {
+                  fullNameStem += nodeName;
+                } else {
+                  fullNameStem += "c_" + itemName;
+                }
+                fullNameStem += "_" + nodeUID;
+
+                Node ceiling = room3D.getChild(1);
+                writer.writeNode(ceiling, nodeName, fullNameStem);
+              }
+            } else if (item instanceof Wall){
+              Wall wall = (Wall)item;
+              String nodeName = "wall" + "_" + nodeUID;
+
+              if (hierarchyPrefixesEnabled) {
+                String[] levelInfo = levelPrefix(wall.getLevel(), hierarchySeparator);
+                fullName += levelInfo[2];
+                fullName += "WALLS " + levelInfo[0] + "-" + levelInfo[1] + hierarchySeparator;
+              }
+              fullName += nodeName;
+
+              writer.writeNode(node, nodeName, fullName);
             }
           }
         }
@@ -5549,6 +5654,22 @@ public class HomePane extends JRootPane implements HomeView {
           }
         }
       }
+    }
+
+    /**
+     * Returns the formatted elevation index, formatted elevation, and hierarchy prefix
+     * (in that order) for the given <code>level</code>, joined with <code>separator</code>.
+     * Returns three empty strings if <code>level</code> is <code>null</code>.
+     */
+    private static String[] levelPrefix(Level level, String separator) {
+      if (level == null) {
+        return new String[] {"", "", ""};
+      }
+      String elevationIndexFormatted = String.format("%03d", level.getElevationIndex());
+      String elevationFormatted = String.format("%04.0f", level.getElevation() * 10);
+      String prefix = "Elevation " + elevationFormatted + separator
+          + elevationIndexFormatted + "-" + level.getName() + separator;
+      return new String[] {elevationIndexFormatted, elevationFormatted, prefix};
     }
 
     /**

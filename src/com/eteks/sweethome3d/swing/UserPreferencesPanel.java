@@ -110,6 +110,12 @@ public class UserPreferencesPanel extends JPanel implements DialogView {
   private JCheckBox        rulersCheckBox;
   private JLabel           gridLabel;
   private JCheckBox        gridCheckBox;
+  private JLabel           objExportHierarchyEnabledLabel;
+  private JCheckBox        objExportHierarchyEnabledCheckBox;
+  private JLabel           objExportHierarchyPrefixesEnabledLabel;
+  private JCheckBox        objExportHierarchyPrefixesEnabledCheckBox;
+  private JLabel           objExportHierarchySeparatorLabel;
+  private JComboBox        objExportHierarchySeparatorComboBox;
   private JLabel           defaultFontNameLabel;
   private FontNameComboBox defaultFontNameComboBox;
   private JLabel           furnitureIconLabel;
@@ -541,6 +547,73 @@ public class UserPreferencesPanel extends JPanel implements DialogView {
           new PropertyChangeListener() {
             public void propertyChange(PropertyChangeEvent ev) {
               gridCheckBox.setSelected(controller.isGridVisible());
+            }
+          });
+    }
+
+    if (controller.isPropertyEditable(UserPreferencesController.Property.OBJ_EXPORT_HIERARCHY_ENABLED)) {
+      // Create OBJ export hierarchy label and check box bound to controller OBJ_EXPORT_HIERARCHY_ENABLED property
+      this.objExportHierarchyEnabledLabel = new JLabel(preferences.getLocalizedString(
+          UserPreferencesPanel.class, "objExportHierarchyEnabledLabel.text"));
+      this.objExportHierarchyEnabledCheckBox = new JCheckBox(SwingTools.getLocalizedLabelText(preferences,
+          UserPreferencesPanel.class, "objExportHierarchyEnabledCheckBox.text"), controller.isObjExportHierarchyEnabled());
+      this.objExportHierarchyEnabledCheckBox.addItemListener(new ItemListener() {
+          public void itemStateChanged(ItemEvent ev) {
+            controller.setObjExportHierarchyEnabled(objExportHierarchyEnabledCheckBox.isSelected());
+          }
+        });
+      controller.addPropertyChangeListener(UserPreferencesController.Property.OBJ_EXPORT_HIERARCHY_ENABLED,
+          new PropertyChangeListener() {
+            public void propertyChange(PropertyChangeEvent ev) {
+              objExportHierarchyEnabledCheckBox.setSelected(controller.isObjExportHierarchyEnabled());
+            }
+          });
+    }
+
+    if (controller.isPropertyEditable(UserPreferencesController.Property.OBJ_EXPORT_HIERARCHY_PREFIXES_ENABLED)) {
+      // Create OBJ export hierarchy prefixes label and check box bound to controller OBJ_EXPORT_HIERARCHY_PREFIXES_ENABLED property
+      this.objExportHierarchyPrefixesEnabledLabel = new JLabel(preferences.getLocalizedString(
+          UserPreferencesPanel.class, "objExportHierarchyPrefixesEnabledLabel.text"));
+      this.objExportHierarchyPrefixesEnabledCheckBox = new JCheckBox(SwingTools.getLocalizedLabelText(preferences,
+          UserPreferencesPanel.class, "objExportHierarchyPrefixesEnabledCheckBox.text"),
+          controller.isObjExportHierarchyPrefixesEnabled());
+      this.objExportHierarchyPrefixesEnabledCheckBox.addItemListener(new ItemListener() {
+          public void itemStateChanged(ItemEvent ev) {
+            controller.setObjExportHierarchyPrefixesEnabled(objExportHierarchyPrefixesEnabledCheckBox.isSelected());
+          }
+        });
+      controller.addPropertyChangeListener(UserPreferencesController.Property.OBJ_EXPORT_HIERARCHY_PREFIXES_ENABLED,
+          new PropertyChangeListener() {
+            public void propertyChange(PropertyChangeEvent ev) {
+              objExportHierarchyPrefixesEnabledCheckBox.setSelected(controller.isObjExportHierarchyPrefixesEnabled());
+              if (objExportHierarchySeparatorComboBox != null) {
+                objExportHierarchySeparatorComboBox.setEnabled(controller.isObjExportHierarchyPrefixesEnabled());
+              }
+            }
+          });
+    }
+
+    if (controller.isPropertyEditable(UserPreferencesController.Property.OBJ_EXPORT_HIERARCHY_SEPARATOR)) {
+      // Create OBJ export hierarchy separator label and combo box bound to controller OBJ_EXPORT_HIERARCHY_SEPARATOR property
+      this.objExportHierarchySeparatorLabel = new JLabel(SwingTools.getLocalizedLabelText(preferences,
+          UserPreferencesPanel.class, "objExportHierarchySeparatorLabel.text"));
+      // "-" and "_" are excluded: both are already used as separators within our own
+      // generated names (e.g. "furniture_uid", "IDX-Name") and in some furniture model
+      // part names (e.g. hinge mechanisms), so allowing them here would make hierarchy
+      // segments ambiguous to parse back out.
+      String [] separators = {"|", "/", ">"};
+      this.objExportHierarchySeparatorComboBox = new JComboBox(new DefaultComboBoxModel(separators));
+      this.objExportHierarchySeparatorComboBox.setSelectedItem(controller.getObjExportHierarchySeparator());
+      this.objExportHierarchySeparatorComboBox.setEnabled(controller.isObjExportHierarchyPrefixesEnabled());
+      this.objExportHierarchySeparatorComboBox.addItemListener(new ItemListener() {
+          public void itemStateChanged(ItemEvent ev) {
+            controller.setObjExportHierarchySeparator((String)objExportHierarchySeparatorComboBox.getSelectedItem());
+          }
+        });
+      controller.addPropertyChangeListener(UserPreferencesController.Property.OBJ_EXPORT_HIERARCHY_SEPARATOR,
+          new PropertyChangeListener() {
+            public void propertyChange(PropertyChangeEvent ev) {
+              objExportHierarchySeparatorComboBox.setSelectedItem(controller.getObjExportHierarchySeparator());
             }
           });
     }
@@ -1006,6 +1079,19 @@ public class UserPreferencesPanel extends JPanel implements DialogView {
         this.gridCheckBox.setMnemonic(KeyStroke.getKeyStroke(preferences.getLocalizedString(
             UserPreferencesPanel.class, "gridCheckBox.mnemonic")).getKeyCode());
       }
+      if (this.objExportHierarchyEnabledLabel != null) {
+        this.objExportHierarchyEnabledCheckBox.setMnemonic(KeyStroke.getKeyStroke(preferences.getLocalizedString(
+            UserPreferencesPanel.class, "objExportHierarchyEnabledCheckBox.mnemonic")).getKeyCode());
+      }
+      if (this.objExportHierarchyPrefixesEnabledLabel != null) {
+        this.objExportHierarchyPrefixesEnabledCheckBox.setMnemonic(KeyStroke.getKeyStroke(preferences.getLocalizedString(
+            UserPreferencesPanel.class, "objExportHierarchyPrefixesEnabledCheckBox.mnemonic")).getKeyCode());
+      }
+      if (this.objExportHierarchySeparatorLabel != null) {
+        this.objExportHierarchySeparatorLabel.setDisplayedMnemonic(KeyStroke.getKeyStroke(preferences.getLocalizedString(
+            UserPreferencesPanel.class, "objExportHierarchySeparatorLabel.mnemonic")).getKeyCode());
+        this.objExportHierarchySeparatorLabel.setLabelFor(this.objExportHierarchySeparatorComboBox);
+      }
       if (this.defaultFontNameLabel != null) {
         this.defaultFontNameLabel.setDisplayedMnemonic(KeyStroke.getKeyStroke(preferences.getLocalizedString(
             UserPreferencesPanel.class, "defaultFontNameLabel.mnemonic")).getKeyCode());
@@ -1361,13 +1447,40 @@ public class UserPreferencesPanel extends JPanel implements DialogView {
           0, 20, 3, 1, 0, 0, GridBagConstraints.LINE_START,
           GridBagConstraints.HORIZONTAL, rightComponentInsets, 0, 0));
     }
+    if (this.objExportHierarchyEnabledLabel != null) {
+      // Twenty-second row
+      add(this.objExportHierarchyEnabledLabel, new GridBagConstraints(
+          0, 21, 1, 1, 0, 0, labelAlignment,
+          GridBagConstraints.NONE, checkBoxLabelInsets, 0, 0));
+      add(this.objExportHierarchyEnabledCheckBox, new GridBagConstraints(
+          1, 21, 2, 1, 0, 0, GridBagConstraints.LINE_START,
+          GridBagConstraints.NONE, checkBoxInsets, 0, 0));
+    }
+    if (this.objExportHierarchyPrefixesEnabledLabel != null) {
+      // Twenty-third row
+      add(this.objExportHierarchyPrefixesEnabledLabel, new GridBagConstraints(
+          0, 22, 1, 1, 0, 0, labelAlignment,
+          GridBagConstraints.NONE, checkBoxLabelInsets, 0, 0));
+      add(this.objExportHierarchyPrefixesEnabledCheckBox, new GridBagConstraints(
+          1, 22, 2, 1, 0, 0, GridBagConstraints.LINE_START,
+          GridBagConstraints.NONE, checkBoxInsets, 0, 0));
+    }
+    if (this.objExportHierarchySeparatorLabel != null) {
+      // Twenty-fourth row
+      add(this.objExportHierarchySeparatorLabel, new GridBagConstraints(
+          0, 23, 1, 1, 0, 0, labelAlignment,
+          GridBagConstraints.NONE, labelInsets, 0, 0));
+      add(this.objExportHierarchySeparatorComboBox, new GridBagConstraints(
+          1, 23, 2, 1, 0, 0, GridBagConstraints.LINE_START,
+          GridBagConstraints.NONE, rightComponentInsets, 0, 0));
+    }
 
     // Last row
     if (this.resetDisplayedActionTipsButton.getText() != null
         && this.resetDisplayedActionTipsButton.getText().length() > 0) {
       // Display reset button only if its text isn't empty
       add(this.resetDisplayedActionTipsButton, new GridBagConstraints(
-          0, 21, 3, 1, 0, 0, GridBagConstraints.CENTER,
+          0, 24, 3, 1, 0, 0, GridBagConstraints.CENTER,
           GridBagConstraints.NONE, new Insets(0, 0, 0, 0), 0, 0));
     }
   }

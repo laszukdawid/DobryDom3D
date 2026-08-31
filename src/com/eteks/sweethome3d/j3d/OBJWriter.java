@@ -109,6 +109,8 @@ public class OBJWriter extends FilterWriter {
 
   private boolean firstNode = true;
   private String  mtlFileName;
+  private String  lastItemName = "";
+  private boolean writeObjectHierarchy = false;
 
   private int shapeIndex = 1;
   private Map<Point3f, Integer>    vertexIndices = new HashMap<Point3f, Integer>();
@@ -288,6 +290,18 @@ public class OBJWriter extends FilterWriter {
   }
 
   /**
+   * Sets whether <code>o</code> entries should be written to group the shapes of each
+   * item passed as <code>itemName</code> to {@link #writeNode(Node, String, String)}
+   * into a separate OBJ object. Defaults to <code>false</code>, so callers that don't
+   * opt in keep writing a single implicit object as before.
+   * @param writeObjectHierarchy <code>true</code> to write one <code>o</code> entry per
+   *                             distinct <code>itemName</code>
+   */
+  public void setWriteObjectHierarchy(boolean writeObjectHierarchy) {
+    this.writeObjectHierarchy = writeObjectHierarchy;
+  }
+
+  /**
    * Writes all the 3D shapes children of <code>node</code> at OBJ format.
    * If there are transformation groups on the path from <code>node</code> to its shapes,
    * they'll be applied to the coordinates written on output.
@@ -300,7 +314,7 @@ public class OBJWriter extends FilterWriter {
    *         The interrupted status of the current thread is cleared when this exception is thrown.
    */
   public void writeNode(Node node) throws IOException, InterruptedIOException {
-    writeNode(node, null);
+    writeNode(node, null, null);
   }
 
   /**
@@ -314,11 +328,14 @@ public class OBJWriter extends FilterWriter {
    * @param nodeName the name of the node. This is useful to distinguish the objects
    *                 names in output. If this name is <code>null</code> or isn't built
    *                 with A-Z, a-z, 0-9 and underscores, it will be ignored.
+   * @param itemName the name of the item <code>node</code> belongs to, used to emit a
+   *                 separate <code>o</code> entry per item when
+   *                 {@link #setWriteObjectHierarchy(boolean)} is enabled. Ignored otherwise.
    * @throws IOException if the operation failed
    * @throws InterruptedIOException if the current thread was interrupted during this operation
    *         The interrupted status of the current thread is cleared when this exception is thrown.
    */
-  public void writeNode(Node node, String nodeName) throws IOException, InterruptedIOException {
+  public void writeNode(Node node, String nodeName, String itemName) throws IOException, InterruptedIOException {
     if (this.firstNode) {
       if (this.mtlFileName != null) {
         this.out.write("mtllib " + new File(this.mtlFileName).getName() + "\n");
@@ -326,13 +343,13 @@ public class OBJWriter extends FilterWriter {
       this.firstNode = false;
     }
 
-    writeNode(node, nodeName, new Transform3D());
+    writeNode(node, nodeName, itemName, new Transform3D());
   }
 
   /**
    * Writes all the 3D shapes children of <code>node</code> at OBJ format.
    */
-  private void writeNode(Node node, String nodeName, Transform3D parentTransformations) throws IOException {
+  private void writeNode(Node node, String nodeName, String itemName, Transform3D parentTransformations) throws IOException {
     if (node instanceof Group) {
       if (node instanceof TransformGroup) {
         parentTransformations = new Transform3D(parentTransformations);
@@ -343,10 +360,10 @@ public class OBJWriter extends FilterWriter {
       // Write all children
       Enumeration<?> enumeration = ((Group)node).getAllChildren();
       while (enumeration.hasMoreElements()) {
-        writeNode((Node)enumeration.nextElement(), nodeName, parentTransformations);
+        writeNode((Node)enumeration.nextElement(), nodeName, itemName, parentTransformations);
       }
     } else if (node instanceof Link) {
-      writeNode(((Link)node).getSharedGroup(), nodeName, parentTransformations);
+      writeNode(((Link)node).getSharedGroup(), nodeName, itemName, parentTransformations);
     } else if (node instanceof Shape3D) {
       Shape3D shape = (Shape3D)node;
       Appearance appearance = shape.getAppearance();
@@ -355,6 +372,18 @@ public class OBJWriter extends FilterWriter {
       if (shape.numGeometries() >= 1
           && (renderingAttributes == null
               || renderingAttributes.getVisible())) {
+
+        // If this is part of a new item, write the "o" entry
+        if (this.writeObjectHierarchy) {
+          if (itemName == null) {
+            itemName = "item" + String.valueOf(this.shapeIndex++);
+          }
+          if (!itemName.equals(this.lastItemName)) {
+            this.out.write("o " + itemName + "\n");
+            this.lastItemName = itemName;
+          }
+        }
+
         // Build a unique human readable object name
         String objectName = "";
         if (accept(nodeName)) {
