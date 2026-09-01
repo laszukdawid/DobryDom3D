@@ -3060,9 +3060,18 @@ public class HomePane extends JRootPane implements HomeView {
       return catalogFurniturePane;
     } else {
       boolean leftToRightOrientation = ComponentOrientation.getOrientation(Locale.getDefault()).isLeftToRight();
-      final JSplitPane mainPane = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT,
-          leftToRightOrientation ? catalogFurniturePane  : planView3DPane,
-          leftToRightOrientation ? planView3DPane  : catalogFurniturePane);
+      final JSplitPane mainPane = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT);
+      // Set the orientation before adding any component: since JDK 24, JSplitPane swaps
+      // its left/right components whenever setComponentOrientation is called with a value
+      // different from its current one, including the JComponent default UNKNOWN
+      // orientation every fresh split pane starts with (JDK-8391317). Setting the
+      // orientation first, while there's nothing to swap yet, keeps that swap from
+      // firing later -- and incorrectly -- when an ancestor's applyComponentOrientation()
+      // call reaches this pane (see this class's constructor and
+      // HomeFramePane.displayView()).
+      mainPane.setComponentOrientation(ComponentOrientation.getOrientation(Locale.getDefault()));
+      mainPane.setLeftComponent(leftToRightOrientation ? catalogFurniturePane  : planView3DPane);
+      mainPane.setRightComponent(leftToRightOrientation ? planView3DPane  : catalogFurniturePane);
       // Set default divider location
       mainPane.setDividerLocation((int)((leftToRightOrientation ? 360 : 670) * SwingTools.getResolutionScale()));
       configureSplitPane(mainPane, home, MAIN_PANE_DIVIDER_LOCATION_VISUAL_PROPERTY,
@@ -3271,8 +3280,13 @@ public class HomePane extends JRootPane implements HomeView {
       return catalogView;
     } else {
       // Create a split pane that displays both components
-      JSplitPane catalogFurniturePane = new JSplitPane(JSplitPane.VERTICAL_SPLIT,
-          catalogView, furnitureView);
+      JSplitPane catalogFurniturePane = new JSplitPane(JSplitPane.VERTICAL_SPLIT);
+      // Set the orientation before adding any component (see the similar comment in
+      // createMainPane): avoids JDK-8391317 swapping catalogView/furnitureView the
+      // first time an ancestor's applyComponentOrientation() call reaches this pane.
+      catalogFurniturePane.setComponentOrientation(ComponentOrientation.getOrientation(Locale.getDefault()));
+      catalogFurniturePane.setTopComponent(catalogView);
+      catalogFurniturePane.setBottomComponent(furnitureView);
       catalogFurniturePane.setBorder(null);
       catalogFurniturePane.setMinimumSize(new Dimension());
       configureSplitPane(catalogFurniturePane, home,
@@ -3572,7 +3586,13 @@ public class HomePane extends JRootPane implements HomeView {
         int splitOrientation = preferences.getPlanView3DSplitOrientation() == PlanView3DSplitOrientation.HORIZONTAL_SPLIT
             ? JSplitPane.HORIZONTAL_SPLIT
             : JSplitPane.VERTICAL_SPLIT;
-        final JSplitPane planView3DSplitPane = new JSplitPane(splitOrientation, planView, view3D);
+        final JSplitPane planView3DSplitPane = new JSplitPane(splitOrientation);
+        // Set the orientation before adding any component (see the similar comment in
+        // createMainPane): avoids JDK-8391317 swapping planView/view3D the first time
+        // an ancestor's applyComponentOrientation() call reaches this pane.
+        planView3DSplitPane.setComponentOrientation(ComponentOrientation.getOrientation(Locale.getDefault()));
+        planView3DSplitPane.setLeftComponent(planView);
+        planView3DSplitPane.setRightComponent(view3D);
         planView3DSplitPane.setMinimumSize(new Dimension());
         this.planView3DSplitPane = planView3DSplitPane;
         configureSplitPane((JSplitPane)planView3DSplitPane, home,
